@@ -30,27 +30,17 @@ type WindowState = {
 
 const defaultWindowState: WindowState = {
   width: 1200,
-  height: 800,
+  height: 960,
 };
 
-// In dev, always start with a clean window state file
-if (isDev) {
-  try {
-    fs.rmSync(windowStateFile, { force: true });
-    console.log('[Window State] Dev mode: removed stored window state at', windowStateFile);
-  } catch (e) {
-    console.warn('[Window State] Dev mode: failed to remove stored window state', windowStateFile, e);
-  }
-}
-
 function loadWindowState(): WindowState {
-  // In dev, clear saved window state to keep local runs predictable
-  if (isDev && fs.existsSync(windowStateFile)) {
+  // If explicitly requested, clear saved state to force defaults
+  if (devReset && fs.existsSync(windowStateFile)) {
     try {
       fs.rmSync(windowStateFile);
-      console.log('[Window State] Cleared stored state for dev session');
+      console.log('[Window State] Cleared stored state for dev reset flag');
     } catch (e) {
-      console.warn('[Window State] Failed to clear dev state:', e);
+      console.warn('[Window State] Failed to clear state for dev reset:', e);
     }
   }
 
@@ -118,8 +108,8 @@ function createWindow(): void {
     x: hasPosition ? restoredState.x : undefined,
     y: hasPosition ? restoredState.y : undefined,
     center: !hasPosition,
-    minWidth: 800,
-    minHeight: 600,
+    minWidth: 400,
+    minHeight: 400,
     title: 'Messenger',
     icon: getIconPath(),
     webPreferences: {
