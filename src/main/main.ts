@@ -15,6 +15,7 @@ let notificationHandler: NotificationHandler;
 let badgeManager: BadgeManager;
 let backgroundService: BackgroundService;
 let isQuitting = false;
+let resetApplied = false;
 const windowStateFile = path.join(app.getPath('userData'), 'window-state.json');
 
 type WindowState = {
@@ -31,10 +32,11 @@ const defaultWindowState: WindowState = {
 
 function loadWindowState(): WindowState {
   // If explicitly requested, clear saved state to force defaults (window size/position only)
-  if (resetFlag && fs.existsSync(windowStateFile)) {
+  if (resetFlag && !resetApplied && fs.existsSync(windowStateFile)) {
     try {
       fs.rmSync(windowStateFile);
       console.log('[Window State] Cleared stored state for reset flag');
+      resetApplied = true;
     } catch (e) {
       console.warn('[Window State] Failed to clear state for reset flag:', e);
     }
