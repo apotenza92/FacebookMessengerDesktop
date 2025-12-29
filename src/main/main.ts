@@ -65,8 +65,11 @@ function ensureWindowInBounds(state: WindowState): WindowState {
   const safeWidth = Math.min(state.width, width);
   const safeHeight = Math.min(state.height, height);
 
-  const safeX = Math.max(x, Math.min((state.x ?? x), x + width - safeWidth));
-  const safeY = Math.max(y, Math.min((state.y ?? y), y + height - safeHeight));
+  const centeredX = Math.round(x + (width - safeWidth) / 2);
+  const centeredY = Math.round(y + (height - safeHeight) / 2);
+
+  const safeX = Math.max(x, Math.min((state.x ?? centeredX), x + width - safeWidth));
+  const safeY = Math.max(y, Math.min((state.y ?? centeredY), y + height - safeHeight));
 
   return { x: safeX, y: safeY, width: safeWidth, height: safeHeight };
 }
