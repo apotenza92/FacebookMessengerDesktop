@@ -1,0 +1,27 @@
+#!/usr/bin/env node
+
+/**
+ * Development script that sets up Electron with proper app name and icon
+ */
+
+const { spawn } = require('child_process');
+const path = require('path');
+const electron = require('electron');
+
+// Set environment variables to help with app identification
+process.env.ELECTRON_APP_NAME = 'Messenger';
+process.env.ELECTRON_APP_PATH = path.join(__dirname, '..');
+
+// Spawn Electron with our app
+const electronProcess = spawn(electron, [path.join(__dirname, '..')], {
+  stdio: 'inherit',
+  env: {
+    ...process.env,
+    ELECTRON_APP_NAME: 'Messenger',
+  },
+});
+
+electronProcess.on('close', (code) => {
+  process.exit(code);
+});
+

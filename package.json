@@ -1,0 +1,69 @@
+{
+  "name": "facebook-messenger-desktop",
+  "version": "1.0.0",
+  "description": "A self-contained desktop app for Facebook Messenger",
+  "main": "dist/main/main.js",
+  "scripts": {
+    "clean": "rm -rf dist",
+    "build": "npm run clean && tsc && tsc -p src/preload/tsconfig.json",
+    "start": "npm run build && npm run start:dev",
+    "start:dev": "node scripts/start-dev.js",
+    "start:built": "open release/mac/Messenger.app || release/mac/Messenger.app/Contents/MacOS/Messenger",
+    "dev": "tsc --watch",
+    "generate-icons": "node scripts/generate-icons.js",
+    "dist": "npm run build && electron-builder",
+    "dist:mac": "npm run build && electron-builder --mac",
+    "dist:win": "npm run build && electron-builder --win",
+    "dist:linux": "npm run build && electron-builder --linux"
+  },
+  "keywords": [
+    "messenger",
+    "facebook",
+    "desktop",
+    "electron"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "electron": "^28.0.0",
+    "electron-builder": "^24.9.1",
+    "sharp": "0.33.5",
+    "typescript": "^5.3.3"
+  },
+  "build": {
+    "appId": "com.facebook.messenger.desktop",
+    "productName": "Messenger",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "assets/**/*"
+    ],
+    "mac": {
+      "category": "public.app-category.social-networking",
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "icon": "assets/icons/icon.icns"
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "icon": "assets/icons/icon.ico"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb",
+        "rpm"
+      ],
+      "category": "Network",
+      "icon": "assets/icons/icon.png"
+    }
+  }
+}
