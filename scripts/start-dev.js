@@ -73,9 +73,14 @@ if (needsRebuild) {
 if (appPath) {
   console.log('Launching Messenger app from:', appPath);
   try {
-    execSync(`open "${appPath}"`, {
+    execSync(`open "${appPath}" --args --messenger-dev-state-reset`, {
       cwd: path.join(__dirname, '..'),
       stdio: 'inherit',
+      env: {
+        ...process.env,
+        MESSENGER_DEV_STATE_RESET: '1',
+        NODE_ENV: 'development',
+      },
     });
   } catch (e) {
     console.error('Failed to launch app:', e);
