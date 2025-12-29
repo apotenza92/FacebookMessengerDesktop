@@ -8,12 +8,6 @@ import { BackgroundService } from './background-service';
 const devReset = process.env.MESSENGER_DEV_STATE_RESET === '1' || process.argv.includes('--messenger-dev-state-reset');
 const isDev = !app.isPackaged || process.env.NODE_ENV === 'development';
 
-// Use separate userData for dev so persisted state doesn't leak between prod/dev
-if (isDev) {
-  const devUserData = path.join(app.getPath('userData'), 'MessengerDev');
-  app.setPath('userData', devUserData);
-}
-
 let mainWindow: BrowserWindow | null = null;
 let notificationHandler: NotificationHandler;
 let badgeManager: BadgeManager;
