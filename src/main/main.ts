@@ -5,6 +5,14 @@ import { NotificationHandler } from './notification-handler';
 import { BadgeManager } from './badge-manager';
 import { BackgroundService } from './background-service';
 
+const isDev = process.env.NODE_ENV === 'development';
+
+// Use separate userData for dev so persisted state doesn't leak between prod/dev
+if (isDev) {
+  const devUserData = path.join(app.getPath('userData'), 'MessengerDev');
+  app.setPath('userData', devUserData);
+}
+
 let mainWindow: BrowserWindow | null = null;
 let notificationHandler: NotificationHandler;
 let badgeManager: BadgeManager;
@@ -83,8 +91,6 @@ function ensureWindowInBounds(state: WindowState): WindowState {
 
   return { x: safeX, y: safeY, width: safeWidth, height: safeHeight };
 }
-
-const isDev = process.env.NODE_ENV === 'development';
 
 // Set app name early (before app is ready)
 app.setName('Messenger');
