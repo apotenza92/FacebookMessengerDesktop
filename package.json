@@ -52,8 +52,6 @@
       "icon": "assets/icons/icon.icns",
       "notarize": {
         "teamId": "${env.APPLE_TEAM_ID}",
-        "appleId": "${env.APPLE_ID}",
-        "appleIdPassword": "${env.APPLE_APP_SPECIFIC_PASSWORD}",
         "appBundleId": "com.facebook.messenger.desktop"
       }
     },
