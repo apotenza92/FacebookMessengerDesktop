@@ -25,6 +25,16 @@ const defaultWindowState: WindowState = {
 };
 
 function loadWindowState(): WindowState {
+  // In dev, clear saved window state to keep local runs predictable
+  if (isDev && fs.existsSync(windowStateFile)) {
+    try {
+      fs.rmSync(windowStateFile);
+      console.log('[Window State] Cleared stored state for dev session');
+    } catch (e) {
+      console.warn('[Window State] Failed to clear dev state:', e);
+    }
+  }
+
   try {
     if (fs.existsSync(windowStateFile)) {
       const raw = fs.readFileSync(windowStateFile, 'utf8');
