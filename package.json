@@ -6,7 +6,7 @@
   "scripts": {
     "clean": "rm -rf dist",
     "build": "npm run clean && tsc && tsc -p src/preload/tsconfig.json",
-    "start": "npm run build && npm run start:dev",
+    "start": "npm run build && npm run start:dev --",
     "start:dev": "node scripts/start-dev.js",
     "generate-icons": "node scripts/generate-icons.js",
     "dist": "npm run build && electron-builder --publish=never",
