@@ -89,7 +89,7 @@ jobs:
         run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
 
       - name: Prepare release notes
-        run: |
+        run: |-
           set -euo pipefail
           VERSION="${{ steps.tag_version.outputs.VERSION }}"
           NOTES=release_notes.txt
@@ -105,7 +105,7 @@ jobs:
           fi
 
           if [ "$use_default" = true ]; then
-            cat <<EOF > "$NOTES"
+            cat <<'EOF' > "$NOTES"
 ## What's Changed
 
 Full changelog: ${DEFAULT_NOTES_URL}
