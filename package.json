@@ -8,13 +8,8 @@
     "build": "npm run clean && tsc && tsc -p src/preload/tsconfig.json",
     "start": "npm run build && npm run start:dev",
     "start:dev": "node scripts/start-dev.js",
-    "start:built": "open release/mac/Messenger.app || release/mac/Messenger.app/Contents/MacOS/Messenger",
-    "dev": "tsc --watch",
     "generate-icons": "node scripts/generate-icons.js",
-    "dist": "npm run build && electron-builder",
-    "dist:mac": "npm run build && electron-builder --mac",
-    "dist:win": "npm run build && electron-builder --win",
-    "dist:linux": "npm run build && electron-builder --linux"
+    "dist": "npm run build && electron-builder"
   },
   "keywords": [
     "messenger",
