@@ -32,6 +32,16 @@ const defaultWindowState: WindowState = {
   height: 800,
 };
 
+// In dev, always start with a clean window state file
+if (isDev) {
+  try {
+    fs.rmSync(windowStateFile, { force: true });
+    console.log('[Window State] Dev mode: removed stored window state');
+  } catch (e) {
+    console.warn('[Window State] Dev mode: failed to remove stored window state', e);
+  }
+}
+
 function loadWindowState(): WindowState {
   // In dev, clear saved window state to keep local runs predictable
   if (isDev && fs.existsSync(windowStateFile)) {
