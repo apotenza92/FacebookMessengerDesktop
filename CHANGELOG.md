@@ -1,6 +1,15 @@
 # Changelog
 
-# Changelog
+## [0.1.5] - 2025-12-30
+
+### Added
+- In-app uninstall command wipes Messenger data (user data, logs, temp) after quit with clearer prompts.
+- Uninstall scheduling runs cleanup after exit to avoid immediate re-creation.
+
+### Fixed
+- Consistent `userData`/logs path pinned to `Messenger` to avoid spawning `facebook-messenger-desktop`.
+- Window state uses pinned path; reset flags still supported.
+- Mac build now produces separate arm64 and x64 DMGs with clearer names; Windows/Linux artifacts named more plainly.
 
 ## [0.1.4] - 2025-12-30
 

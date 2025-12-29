@@ -1,4 +1,5 @@
-import { app, BrowserWindow, ipcMain, Notification, Menu, nativeImage, screen } from 'electron';
+import { app, BrowserWindow, ipcMain, Notification, Menu, nativeImage, screen, dialog } from 'electron';
+import { spawn } from 'child_process';
 import * as path from 'path';
 import * as fs from 'fs';
 import { NotificationHandler } from './notification-handler';
@@ -16,7 +17,6 @@ let badgeManager: BadgeManager;
 let backgroundService: BackgroundService;
 let isQuitting = false;
 let resetApplied = false;
-const windowStateFile = path.join(app.getPath('userData'), 'window-state.json');
 
 type WindowState = {
   x?: number;
@@ -29,6 +29,49 @@ const defaultWindowState: WindowState = {
   width: 1000,
   height: 750,
 };
+
+// Set app name early and explicitly pin userData/log paths so they don't default to the package name
+const APP_DIR_NAME = 'Messenger';
+app.setName(APP_DIR_NAME);
+const userDataPath = path.join(app.getPath('appData'), APP_DIR_NAME);
+app.setPath('userData', userDataPath);
+app.setPath('logs', path.join(userDataPath, 'logs'));
+
+const windowStateFile = path.join(app.getPath('userData'), 'window-state.json');
+
+const uninstallTargets = () => {
+  // Only remove app-owned temp directory to avoid touching system temp roots
+  const tempDir = path.join(app.getPath('temp'), app.getName());
+
+  return [
+    { label: 'User data', path: app.getPath('userData') },
+    { label: 'Temporary files', path: tempDir },
+    { label: 'Logs', path: app.getPath('logs') },
+  ];
+};
+
+function scheduleExternalCleanup(paths: string[]): void {
+  const filtered = paths.filter(Boolean);
+  if (filtered.length === 0) return;
+
+  if (process.platform === 'win32') {
+    const quoted = filtered.map((p) => `\\"${p}\\"`).join(',');
+    const cmd = `Start-Sleep -Seconds 1; Remove-Item -LiteralPath ${quoted} -Recurse -Force -ErrorAction SilentlyContinue`;
+    const child = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', cmd], {
+      detached: true,
+      stdio: 'ignore',
+    });
+    child.unref();
+    return;
+  }
+
+  const quoted = filtered.map((p) => `"${p.replace(/"/g, '\\"')}"`).join(' ');
+  const child = spawn('/bin/sh', ['-c', `sleep 1; rm -rf ${quoted}`], {
+    detached: true,
+    stdio: 'ignore',
+  });
+  child.unref();
+}
 
 function loadWindowState(): WindowState {
   // If explicitly requested, clear saved state to force defaults (window size/position only)
@@ -92,9 +135,6 @@ function ensureWindowInBounds(state: WindowState): WindowState {
 
   return { x: safeX, y: safeY, width: safeWidth, height: safeHeight };
 }
-
-// Set app name early (before app is ready)
-app.setName('Messenger');
 
 function createWindow(): void {
   const restoredState = ensureWindowInBounds(loadWindowState());
@@ -276,16 +316,100 @@ function getIconPath(): string | undefined {
   return undefined;
 }
 
+async function handleUninstallRequest(): Promise<void> {
+  const detailByPlatform: Record<NodeJS.Platform, string> = {
+    darwin:
+      'This removes Messenger app data (settings, cache, logs) from this Mac.\nTo fully remove the application bundle, move Messenger.app to the Trash after this finishes.',
+    win32:
+      'This removes Messenger app data (settings, cache, logs) from this PC.\nTo fully uninstall the app, remove it from Apps & Features after this finishes.',
+    linux:
+      'This removes Messenger app data (settings, cache, logs) from this machine.\nIf you installed from a package manager, remove the package separately after this finishes.',
+    aix: 'This removes Messenger app data (settings, cache, logs).',
+    android: 'This removes Messenger app data (settings, cache, logs).',
+    freebsd: 'This removes Messenger app data (settings, cache, logs).',
+    haiku: 'This removes Messenger app data (settings, cache, logs).',
+    openbsd: 'This removes Messenger app data (settings, cache, logs).',
+    sunos: 'This removes Messenger app data (settings, cache, logs).',
+    cygwin: 'This removes Messenger app data (settings, cache, logs).',
+    netbsd: 'This removes Messenger app data (settings, cache, logs).',
+  };
+
+  const { response } = await dialog.showMessageBox({
+    type: 'warning',
+    buttons: ['Uninstall', 'Cancel'],
+    defaultId: 0,
+    cancelId: 1,
+    title: 'Uninstall Messenger',
+    message: 'Remove all Messenger data from this device?',
+    detail: detailByPlatform[process.platform] || detailByPlatform.linux,
+  });
+
+  if (response !== 0) {
+    return;
+  }
+
+  await dialog.showMessageBox({
+    type: 'info',
+    buttons: ['Quit Messenger'],
+    defaultId: 0,
+    title: 'Uninstall complete',
+    message: 'Messenger will quit and remove its data.',
+    detail:
+      process.platform === 'darwin'
+        ? 'If you want to remove the application itself, move Messenger.app to the Trash.'
+        : process.platform === 'win32'
+        ? 'If you want to remove the application itself, uninstall Messenger from Apps & Features.'
+        : 'If you want to remove the application itself, uninstall it using your package manager or delete the AppImage/binary.',
+  });
+
+  // Perform deletion after the app exits to avoid Electron recreating files (Crashpad, logs, etc.)
+  const targets = uninstallTargets().map((t) => t.path);
+  scheduleExternalCleanup(targets);
+
+  app.quit();
+}
+
 // IPC Handlers
 function createApplicationMenu(): void {
-  // On macOS, use native menu (no customizations)
-  // Electron will provide default native menus automatically
+  const uninstallMenuItem: Electron.MenuItemConstructorOptions = {
+    label: 'Uninstall Messenger…',
+    click: () => {
+      void handleUninstallRequest();
+    },
+  };
+
   if (process.platform === 'darwin') {
+    const template: Electron.MenuItemConstructorOptions[] = [
+      {
+        label: app.name,
+        submenu: [
+          { role: 'about' as const },
+          { type: 'separator' },
+          uninstallMenuItem,
+          { type: 'separator' },
+          { role: 'services' as const },
+          { type: 'separator' },
+          { role: 'hide' as const },
+          { role: 'hideOthers' as const },
+          { role: 'unhide' as const },
+          { type: 'separator' },
+          { role: 'quit' as const },
+        ],
+      },
+      { role: 'editMenu' as const },
+      { role: 'viewMenu' as const },
+    ];
+    const menu = Menu.buildFromTemplate(template);
+    Menu.setApplicationMenu(menu);
     return;
   }
 
   // For other platforms, provide basic menus
   const template: Electron.MenuItemConstructorOptions[] = [
+    {
+      label: 'File',
+      submenu: [uninstallMenuItem, { type: 'separator' }, { role: 'quit' as const }],
+    },
     {
       label: 'Edit',
       submenu: [

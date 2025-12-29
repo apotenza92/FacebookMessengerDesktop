@@ -1,16 +1,16 @@
 {
   "name": "facebook-messenger-desktop",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "A self-contained desktop app for Facebook Messenger",
   "main": "dist/main/main.js",
   "scripts": {
-    "clean": "rm -rf dist",
+    "clean": "rm -rf dist release",
     "build": "npm run clean && tsc && tsc -p src/preload/tsconfig.json",
     "start": "npm run build && npm run start:dev --",
     "start:dev": "node scripts/start-dev.js",
     "generate-icons": "node scripts/generate-icons.js",
     "dist": "npm run build && electron-builder --publish=never",
-    "dist:mac": "npm run build && electron-builder --mac --publish=never",
+    "dist:mac": "npm run build && electron-builder --mac --arm64 --x64 --publish=never",
     "dist:win": "npm run build && electron-builder --win --publish=never",
     "dist:linux": "npm run build && electron-builder --linux --publish=never",
     "dist:all": "npm run build && electron-builder --mac --win --linux --publish=never"
@@ -47,33 +47,34 @@
     "mac": {
       "category": "public.app-category.social-networking",
       "target": [
-        "dmg"
+        { "target": "dmg", "arch": ["arm64"] },
+        { "target": "dmg", "arch": ["x64"] }
       ],
       "icon": "assets/icons/icon.icns",
       "notarize": {
-        "appBundleId": "com.facebook.messenger.desktop",
         "teamId": "${env.APPLE_TEAM_ID}"
-      }
+      },
+      "artifactName": "Messenger-${version}-macos-${arch}.${ext}"
     },
     "win": {
       "target": [
         "nsis"
       ],
       "icon": "assets/icons/icon.ico",
-      "artifactName": "Messenger-${version}-setup.${ext}"
+      "artifactName": "Messenger-${version}-windows-setup.${ext}"
     },
     "nsis": {
       "differentialPackage": false
     },
     "dmg": {
-      "artifactName": "Messenger-${version}.${ext}"
     },
     "linux": {
       "target": [
         "AppImage"
       ],
       "category": "Network",
-      "icon": "assets/icons/icon.png"
+      "icon": "assets/icons/icon.png",
+      "artifactName": "Messenger-${version}-linux.${ext}"
     }
   }
 }
