@@ -49,11 +49,21 @@ jobs:
         run: npm run build
         timeout-minutes: 5
 
-      - name: Build distributables
+      - name: Build distributables (mac signed/notarized)
+        if: matrix.platform == 'mac'
         run: npm run dist:${{ matrix.platform }}
         timeout-minutes: 30
-        # Optional code signing: Add env vars for CSC_LINK, CSC_KEY_PASSWORD, etc.
-        # See README for details on setting up GitHub secrets
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+
+      - name: Build distributables
+        if: matrix.platform != 'mac'
+        run: npm run dist:${{ matrix.platform }}
+        timeout-minutes: 30
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4

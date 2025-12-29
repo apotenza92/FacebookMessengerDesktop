@@ -2,6 +2,11 @@
 
 # Changelog
 
+## [0.1.4] - 2025-12-30
+
+### Fixed
+- macOS release artifacts are now signed and notarized (CI wired with Apple Developer credentials).
+
 ## [0.1.3] - 2025-12-30
 
 ### Fixed
