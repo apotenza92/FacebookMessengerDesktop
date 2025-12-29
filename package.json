@@ -49,10 +49,7 @@
       "target": [
         "dmg"
       ],
-      "icon": "assets/icons/icon.icns",
-      "dmg": {
-        "artifactName": "Messenger-${version}.${ext}"
-      }
+      "icon": "assets/icons/icon.icns"
     },
     "win": {
       "target": [
@@ -63,6 +60,9 @@
     },
     "nsis": {
       "differentialPackage": false
+    },
+    "dmg": {
+      "artifactName": "Messenger-${version}.${ext}"
     },
     "linux": {
       "target": [
