@@ -5,7 +5,7 @@ import { NotificationHandler } from './notification-handler';
 import { BadgeManager } from './badge-manager';
 import { BackgroundService } from './background-service';
 
-const isDev = process.env.NODE_ENV === 'development';
+const isDev = !app.isPackaged || process.env.NODE_ENV === 'development';
 
 // Use separate userData for dev so persisted state doesn't leak between prod/dev
 if (isDev) {
