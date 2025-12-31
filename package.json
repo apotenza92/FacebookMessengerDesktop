@@ -1,16 +1,17 @@
 {
   "name": "facebook-messenger-desktop",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "A self-contained desktop app for Facebook Messenger",
   "main": "dist/main/main.js",
   "scripts": {
     "clean": "rm -rf dist release",
     "build": "npm run clean && tsc && tsc -p src/preload/tsconfig.json",
-    "start": "npm run build && npm run start:dev --",
-    "start:dev": "node scripts/start-dev.js",
+    "start": "npm run build && node scripts/dev.js",
     "generate-icons": "node scripts/generate-icons.js",
     "dist": "npm run build && electron-builder --publish=never",
-    "dist:mac": "npm run build && electron-builder --mac --arm64 --x64 --publish=never",
+    "dist:mac": "npm run build && electron-builder --mac --arm64 --x64 --publish=never && node scripts/build-dmg.js --all",
+    "dist:mac:arm": "npm run build && electron-builder --mac --arm64 --publish=never && node scripts/build-dmg.js --arm64",
+    "dist:mac:x64": "npm run build && electron-builder --mac --x64 --publish=never && node scripts/build-dmg.js --x64",
     "dist:win": "npm run build && electron-builder --win --publish=never",
     "dist:linux": "npm run build && electron-builder --linux --publish=never",
     "dist:all": "npm run build && electron-builder --mac --win --linux --publish=never"
@@ -26,11 +27,14 @@
     "email": "apotenza92@gmail.com"
   },
   "license": "MIT",
+  "dependencies": {
+    "electron-updater": "^6.1.8"
+  },
   "devDependencies": {
     "@types/node": "^20.10.0",
+    "appdmg": "0.6.6",
     "electron": "^28.0.0",
     "electron-builder": "^24.9.1",
-    "electron-updater": "^6.1.8",
     "png-to-ico": "^2.1.8",
     "sharp": "0.33.5",
     "typescript": "^5.3.3"
@@ -54,10 +58,7 @@
     ],
     "mac": {
       "category": "public.app-category.social-networking",
-      "target": [
-        { "target": "dmg", "arch": ["arm64"] },
-        { "target": "dmg", "arch": ["x64"] }
-      ],
+      "target": "dir",
       "icon": "assets/icons/icon.icns",
       "notarize": {
         "teamId": "27JL2VERNC"
@@ -75,7 +76,26 @@
       "differentialPackage": false
     },
     "dmg": {
-    "icon": "assets/icons/icon.icns"
+      "icon": "assets/icons/dmg-icon.icns",
+      "iconSize": 128,
+      "iconTextSize": 14,
+      "window": {
+        "width": 680,
+        "height": 420
+      },
+      "contents": [
+        {
+          "x": 150,
+          "y": 220,
+          "type": "file"
+        },
+        {
+          "x": 520,
+          "y": 220,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ]
     },
     "linux": {
       "target": [

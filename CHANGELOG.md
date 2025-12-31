@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.1.7] - 2026-01-01
+
+### Added
+- Custom DMG installer with branded background and icon for macOS
+
+### Improved
+- Notification fallback system now correctly identifies the sender by reading the newest thread from the chat list
+- Simplified development workflow: `npm run start` for local testing, `npm run dist:*` for releases
+- Auto-updater only runs in production builds (skipped in development mode)
+
+### Fixed
+- Notifications now show the correct sender name and message preview instead of the currently open conversation
+- "Check for Updates" menu item disabled in development mode to avoid errors
+- Removed redundant `start-dev.js` script in favor of simpler `dev.js`
+
+## [0.1.6] - 2025-12-31
+
+### Added
+- Fallback notification system for when Messenger's service worker is unavailable
+- Title-based unread count detection triggers native notifications
+
 ## [0.1.5] - 2025-12-30
 
 ### Added

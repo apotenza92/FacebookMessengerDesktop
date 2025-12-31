@@ -23,15 +23,19 @@ try {
 const svgPath = path.join(__dirname, '../assets/icons/messenger-icon.svg');
 const iconsDir = path.join(__dirname, '../assets/icons');
 const trayDir = path.join(__dirname, '../assets/tray');
+const dmgDir = path.join(__dirname, '../assets/dmg');
+
+const DMG_WINDOW_WIDTH = 680;
+const DMG_WINDOW_HEIGHT = 420;
 
 // Ensure directories exist
-[iconsDir, trayDir].forEach(dir => {
+[iconsDir, trayDir, dmgDir].forEach(dir => {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
 });
 
-// Helper function to generate icon with white background
+// Helper function to generate icon with white background (Windows/Linux)
 async function generateIconWithWhiteBackground(svgBuffer, size, outputPath) {
   // Scale icon to 80% of size to add padding (10% margin on each side)
   const iconSize = Math.floor(size * 0.8);
@@ -62,6 +66,90 @@ async function generateIconWithWhiteBackground(svgBuffer, size, outputPath) {
     .removeAlpha() // Remove any alpha channel
     .png()
     .toFile(outputPath);
+}
+
+// Helper function to generate macOS icon with rounded white background
+// macOS expects icons with rounded corners (squircle shape) for proper shadow rendering
+async function generateIconWithRoundedWhiteBackground(svgBuffer, size, outputPath) {
+  // Scale icon to 80% of size to add padding (10% margin on each side)
+  const iconSize = Math.floor(size * 0.8);
+  const padding = Math.floor((size - iconSize) / 2);
+  
+  // macOS icon corner radius is approximately 22.37% of icon size (Big Sur style)
+  const cornerRadius = Math.floor(size * 0.2237);
+  
+  // Create rounded rectangle mask SVG
+  const roundedRectSvg = `
+    <svg width="${size}" height="${size}">
+      <rect x="0" y="0" width="${size}" height="${size}" rx="${cornerRadius}" ry="${cornerRadius}" fill="white"/>
+    </svg>
+  `;
+  
+  // Resize SVG to fit with padding
+  const svgResized = await sharp(svgBuffer)
+    .resize(iconSize, iconSize)
+    .png()
+    .toBuffer();
+  
+  // Create the rounded white background
+  const roundedWhiteBg = await sharp(Buffer.from(roundedRectSvg))
+    .png()
+    .toBuffer();
+  
+  // Composite: rounded white background + messenger icon on top
+  return sharp(roundedWhiteBg)
+    .composite([{ 
+      input: svgResized, 
+      blend: 'over',
+      left: padding,
+      top: padding
+    }])
+    .png()
+    .toFile(outputPath);
+}
+
+// Helper for transparent-background icons (used for DMG volume icon)
+async function generateIconWithTransparentBackground(svgBuffer, size, outputPath) {
+  return sharp(svgBuffer)
+    .resize(size, size, {
+      fit: 'contain',
+      background: { r: 0, g: 0, b: 0, alpha: 0 },
+    })
+    .png()
+    .toFile(outputPath);
+}
+
+function buildDmgBackgroundSvg(width, height, scale = 1) {
+  // Super simple: white background with just an arrow between icons
+  const s = (v) => v * scale;
+  
+  const centerY = s(220);
+  // Arrow centered between icons at x=180 and x=500
+  const arrowStartX = s(260);
+  const arrowEndX = s(420);
+  const arrowSize = s(18);
+  const strokeWidth = s(3);
+
+  return `
+<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
+  <rect x="0" y="0" width="${width}" height="${height}" fill="#ffffff"/>
+  <defs>
+    <marker id="arrowhead" markerWidth="${arrowSize}" markerHeight="${arrowSize}" refX="${arrowSize * 0.9}" refY="${arrowSize / 2}" orient="auto">
+      <path d="M0,${arrowSize * 0.1} L${arrowSize * 0.9},${arrowSize / 2} L0,${arrowSize * 0.9} z" fill="#c7c7cc"/>
+    </marker>
+  </defs>
+  <path d="M ${arrowStartX} ${centerY} L ${arrowEndX} ${centerY}" stroke="#c7c7cc" stroke-width="${strokeWidth}" marker-end="url(#arrowhead)" stroke-linecap="round"/>
+</svg>
+`;
+}
+
+async function generateDmgBackground() {
+  // Generate at 2x resolution for Retina displays
+  const scale = 2;
+  const svg = buildDmgBackgroundSvg(DMG_WINDOW_WIDTH * scale, DMG_WINDOW_HEIGHT * scale, scale);
+  await sharp(Buffer.from(svg))
+    .png()
+    .toFile(path.join(dmgDir, 'dmg-background.png'));
 }
 
 async function generateIcons() {
@@ -122,7 +210,8 @@ async function generateIcons() {
     ];
     
     for (const { name, size } of iconsetSizes) {
-      await generateIconWithWhiteBackground(svgBuffer, size, path.join(iconsetDir, name));
+      // macOS icons need rounded corners so the system can apply proper shadows
+      await generateIconWithRoundedWhiteBackground(svgBuffer, size, path.join(iconsetDir, name));
     }
     
     // Generate ICNS file using iconutil (macOS only)
@@ -141,7 +230,36 @@ async function generateIcons() {
     } else {
       console.log('⚠ ICNS generation skipped (requires macOS). Use an online converter if needed.');
     }
-    
+
+    console.log('Generating DMG volume icon (transparent)...');
+    const dmgIconsetDir = path.join(iconsDir, 'dmg-icon.iconset');
+    if (!fs.existsSync(dmgIconsetDir)) {
+      fs.mkdirSync(dmgIconsetDir, { recursive: true });
+    }
+
+    for (const { name, size } of iconsetSizes) {
+      await generateIconWithTransparentBackground(svgBuffer, size, path.join(dmgIconsetDir, name));
+    }
+
+    if (process.platform === 'darwin') {
+      console.log('Generating DMG ICNS file...');
+      const { execSync } = require('child_process');
+      try {
+        execSync(`iconutil -c icns "${dmgIconsetDir}" -o "${path.join(iconsDir, 'dmg-icon.icns')}"`, {
+          stdio: 'inherit'
+        });
+        console.log('✓ DMG ICNS file generated successfully!');
+      } catch (error) {
+        console.warn('⚠ Could not generate DMG ICNS file. You may need to run manually:');
+        console.warn(`  iconutil -c icns "${dmgIconsetDir}" -o "${path.join(iconsDir, 'dmg-icon.icns')}"`);
+      }
+    } else {
+      console.log('⚠ DMG ICNS generation skipped (requires macOS). Use an online converter if needed.');
+    }
+
+    console.log('Generating DMG background...');
+    await generateDmgBackground();
+
     console.log('✓ Icons generated successfully!');
     
   } catch (error) {

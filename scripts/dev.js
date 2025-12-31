@@ -17,6 +17,7 @@ const electronProcess = spawn(electron, [path.join(__dirname, '..')], {
   stdio: 'inherit',
   env: {
     ...process.env,
+    NODE_ENV: 'development',
     ELECTRON_APP_NAME: 'Messenger',
   },
 });

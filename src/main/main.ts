@@ -165,7 +165,7 @@ function createWindow(): void {
   // Load messenger.com
   mainWindow.loadURL('https://www.messenger.com');
 
-  // Inject notification override script after page loads (like Caprine does)
+  // Inject notification override script after page loads
   mainWindow.webContents.on('did-finish-load', async () => {
     try {
       // First, inject a bridge function and listener that forwards custom events to postMessage
@@ -199,50 +199,6 @@ function createWindow(): void {
         console.log('[Main Process] Notification override script injected successfully');
       } else {
         console.warn('[Main Process] Notification script not found at:', notificationScriptPath);
-        // Fallback: inject inline script
-        await mainWindow?.webContents.executeJavaScript(`
-          (function() {
-            const augmentedNotification = Object.assign(
-              class {
-                constructor(title, options) {
-                  // Handle React props (Messenger uses React)
-                  let {body} = options || {};
-                  const bodyProperties = body?.props;
-                  body = bodyProperties ? bodyProperties.content?.[0] : (options?.body || '');
-                  
-                  const titleProperties = title?.props;
-                  title = titleProperties ? titleProperties.content?.[0] : (title || '');
-                  
-                  // Use bridge function if available
-                  if (window.__electronNotificationBridge) {
-                    window.__electronNotificationBridge({
-                      title: String(title),
-                      body: String(body),
-                      icon: options?.icon,
-                      tag: options?.tag,
-                      silent: options?.silent,
-                    });
-                  }
-                }
-                close() {}
-                static requestPermission() { return Promise.resolve('granted'); }
-                static get permission() { return 'granted'; }
-              },
-              Notification
-            );
-            Object.assign(window, {Notification: augmentedNotification});
-            try {
-              Object.defineProperty(window, 'Notification', {
-                value: augmentedNotification,
-                writable: false,
-                configurable: false,
-                enumerable: true,
-              });
-            } catch (e) {}
-            console.log('[Notification Inject] Override applied');
-          })();
-        `);
-        console.log('[Main Process] Injected fallback notification override');
       }
     } catch (error) {
       console.error('[Main Process] Failed to inject notification script:', error);
@@ -381,7 +337,17 @@ function createApplicationMenu(): void {
 
   const checkUpdatesMenuItem: Electron.MenuItemConstructorOptions = {
     label: 'Check for Updates…',
+    enabled: !isDev,
     click: () => {
+      if (isDev) {
+        dialog.showMessageBox({
+          type: 'info',
+          title: 'Development Mode',
+          message: 'Auto-updates are disabled in development mode.',
+          buttons: ['OK'],
+        }).catch(() => {});
+        return;
+      }
       autoUpdater.checkForUpdatesAndNotify().catch((err: unknown) => {
         console.warn('[AutoUpdater] manual check failed', err);
         dialog.showMessageBox({
@@ -507,6 +473,17 @@ function setupIpcHandlers(): void {
   ipcMain.on('test-notification', () => {
     testNotification();
   });
+
+  // Handle fallback debug logs from preload/page
+  ipcMain.on('log-fallback', (_event, data) => {
+    try {
+      const { event: name, payload } = data || {};
+      const safeName = name || 'fallback';
+      console.log('[FallbackLog]', safeName, payload || {});
+    } catch (e) {
+      console.warn('[FallbackLog] Failed to log fallback message', e);
+    }
+  });
 }
 
 // Test notification function
@@ -555,40 +532,44 @@ function getDockIconPath(): string | undefined {
 
 // App lifecycle
 app.whenReady().then(() => {
-  // Auto-updater setup
-  try {
-    autoUpdater.autoDownload = true;
-    autoUpdater.logger = console;
-    autoUpdater.on('update-available', () => {
-      dialog.showMessageBox({
-        type: 'info',
-        title: 'Update available',
-        message: 'A new version is available. It will download in the background.',
-        buttons: ['OK'],
-      }).catch(() => {});
-    });
-    autoUpdater.on('update-downloaded', () => {
-      dialog.showMessageBox({
-        type: 'info',
-        title: 'Update ready',
-        message: 'Update downloaded. Restart to install now?',
-        buttons: ['Restart Now', 'Later'],
-        cancelId: 1,
-        defaultId: 0,
-      }).then(({ response }) => {
-        if (response === 0) {
-          autoUpdater.quitAndInstall();
-        }
-      }).catch(() => {});
-    });
-    autoUpdater.on('error', (err: unknown) => {
-      console.warn('[AutoUpdater] error', err);
-    });
-    autoUpdater.checkForUpdatesAndNotify().catch((err: unknown) => {
-      console.warn('[AutoUpdater] check failed', err);
-    });
-  } catch (e) {
-    console.warn('[AutoUpdater] init failed', e);
+  // Auto-updater setup (skip in dev mode - app-update.yml only exists in published builds)
+  if (!isDev) {
+    try {
+      autoUpdater.autoDownload = true;
+      autoUpdater.logger = console;
+      autoUpdater.on('update-available', () => {
+        dialog.showMessageBox({
+          type: 'info',
+          title: 'Update available',
+          message: 'A new version is available. It will download in the background.',
+          buttons: ['OK'],
+        }).catch(() => {});
+      });
+      autoUpdater.on('update-downloaded', () => {
+        dialog.showMessageBox({
+          type: 'info',
+          title: 'Update ready',
+          message: 'Update downloaded. Restart to install now?',
+          buttons: ['Restart Now', 'Later'],
+          cancelId: 1,
+          defaultId: 0,
+        }).then(({ response }) => {
+          if (response === 0) {
+            autoUpdater.quitAndInstall();
+          }
+        }).catch(() => {});
+      });
+      autoUpdater.on('error', (err: unknown) => {
+        console.warn('[AutoUpdater] error', err);
+      });
+      autoUpdater.checkForUpdatesAndNotify().catch((err: unknown) => {
+        console.warn('[AutoUpdater] check failed', err);
+      });
+    } catch (e) {
+      console.warn('[AutoUpdater] init failed', e);
+    }
+  } else {
+    console.log('[AutoUpdater] Skipped in development mode');
   }
 
   // Set dock icon for macOS (must be done after app is ready)

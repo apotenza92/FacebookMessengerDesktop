@@ -58,36 +58,63 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Also listen for messages (fallback)
   window.addEventListener('message', (event: MessageEvent) => {
     // Only process messages from the same origin (our injected script)
-    if (event.data && typeof event.data === 'object' && event.data.type === 'electron-notification') {
-      const data = event.data.data;
-      
-      // Convert icon if it's a data URL (handle image loading like Caprine does)
-      if (data.icon) {
-        const image = new Image();
-        image.crossOrigin = 'anonymous';
+    if (event.data && typeof event.data === 'object') {
+      if (event.data.type === 'electron-notification') {
+        const data = event.data.data;
+        try {
+          console.log('[Preload Bridge] Received electron-notification', {
+            title: data?.title,
+            hasIcon: Boolean(data?.icon),
+            tag: data?.tag,
+            id: data?.id,
+          });
+        } catch (_) {}
         
-        image.addEventListener('load', () => {
-          const canvas = document.createElement('canvas');
-          const context = canvas.getContext('2d');
-          if (context) {
-            canvas.width = image.width;
-            canvas.height = image.height;
-            context.drawImage(image, 0, 0);
-            
-            const iconDataUrl = canvas.toDataURL();
+        // Convert icon if it's a data URL
+        if (data.icon) {
+          const image = new Image();
+          image.crossOrigin = 'anonymous';
+          
+          image.addEventListener('load', () => {
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            if (context) {
+              canvas.width = image.width;
+              canvas.height = image.height;
+              context.drawImage(image, 0, 0);
+              
+              const iconDataUrl = canvas.toDataURL();
+              ipcRenderer.send('show-notification', {
+                title: data.title,
+                body: data.body,
+                icon: iconDataUrl,
+                tag: data.tag,
+                silent: data.silent,
+                id: data.id,
+              });
+              try {
+                console.log('[Preload Bridge] Sent notification with icon to main', { id: data.id, title: data.title });
+              } catch (_) {}
+            }
+          });
+          
+          image.addEventListener('error', () => {
+            // If image loading fails, send without icon
             ipcRenderer.send('show-notification', {
               title: data.title,
               body: data.body,
-              icon: iconDataUrl,
               tag: data.tag,
               silent: data.silent,
               id: data.id,
             });
-          }
-        });
-        
-        image.addEventListener('error', () => {
-          // If image loading fails, send without icon
+            try {
+              console.warn('[Preload Bridge] Icon load failed, sent without icon', { id: data.id, title: data.title });
+            } catch (_) {}
+          });
+          
+          image.src = data.icon;
+        } else {
+          // No icon, send directly
           ipcRenderer.send('show-notification', {
             title: data.title,
             body: data.body,
@@ -95,18 +122,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
             silent: data.silent,
             id: data.id,
           });
-        });
-        
-        image.src = data.icon;
-      } else {
-        // No icon, send directly
-        ipcRenderer.send('show-notification', {
-          title: data.title,
-          body: data.body,
-          tag: data.tag,
-          silent: data.silent,
-          id: data.id,
-        });
+          try {
+            console.log('[Preload Bridge] Sent notification without icon to main', { id: data.id, title: data.title });
+          } catch (_) {}
+        }
+      } else if (event.data.type === 'electron-fallback-log') {
+        try {
+          ipcRenderer.send('log-fallback', event.data.data);
+        } catch (_) {}
       }
     }
   });
@@ -180,6 +203,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
       static get permission(): NotificationPermission {
         return 'granted';
+      }
+
+      // Some scripts assign to Notification.permission; include a no-op setter to avoid TypeErrors
+      static set permission(_value: NotificationPermission) {
+        // ignore
       }
     }
 
