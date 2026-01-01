@@ -176,38 +176,165 @@
       return match ? parseInt(match[1], 10) : 0;
     };
 
-    // Get the first thread from the chat list (new messages bump threads to top)
-    const getNewestThread = (): { name: string; snippet: string } | null => {
-      const chatsGrid = document.querySelector('[role="grid"][aria-label="Chats"]');
-      if (!chatsGrid) return null;
-
-      const rows = Array.from(chatsGrid.querySelectorAll('[role="row"]'));
-      
-      for (const row of rows) {
-        const firstCell = row.querySelector('[role="gridcell"]');
-        if (!firstCell) continue;
-        const cellAria = (firstCell.getAttribute('aria-label') || '').trim();
-        if (cellAria.startsWith('More options')) continue;
-
-        // Extract name from nested elements
-        const nameEl = firstCell.querySelector('[dir="auto"]');
-        const name = nameEl ? getTextWithEmoji(nameEl) : '';
-        if (!name) continue;
-        
-        // Find the message preview
-        const allDirAuto = firstCell.querySelectorAll('[dir="auto"]');
-        let snippet = '';
-        allDirAuto.forEach((el, idx) => {
-          const t = getTextWithEmoji(el);
-          if (idx > 0 && t && !/^\d+[mhdw]$/.test(t) && t !== '·' && t !== 'Unread message:') {
-            if (!snippet) snippet = t;
-          }
-        });
-        
-        return { name, snippet: snippet || 'New message' };
+  // Find the scrollable container for the chat list
+  const findScrollContainer = (): HTMLElement | null => {
+    // The chat list grid
+    const chatsGrid = document.querySelector('[role="grid"][aria-label="Chats"]');
+    if (!chatsGrid) return null;
+    
+    // Walk up to find the scrollable parent
+    let el: HTMLElement | null = chatsGrid as HTMLElement;
+    while (el) {
+      const style = window.getComputedStyle(el);
+      const overflowY = style.overflowY;
+      if (overflowY === 'auto' || overflowY === 'scroll') {
+        return el;
       }
-      return null;
-    };
+      el = el.parentElement;
+    }
+    
+    // Fallback: look for common scrollable container patterns
+    const possibleContainers = document.querySelectorAll('[style*="overflow"]');
+    for (const container of Array.from(possibleContainers)) {
+      if (container.contains(chatsGrid)) {
+        return container as HTMLElement;
+      }
+    }
+    
+    return null;
+  };
+
+  // Extract thread info from a row element
+  const extractThreadInfo = (row: Element): { name: string; snippet: string } | null => {
+    const firstCell = row.querySelector('[role="gridcell"]');
+    if (!firstCell) return null;
+    
+    const cellAria = (firstCell.getAttribute('aria-label') || '').trim();
+    if (cellAria.startsWith('More options')) return null;
+
+    // Extract name from nested elements
+    const nameEl = firstCell.querySelector('[dir="auto"]');
+    const name = nameEl ? getTextWithEmoji(nameEl) : '';
+    if (!name) return null;
+    
+    // Find the message preview
+    const allDirAuto = firstCell.querySelectorAll('[dir="auto"]');
+    let snippet = '';
+    allDirAuto.forEach((el, idx) => {
+      const t = getTextWithEmoji(el);
+      if (idx > 0 && t && !/^\d+[mhdw]$/.test(t) && t !== '·' && t !== 'Unread message:') {
+        if (!snippet) snippet = t;
+      }
+    });
+    
+    return { name, snippet: snippet || 'New message' };
+  };
+
+  // Get the newest thread by scrolling to top and back
+  // New messages bump their thread to the top of the list
+  // This only runs when the app isn't focused, so the user won't see the scroll
+  const getNewestThreadAsync = (): Promise<{ name: string; snippet: string } | null> => {
+    return new Promise((resolve) => {
+      const chatsGrid = document.querySelector('[role="grid"][aria-label="Chats"]');
+      if (!chatsGrid) {
+        resolve(null);
+        return;
+      }
+
+      const scrollContainer = findScrollContainer();
+      
+      // If we can't find a scroll container, try to get from current view
+      if (!scrollContainer) {
+        if (DEBUG_FALLBACK) {
+          try {
+            emitFallbackLog('no-scroll-container', {});
+          } catch (_) {}
+        }
+        // Fall back to first visible row
+        const rows = Array.from(chatsGrid.querySelectorAll('[role="row"]'));
+        for (const row of rows) {
+          const info = extractThreadInfo(row);
+          if (info) {
+            resolve(info);
+            return;
+          }
+        }
+        resolve(null);
+        return;
+      }
+
+      // Save current scroll position
+      const savedScrollTop = scrollContainer.scrollTop;
+      const wasScrolled = savedScrollTop > 50; // Only scroll if user is meaningfully scrolled down
+      
+      if (wasScrolled) {
+        // Disable smooth scrolling
+        scrollContainer.style.scrollBehavior = 'auto';
+        
+        // Scroll to top
+        scrollContainer.scrollTop = 0;
+        
+        if (DEBUG_FALLBACK) {
+          try {
+            emitFallbackLog('scrolled-to-top', { savedScrollTop });
+          } catch (_) {}
+        }
+        
+        // Wait for virtual scroll DOM to update, then grab thread info and restore
+        setTimeout(() => {
+          const rows = Array.from(chatsGrid.querySelectorAll('[role="row"]'));
+          let result: { name: string; snippet: string } | null = null;
+          
+          for (const row of rows) {
+            const info = extractThreadInfo(row);
+            if (info) {
+              result = info;
+              break;
+            }
+          }
+          
+          // Restore scroll position - user isn't watching so no rush
+          setTimeout(() => {
+            scrollContainer.scrollTop = savedScrollTop;
+            scrollContainer.style.scrollBehavior = '';
+            
+            if (DEBUG_FALLBACK) {
+              try {
+                emitFallbackLog('restored-scroll', { savedScrollTop, found: !!result });
+              } catch (_) {}
+            }
+          }, 50);
+          
+          resolve(result);
+        }, 100); // Give virtual scroll time to render the top rows
+      } else {
+        // Not scrolled far, just get the first visible row
+        const rows = Array.from(chatsGrid.querySelectorAll('[role="row"]'));
+        for (const row of rows) {
+          const info = extractThreadInfo(row);
+          if (info) {
+            resolve(info);
+            return;
+          }
+        }
+        resolve(null);
+      }
+    });
+  };
+  
+  // Sync wrapper for backward compatibility - but we'll use async version in sendFallbackNotification
+  const getNewestThread = (): { name: string; snippet: string } | null => {
+    // For sync calls, just try to get from current view without scrolling
+    const chatsGrid = document.querySelector('[role="grid"][aria-label="Chats"]');
+    if (!chatsGrid) return null;
+    
+    const rows = Array.from(chatsGrid.querySelectorAll('[role="row"]'));
+    for (const row of rows) {
+      const info = extractThreadInfo(row);
+      if (info) return info;
+    }
+    return null;
+  };
 
     // Track notified thread+message combos to avoid duplicates
     const notifiedThreads = new Map<string, number>(); // key: "name|snippet", value: timestamp
@@ -237,7 +364,7 @@
       }
     };
 
-    const sendFallbackNotification = (unreadCount: number) => {
+    const sendFallbackNotification = async (unreadCount: number) => {
       const now = Date.now();
 
       // Clean up old notified entries
@@ -247,8 +374,9 @@
         }
       }
 
-      // Get the newest thread (new messages bump their thread to top of list)
-      const thread = getNewestThread();
+      // Get the newest thread using async scroll method (scrolls to top and back)
+      // This only runs when app isn't focused, so user won't see it
+      const thread = await getNewestThreadAsync();
       
       if (thread) {
         const key = `${thread.name}|${thread.snippet}`;
