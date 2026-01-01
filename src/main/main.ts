@@ -39,6 +39,7 @@ app.setPath('userData', userDataPath);
 app.setPath('logs', path.join(userDataPath, 'logs'));
 
 const windowStateFile = path.join(app.getPath('userData'), 'window-state.json');
+const movePromptFile = path.join(app.getPath('userData'), 'move-to-applications-prompted.json');
 
 const uninstallTargets = () => {
   // Only remove app-owned temp directory to avoid touching system temp roots
@@ -258,7 +259,6 @@ function getIconPath(): string | undefined {
   
   // Find the first existing icon file
   try {
-    const fs = require('fs');
     for (const iconPath of possiblePaths) {
       if (fs.existsSync(iconPath)) {
         console.log('Found icon at:', iconPath);
@@ -507,7 +507,6 @@ function testNotification(): void {
 
 // Helper function to get dock icon path for macOS
 function getDockIconPath(): string | undefined {
-  const fs = require('fs');
   const possiblePaths = [
     // When running from dist/main/main.js
     path.resolve(__dirname, '../../assets/icons/icon.icns'),
@@ -528,6 +527,130 @@ function getDockIconPath(): string | undefined {
   }
   
   return undefined;
+}
+
+// Check if app is running from /Applications (macOS only)
+function isInApplicationsFolder(): boolean {
+  if (process.platform !== 'darwin') return true;
+  
+  const appPath = app.getPath('exe');
+  // Check both /Applications and ~/Applications
+  return appPath.startsWith('/Applications/') || 
+         appPath.includes('/Applications/') ||
+         appPath.startsWith(path.join(app.getPath('home'), 'Applications/'));
+}
+
+// Check if we've already prompted the user about moving to Applications
+function hasPromptedMoveToApplications(): boolean {
+  try {
+    if (fs.existsSync(movePromptFile)) {
+      const data = JSON.parse(fs.readFileSync(movePromptFile, 'utf8'));
+      return data.prompted === true;
+    }
+  } catch (e) {
+    // Ignore errors, will prompt again
+  }
+  return false;
+}
+
+// Mark that we've prompted the user
+function setPromptedMoveToApplications(): void {
+  try {
+    fs.writeFileSync(movePromptFile, JSON.stringify({ prompted: true, date: new Date().toISOString() }));
+  } catch (e) {
+    console.warn('[Move Prompt] Failed to save prompt state:', e);
+  }
+}
+
+// Prompt user to move app to Applications folder (macOS only)
+async function promptMoveToApplications(): Promise<void> {
+  if (process.platform !== 'darwin' || isDev) return;
+  if (isInApplicationsFolder()) return;
+  if (hasPromptedMoveToApplications()) return;
+
+  // Get the path to the .app bundle
+  const exePath = app.getPath('exe');
+  // exe is inside Messenger.app/Contents/MacOS/Messenger, so go up 3 levels
+  const appBundlePath = path.resolve(exePath, '../../..');
+  const appName = path.basename(appBundlePath);
+  const destinationPath = path.join('/Applications', appName);
+
+  const { response } = await dialog.showMessageBox({
+    type: 'question',
+    buttons: ['Move to Applications', 'Not Now'],
+    defaultId: 0,
+    cancelId: 1,
+    title: 'Move to Applications?',
+    message: 'Move Messenger to your Applications folder?',
+    detail: 'Messenger works best when installed in your Applications folder. This enables auto-updates and better macOS integration.',
+  });
+
+  // Remember that we prompted (regardless of choice)
+  setPromptedMoveToApplications();
+
+  if (response !== 0) {
+    return;
+  }
+
+  // Check if app already exists in Applications
+  if (fs.existsSync(destinationPath)) {
+    const { response: overwriteResponse } = await dialog.showMessageBox({
+      type: 'warning',
+      buttons: ['Replace', 'Cancel'],
+      defaultId: 1,
+      cancelId: 1,
+      title: 'Replace existing app?',
+      message: 'Messenger already exists in Applications.',
+      detail: 'Do you want to replace it with this version?',
+    });
+
+    if (overwriteResponse !== 0) {
+      return;
+    }
+
+    // Remove existing app
+    try {
+      fs.rmSync(destinationPath, { recursive: true, force: true });
+    } catch (e) {
+      await dialog.showMessageBox({
+        type: 'error',
+        buttons: ['OK'],
+        title: 'Could not replace app',
+        message: 'Failed to remove existing Messenger from Applications.',
+        detail: 'Please manually move the app to Applications.',
+      });
+      return;
+    }
+  }
+
+  // Move the app using shell command (handles permissions better)
+  try {
+    const { execSync } = require('child_process');
+    execSync(`mv "${appBundlePath}" "${destinationPath}"`, { stdio: 'ignore' });
+    
+    await dialog.showMessageBox({
+      type: 'info',
+      buttons: ['Relaunch'],
+      defaultId: 0,
+      title: 'Move successful',
+      message: 'Messenger has been moved to Applications.',
+      detail: 'The app will now relaunch from its new location.',
+    });
+
+    // Relaunch from new location
+    const newExePath = path.join(destinationPath, 'Contents/MacOS', path.basename(exePath));
+    spawn(newExePath, [], { detached: true, stdio: 'ignore' }).unref();
+    app.quit();
+  } catch (e) {
+    console.error('[Move to Applications] Failed:', e);
+    await dialog.showMessageBox({
+      type: 'error',
+      buttons: ['OK'],
+      title: 'Move failed',
+      message: 'Could not move Messenger to Applications.',
+      detail: 'Please manually drag Messenger.app to your Applications folder.',
+    });
+  }
 }
 
 // App lifecycle
@@ -587,6 +710,9 @@ app.whenReady().then(() => {
       }
     }
   }
+
+  // Prompt to move to Applications folder on macOS (first run only)
+  await promptMoveToApplications();
   
   // Initialize managers
   notificationHandler = new NotificationHandler(() => mainWindow);

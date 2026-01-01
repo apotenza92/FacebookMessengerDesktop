@@ -41,6 +41,7 @@
   "build": {
     "appId": "com.facebook.messenger.desktop",
     "productName": "Messenger",
+    "afterPack": "./scripts/after-pack.js",
     "publish": [
       {
         "provider": "github",
@@ -57,7 +58,7 @@
     ],
     "mac": {
       "category": "public.app-category.social-networking",
-      "target": "dmg",
+      "target": "zip",
       "icon": "assets/icons/icon.icns",
       "notarize": {
         "teamId": "27JL2VERNC"
@@ -73,29 +74,6 @@
     },
     "nsis": {
       "differentialPackage": false
-    },
-    "dmg": {
-      "background": "assets/dmg/dmg-background.png",
-      "icon": "assets/icons/dmg-icon.icns",
-      "iconSize": 128,
-      "iconTextSize": 14,
-      "window": {
-        "width": 680,
-        "height": 420
-      },
-      "contents": [
-        {
-          "x": 180,
-          "y": 220,
-          "type": "file"
-        },
-        {
-          "x": 500,
-          "y": 220,
-          "type": "link",
-          "path": "/Applications"
-        }
-      ]
     },
     "linux": {
       "target": [
