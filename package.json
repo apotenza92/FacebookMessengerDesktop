@@ -63,14 +63,14 @@
       "notarize": {
         "teamId": "27JL2VERNC"
       },
-      "artifactName": "Messenger-${version}-macos-${arch}.${ext}"
+      "artifactName": "Messenger-macos-${arch}.${ext}"
     },
     "win": {
       "target": [
         "nsis"
       ],
       "icon": "assets/icons/icon.ico",
-      "artifactName": "Messenger-${version}-windows-setup.${ext}"
+      "artifactName": "Messenger-windows-setup.${ext}"
     },
     "nsis": {
       "differentialPackage": false
@@ -81,7 +81,7 @@
       ],
       "category": "Network",
       "icon": "assets/icons/icon.png",
-      "artifactName": "Messenger-${version}-linux.${ext}"
+      "artifactName": "Messenger-linux.${ext}"
     }
   }
 }

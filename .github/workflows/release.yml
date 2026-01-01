@@ -154,12 +154,12 @@ jobs:
           VERSION="${{ steps.version.outputs.VERSION }}"
           
           # Download and hash ARM64
-          curl -sL "https://github.com/apotenza92/facebook-messenger-desktop/releases/download/v${VERSION}/Messenger-${VERSION}-macos-arm64.zip" -o arm64.zip
+          curl -sL "https://github.com/apotenza92/facebook-messenger-desktop/releases/download/v${VERSION}/Messenger-macos-arm64.zip" -o arm64.zip
           ARM64_SHA256=$(shasum -a 256 arm64.zip | cut -d' ' -f1)
           echo "ARM64_SHA256=${ARM64_SHA256}" >> $GITHUB_OUTPUT
           
           # Download and hash x64
-          curl -sL "https://github.com/apotenza92/facebook-messenger-desktop/releases/download/v${VERSION}/Messenger-${VERSION}-macos-x64.zip" -o x64.zip
+          curl -sL "https://github.com/apotenza92/facebook-messenger-desktop/releases/download/v${VERSION}/Messenger-macos-x64.zip" -o x64.zip
           X64_SHA256=$(shasum -a 256 x64.zip | cut -d' ' -f1)
           echo "X64_SHA256=${X64_SHA256}" >> $GITHUB_OUTPUT
 
@@ -182,12 +182,12 @@ jobs:
 
             on_arm do
               sha256 "${ARM64_SHA256}"
-              url "https://github.com/apotenza92/facebook-messenger-desktop/releases/download/v#{version}/Messenger-#{version}-macos-arm64.zip"
+              url "https://github.com/apotenza92/facebook-messenger-desktop/releases/download/v#{version}/Messenger-macos-arm64.zip"
             end
 
             on_intel do
               sha256 "${X64_SHA256}"
-              url "https://github.com/apotenza92/facebook-messenger-desktop/releases/download/v#{version}/Messenger-#{version}-macos-x64.zip"
+              url "https://github.com/apotenza92/facebook-messenger-desktop/releases/download/v#{version}/Messenger-macos-x64.zip"
             end
 
             name "Messenger"
