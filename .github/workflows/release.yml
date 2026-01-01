@@ -135,3 +135,86 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  update-homebrew:
+    needs: release
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v') && !contains(github.ref, 'alpha') && !contains(github.ref, 'beta') && !contains(github.ref, 'rc')
+    
+    steps:
+      - name: Extract version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Wait for release assets to be available
+        run: sleep 30
+
+      - name: Download release assets and calculate hashes
+        id: hashes
+        run: |
+          VERSION="${{ steps.version.outputs.VERSION }}"
+          
+          # Download and hash ARM64
+          curl -sL "https://github.com/apotenza92/facebook-messenger-desktop/releases/download/v${VERSION}/Messenger-${VERSION}-macos-arm64.zip" -o arm64.zip
+          ARM64_SHA256=$(shasum -a 256 arm64.zip | cut -d' ' -f1)
+          echo "ARM64_SHA256=${ARM64_SHA256}" >> $GITHUB_OUTPUT
+          
+          # Download and hash x64
+          curl -sL "https://github.com/apotenza92/facebook-messenger-desktop/releases/download/v${VERSION}/Messenger-${VERSION}-macos-x64.zip" -o x64.zip
+          X64_SHA256=$(shasum -a 256 x64.zip | cut -d' ' -f1)
+          echo "X64_SHA256=${X64_SHA256}" >> $GITHUB_OUTPUT
+
+      - name: Update Homebrew cask
+        env:
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          VERSION="${{ steps.version.outputs.VERSION }}"
+          ARM64_SHA256="${{ steps.hashes.outputs.ARM64_SHA256 }}"
+          X64_SHA256="${{ steps.hashes.outputs.X64_SHA256 }}"
+          
+          # Clone homebrew-tap repo
+          git clone https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/apotenza92/homebrew-tap.git
+          cd homebrew-tap
+          
+          # Update the cask file
+          cat > Casks/facebook-messenger-desktop.rb << EOF
+          cask "facebook-messenger-desktop" do
+            version "${VERSION}"
+
+            on_arm do
+              sha256 "${ARM64_SHA256}"
+              url "https://github.com/apotenza92/facebook-messenger-desktop/releases/download/v#{version}/Messenger-#{version}-macos-arm64.zip"
+            end
+
+            on_intel do
+              sha256 "${X64_SHA256}"
+              url "https://github.com/apotenza92/facebook-messenger-desktop/releases/download/v#{version}/Messenger-#{version}-macos-x64.zip"
+            end
+
+            name "Messenger"
+            desc "Desktop client for Facebook Messenger"
+            homepage "https://github.com/apotenza92/facebook-messenger-desktop"
+
+            livecheck do
+              url :url
+              strategy :github_latest
+            end
+
+            app "Messenger.app"
+
+            zap trash: [
+              "~/Library/Application Support/facebook-messenger-desktop",
+              "~/Library/Caches/com.facebook.messenger.desktop",
+              "~/Library/Caches/com.facebook.messenger.desktop.ShipIt",
+              "~/Library/Preferences/com.facebook.messenger.desktop.plist",
+              "~/Library/Saved Application State/com.facebook.messenger.desktop.savedState",
+            ]
+          end
+          EOF
+          
+          # Commit and push
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Casks/facebook-messenger-desktop.rb
+          git commit -m "Update facebook-messenger-desktop to v${VERSION}"
+          git push
+
