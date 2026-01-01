@@ -14,7 +14,7 @@ This project exists because the original Facebook Desktop Messenger app was depr
 brew install --cask apotenza92/tap/facebook-messenger-desktop
 ```
 
-### Windows (WinGet)
+### Windows (WinGet) (Pending approval)
 
 ```bash
 winget install apotenza92.FacebookMessengerDesktop
