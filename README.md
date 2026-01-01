@@ -8,7 +8,7 @@ This project exists because the original Facebook Desktop Messenger app was depr
 
 ## Installation
 
-### macOS (Homebrew)
+### macOS (Homebrew) (Signed and notarized)
 
 ```bash
 brew install --cask apotenza92/tap/facebook-messenger-desktop
@@ -24,8 +24,8 @@ winget install apotenza92.FacebookMessengerDesktop
 
 | Platform | Download |
 |----------|----------|
-| **macOS (Apple Silicon)** | [Download](https://github.com/apotenza92/facebook-messenger-desktop/releases/latest/download/Messenger-macos-arm64.zip) |
-| **macOS (Intel)** | [Download](https://github.com/apotenza92/facebook-messenger-desktop/releases/latest/download/Messenger-macos-x64.zip) |
+| **macOS (Apple Silicon) (Signed and notarized)** | [Download](https://github.com/apotenza92/facebook-messenger-desktop/releases/latest/download/Messenger-macos-arm64.zip) |
+| **macOS (Intel) (Signed and notarized)** | [Download](https://github.com/apotenza92/facebook-messenger-desktop/releases/latest/download/Messenger-macos-x64.zip) |
 | **Windows** | [Download](https://github.com/apotenza92/facebook-messenger-desktop/releases/latest/download/Messenger-windows-setup.exe) |
 | **Linux** | [Download](https://github.com/apotenza92/facebook-messenger-desktop/releases/latest/download/Messenger-linux.AppImage) |
 
