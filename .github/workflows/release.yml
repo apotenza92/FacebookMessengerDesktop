@@ -109,7 +109,10 @@ jobs:
           fi
 
           # Extract section for this version (between ## [VERSION] and next ##)
-          awk "/^## \[v?$VERSION\]/,/^## \[/" CHANGELOG.md | sed '$d' | sed '1d' > "$NOTES" || true
+          awk -v ver="$VERSION" '
+            /^## \[v?/ { if (found) exit; if ($0 ~ "\\[v?" ver "\\]") found=1; next }
+            found { print }
+          ' CHANGELOG.md > "$NOTES" || true
           
           if [ ! -s "$NOTES" ]; then
             echo "ERROR: No changelog entry found for version $VERSION"
