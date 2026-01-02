@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.7.1] - 2026-01-03
+
+### Improved
+- Windows: Updates now download automatically instead of redirecting to download page
+  - Installer downloads directly to Downloads folder with progress tracking
+  - After download, app offers to run installer automatically
+  - Built-in SmartScreen bypass instructions shown before quitting
+
 ## [0.7.0] - 2026-01-03
 
 ### Fixed
