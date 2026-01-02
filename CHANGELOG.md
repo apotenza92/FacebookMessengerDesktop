@@ -1,5 +1,32 @@
 # Changelog
 
+## [0.5.0] - 2026-01-02
+
+### Added
+- **Windows ARM support!** Native ARM64 builds for Windows on ARM devices
+- **System tray** for Windows/Linux - app stays running in background when window is closed
+- **Windows taskbar badges** show unread message count overlay
+- Tray context menu with Show/Hide, Check for Updates, and Quit options
+- External links (target="_blank") now open in system browser instead of new Electron windows
+- Platform and architecture logging on startup for debugging
+
+### Changed
+- **Windows/Linux now use native window frames** instead of custom title bar overlay (cleaner look)
+- Improved Windows taskbar icon grouping with proper AppUserModelId
+- Build scripts are now cross-platform compatible (works on Windows, macOS, Linux)
+- Minimum window width adjusted to ensure sidebar always visible on Windows
+
+### Fixed
+- Windows notifications now show "Messenger" instead of app ID in final builds
+- Muted conversations no longer trigger notifications
+- Icon handling improved across all platforms (rounded icons for Windows/Linux)
+
+### Technical
+- Added `scripts/clean.js` for cross-platform build cleanup
+- Icon generation scripts auto-install dependencies if missing
+- Added `--force` flag to regenerate icons even if they exist
+- Reduced logging noise in production builds
+
 ## [0.4.2] - 2026-01-02
 
 ### Changed
