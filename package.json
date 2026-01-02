@@ -74,8 +74,7 @@
         "nsis"
       ],
       "icon": "assets/icons/icon.ico",
-      "artifactName": "Messenger-windows-${arch}-setup.${ext}",
-      "appUserModelId": "com.facebook.messenger.desktop"
+      "artifactName": "Messenger-windows-${arch}-setup.${ext}"
     },
     "nsis": {
       "differentialPackage": false,
