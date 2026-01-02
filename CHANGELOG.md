@@ -1,10 +1,12 @@
 # Changelog
 
-## [0.6.2] - 2026-01-02
+## [0.6.3] - 2026-01-02
 
 ### Changed
-- **About dialog**: Reverted to native OS About dialog (cleaner look)
-- **GitHub link**: Added "View on GitHub" menu item (File menu on Windows/Linux, Messenger menu on macOS)
+- **Windows/Linux menus**: Reorganized menus to follow platform conventions
+  - Help menu now contains: View on GitHub, Check for Updates, Uninstall, About
+  - File menu simplified to just Quit
+- **macOS**: View on GitHub in Messenger menu (unchanged, follows macOS conventions)
 
 ## [0.6.0] - 2026-01-02
 
