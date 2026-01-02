@@ -866,12 +866,6 @@ function createApplicationMenu(): void {
     {
       label: 'File',
       submenu: [
-        { role: 'about' as const },
-        { type: 'separator' },
-        viewOnGitHubMenuItem,
-        checkUpdatesMenuItem,
-        uninstallMenuItem,
-        { type: 'separator' },
         { role: 'quit' as const },
       ],
     },
@@ -899,6 +893,17 @@ function createApplicationMenu(): void {
         { role: 'zoomOut' as const },
         { type: 'separator' },
         { role: 'togglefullscreen' as const },
+      ],
+    },
+    {
+      label: 'Help',
+      submenu: [
+        viewOnGitHubMenuItem,
+        checkUpdatesMenuItem,
+        { type: 'separator' },
+        uninstallMenuItem,
+        { type: 'separator' },
+        { role: 'about' as const },
       ],
     },
   ];
