@@ -1,6 +1,7 @@
 import { app, BrowserWindow, BrowserView, ipcMain, Notification, Menu, nativeImage, screen, dialog, systemPreferences, Tray, shell, nativeTheme } from 'electron';
 import { spawn, exec } from 'child_process';
 import { promisify } from 'util';
+import * as https from 'https';
 
 const execAsync = promisify(exec);
 import * as path from 'path';
@@ -1621,8 +1622,112 @@ function openGitHubPage(): void {
   });
 }
 
+// Windows direct download function - downloads installer to Downloads folder and runs it
+async function downloadWindowsUpdate(version: string): Promise<void> {
+  const arch = process.arch === 'arm64' ? 'arm64' : 'x64';
+  const fileName = `Messenger-windows-${arch}-setup.exe`;
+  const downloadUrl = `https://github.com/apotenza92/FacebookMessengerDesktop/releases/download/v${version}/${fileName}`;
+  
+  // Get user's Downloads folder
+  const downloadsPath = app.getPath('downloads');
+  const filePath = path.join(downloadsPath, fileName);
+  
+  console.log(`[AutoUpdater] Starting Windows direct download: ${downloadUrl}`);
+  console.log(`[AutoUpdater] Saving to: ${filePath}`);
+  
+  showDownloadProgress();
+  
+  return new Promise((resolve, reject) => {
+    // Function to handle the actual download (after redirects)
+    const downloadFromUrl = (url: string, redirectCount = 0): void => {
+      if (redirectCount > 5) {
+        hideDownloadProgress();
+        reject(new Error('Too many redirects'));
+        return;
+      }
+      
+      const request = https.get(url, (response) => {
+        // Handle redirects (GitHub uses 302 redirects to the actual file)
+        if (response.statusCode === 301 || response.statusCode === 302) {
+          const redirectUrl = response.headers.location;
+          if (redirectUrl) {
+            console.log(`[AutoUpdater] Following redirect to: ${redirectUrl}`);
+            downloadFromUrl(redirectUrl, redirectCount + 1);
+            return;
+          }
+        }
+        
+        if (response.statusCode !== 200) {
+          hideDownloadProgress();
+          reject(new Error(`Download failed with status: ${response.statusCode}`));
+          return;
+        }
+        
+        const totalSize = parseInt(response.headers['content-length'] || '0', 10);
+        let downloadedSize = 0;
+        const startTime = Date.now();
+        
+        // Delete existing file if present
+        try {
+          if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+          }
+        } catch (e) {
+          console.warn('[AutoUpdater] Could not delete existing file:', e);
+        }
+        
+        const fileStream = fs.createWriteStream(filePath);
+        
+        response.on('data', (chunk: Buffer) => {
+          downloadedSize += chunk.length;
+          
+          // Calculate progress
+          const percent = totalSize > 0 ? Math.round((downloadedSize / totalSize) * 100) : 0;
+          const elapsedSeconds = (Date.now() - startTime) / 1000;
+          const speedBps = elapsedSeconds > 0 ? downloadedSize / elapsedSeconds : 0;
+          const speedKB = Math.round(speedBps / 1024);
+          const speedDisplay = speedKB > 1024 
+            ? `${(speedKB / 1024).toFixed(1)} MB/s` 
+            : `${speedKB} KB/s`;
+          const downloaded = formatBytes(downloadedSize);
+          const total = formatBytes(totalSize);
+          
+          updateDownloadProgress(percent, speedDisplay, downloaded, total);
+        });
+        
+        response.pipe(fileStream);
+        
+        fileStream.on('finish', () => {
+          fileStream.close();
+          hideDownloadProgress();
+          console.log(`[AutoUpdater] Download complete: ${filePath}`);
+          resolve();
+        });
+        
+        fileStream.on('error', (err) => {
+          hideDownloadProgress();
+          // Clean up partial file
+          try {
+            fs.unlinkSync(filePath);
+          } catch {
+            // Ignore cleanup errors
+          }
+          reject(err);
+        });
+      });
+      
+      request.on('error', (err) => {
+        hideDownloadProgress();
+        reject(err);
+      });
+    };
+    
+    downloadFromUrl(downloadUrl);
+  });
+}
+
 async function showUpdateAvailableDialog(version: string): Promise<void> {
-  // On Windows, redirect to download page for manual download
+  // On Windows, download directly and run installer
   // This is a temporary workaround until code signing is set up
   // Without signing, auto-updates get blocked by Windows Application Control
   if (process.platform === 'win32') {
@@ -1630,17 +1735,96 @@ async function showUpdateAvailableDialog(version: string): Promise<void> {
       type: 'info',
       title: 'Update Available',
       message: `A new version of Messenger is available`,
-      detail: `Version ${version} is available. Click "Download" to open the download page.\n\nNote: After downloading, you may need to right-click the installer → Properties → Unblock before running it.`,
-      buttons: ['Download', 'Later'],
+      detail: `Version ${version} is available. Click "Download & Install" to automatically download and run the installer.\n\nNote: After the installer opens, you may need to click "More info" → "Run anyway" if Windows SmartScreen appears.`,
+      buttons: ['Download & Install', 'Later'],
       defaultId: 0,
       cancelId: 1,
     });
 
     if (result.response === 0) {
-      console.log('[AutoUpdater] Windows user redirected to download page');
-      shell.openExternal('https://apotenza92.github.io/facebook-messenger-desktop/').catch((err) => {
-        console.error('[AutoUpdater] Failed to open download page:', err);
-      });
+      console.log('[AutoUpdater] Windows user starting direct download');
+      
+      try {
+        await downloadWindowsUpdate(version);
+        
+        // Get the downloaded file path
+        const arch = process.arch === 'arm64' ? 'arm64' : 'x64';
+        const fileName = `Messenger-windows-${arch}-setup.exe`;
+        const downloadsPath = app.getPath('downloads');
+        const filePath = path.join(downloadsPath, fileName);
+        
+        // Show success dialog and offer to run installer
+        const installResult = await dialog.showMessageBox({
+          type: 'info',
+          title: 'Download Complete',
+          message: 'Update downloaded successfully',
+          detail: `The installer has been saved to your Downloads folder.\n\nClick "Install Now" to run the installer and close Messenger.`,
+          buttons: ['Install Now', 'Open Downloads Folder', 'Later'],
+          defaultId: 0,
+          cancelId: 2,
+        });
+        
+        if (installResult.response === 0) {
+          // Run the installer and quit the app
+          console.log('[AutoUpdater] Opening installer and quitting...');
+          const openError = await shell.openPath(filePath);
+          
+          if (openError) {
+            console.error('[AutoUpdater] Failed to open installer:', openError);
+            // Show error and fall back to showing in explorer
+            await dialog.showMessageBox({
+              type: 'error',
+              title: 'Could Not Open Installer',
+              message: 'The installer could not be opened automatically',
+              detail: `Error: ${openError}\n\nThe file has been saved to your Downloads folder. Please run it manually.`,
+              buttons: ['Show in Downloads'],
+            });
+            shell.showItemInFolder(filePath);
+          } else {
+            // Show SmartScreen help dialog - this stays visible while SmartScreen may be blocking
+            const helpResult = await dialog.showMessageBox({
+              type: 'info',
+              title: 'Installing Update',
+              message: 'The installer has been launched',
+              detail: `If Windows SmartScreen appears:\n\n1. Click "More info"\n2. Click "Run anyway"\n\nThe app will now close to allow the update to install.`,
+              buttons: ['Close Messenger', 'Show SmartScreen Help'],
+              defaultId: 0,
+            });
+            
+            if (helpResult.response === 1) {
+              // Open help page about SmartScreen
+              shell.openExternal('https://support.microsoft.com/en-us/windows/microsoft-defender-smartscreen-warning-8a7f912d-1a28-47b5-a7c8-0c5a3e3f2c2c').catch(() => {});
+            }
+            
+            isQuitting = true;
+            app.quit();
+          }
+        } else if (installResult.response === 1) {
+          // Open the Downloads folder with the file selected
+          shell.showItemInFolder(filePath);
+        }
+        // If "Later", do nothing
+      } catch (err) {
+        console.error('[AutoUpdater] Windows direct download failed:', err);
+        const errorMsg = err instanceof Error ? err.message : String(err);
+        
+        // Fall back to opening download page
+        const fallbackResult = await dialog.showMessageBox({
+          type: 'error',
+          title: 'Download Failed',
+          message: 'Could not download the update automatically',
+          detail: `${errorMsg}\n\nWould you like to open the download page instead?`,
+          buttons: ['Open Download Page', 'Cancel'],
+          defaultId: 0,
+          cancelId: 1,
+        });
+        
+        if (fallbackResult.response === 0) {
+          shell.openExternal('https://apotenza92.github.io/facebook-messenger-desktop/').catch((shellErr) => {
+            console.error('[AutoUpdater] Failed to open download page:', shellErr);
+          });
+        }
+      }
     }
     return;
   }
