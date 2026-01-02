@@ -1125,6 +1125,9 @@ app.whenReady().then(async () => {
           defaultId: 0,
         }).then(({ response }) => {
           if (response === 0) {
+            // Set isQuitting to true so the window close handler allows the app to quit
+            // Without this, the close handler intercepts and just hides the window
+            isQuitting = true;
             autoUpdater.quitAndInstall();
           }
         }).catch(() => {});
