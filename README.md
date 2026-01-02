@@ -14,7 +14,7 @@ This project exists because the original Facebook Desktop Messenger app was depr
 
 - **Users on v0.5.3 or v0.5.4:** Auto-update was broken in these versions. You must [manually download](https://apotenza92.github.io/facebook-messenger-desktop/) the latest version. [See issue #6](https://github.com/apotenza92/facebook-messenger-desktop/issues/6).
 
-- **Windows Users:** Auto-updates temporarily redirect to manual downloads while we set up code signing. If Windows blocks the installer, right-click it → **Properties** → check **"Unblock"** → **OK**, then run it.
+- **Windows Users:** Auto-updates temporarily redirect to [manual downloads](https://apotenza92.github.io/facebook-messenger-desktop/) while we set up code signing. Existing users may need to manually download the latest version. If Windows blocks the installer, right-click it → **Properties** → check **"Unblock"** → **OK**, then run it. [See issue #7](https://github.com/apotenza92/facebook-messenger-desktop/issues/7).
 
 ## Package Managers
 
