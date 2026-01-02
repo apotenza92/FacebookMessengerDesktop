@@ -5,6 +5,7 @@
 ### Fixed
 - macOS dock icon now displays at correct size when app is running (removed custom dock icon override that caused oversized icon)
 - Windows: Clicking taskbar icon now properly restores window when app is running in system tray
+- Auto-update "Restart Now" now properly quits the app to install updates (previously just hid the window due to close-to-tray behavior)
 
 ## [0.5.1] - 2026-01-02
 
