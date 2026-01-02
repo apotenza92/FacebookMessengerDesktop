@@ -2,26 +2,77 @@
 
 /**
  * Script to generate app icons from SVG
- * Requires: sharp (npm install sharp --save-dev)
+ * Sharp will be auto-installed if missing
  * 
  * Run: node scripts/generate-icons.js
  */
 
 const fs = require('fs');
 const path = require('path');
-const pngToIco = require('png-to-ico');
+const { execSync } = require('child_process');
 
-// Check if sharp is available
+// Check if icons already exist (skip generation if they do)
+const iconsDir = path.join(__dirname, '../assets/icons');
+const requiredIcons = ['icon.ico', 'icon.png'];
+const iconsExist = requiredIcons.every(icon => 
+  fs.existsSync(path.join(iconsDir, icon))
+);
+
+// Allow force regeneration with --force flag
+const forceRegenerate = process.argv.includes('--force');
+
+if (iconsExist && !forceRegenerate) {
+  console.log('Icons already exist. Use --force to regenerate.');
+  process.exit(0);
+}
+
+// Try to load sharp, auto-install if missing
 let sharp;
 try {
   sharp = require('sharp');
 } catch (e) {
-  console.error('Error: sharp is not installed. Install it with: npm install sharp --save-dev');
-  process.exit(1);
+  console.log('Sharp not found, attempting to install...');
+  try {
+    execSync('npm install sharp@0.33.5 --save-dev', { 
+      stdio: 'inherit',
+      cwd: path.join(__dirname, '..')
+    });
+    // Clear require cache and try again
+    delete require.cache[require.resolve('sharp')];
+    sharp = require('sharp');
+    console.log('Sharp installed successfully!');
+  } catch (installError) {
+    console.error('Failed to auto-install sharp.');
+    console.error('Please install manually: npm install sharp --save-dev');
+    console.error('');
+    console.error('On Windows, you may need to install build tools first:');
+    console.error('  npm install -g windows-build-tools');
+    console.error('Or install Visual Studio Build Tools with C++ workload.');
+    process.exit(1);
+  }
+}
+
+// Try to load png-to-ico, auto-install if missing
+let pngToIco;
+try {
+  pngToIco = require('png-to-ico');
+} catch (e) {
+  console.log('png-to-ico not found, attempting to install...');
+  try {
+    execSync('npm install png-to-ico@2.1.8 --save-dev', { 
+      stdio: 'inherit',
+      cwd: path.join(__dirname, '..')
+    });
+    pngToIco = require('png-to-ico');
+    console.log('png-to-ico installed successfully!');
+  } catch (installError) {
+    console.error('Failed to auto-install png-to-ico.');
+    console.error('Please install manually: npm install png-to-ico --save-dev');
+    process.exit(1);
+  }
 }
 
 const svgPath = path.join(__dirname, '../assets/icons/messenger-icon.svg');
-const iconsDir = path.join(__dirname, '../assets/icons');
 const trayDir = path.join(__dirname, '../assets/tray');
 const dmgDir = path.join(__dirname, '../assets/dmg');
 
@@ -228,7 +279,6 @@ async function generateIcons() {
     // Generate ICNS file using iconutil (macOS only)
     if (process.platform === 'darwin') {
       console.log('Generating ICNS file...');
-      const { execSync } = require('child_process');
       try {
         execSync(`iconutil -c icns "${iconsetDir}" -o "${path.join(iconsDir, 'icon.icns')}"`, {
           stdio: 'inherit'
@@ -254,7 +304,6 @@ async function generateIcons() {
 
     if (process.platform === 'darwin') {
       console.log('Generating DMG ICNS file...');
-      const { execSync } = require('child_process');
       try {
         execSync(`iconutil -c icns "${dmgIconsetDir}" -o "${path.join(iconsDir, 'dmg-icon.icns')}"`, {
           stdio: 'inherit'
@@ -280,4 +329,3 @@ async function generateIcons() {
 }
 
 generateIcons();
-
