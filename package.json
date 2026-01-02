@@ -74,10 +74,12 @@
         "nsis"
       ],
       "icon": "assets/icons/icon.ico",
-      "artifactName": "Messenger-windows-${arch}-setup.${ext}"
+      "artifactName": "Messenger-windows-${arch}-setup.${ext}",
+      "appUserModelId": "com.facebook.messenger.desktop"
     },
     "nsis": {
-      "differentialPackage": false
+      "differentialPackage": false,
+      "shortcutName": "Messenger"
     },
     "linux": {
       "target": [
