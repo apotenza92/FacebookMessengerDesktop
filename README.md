@@ -9,7 +9,6 @@ This project exists because the original Facebook Desktop Messenger app was depr
 <a href="https://apotenza92.github.io/facebook-messenger-desktop/">
   <img src="https://img.shields.io/badge/Download-Messenger%20Desktop-0084ff?style=for-the-badge&logo=messenger&logoColor=white" alt="Download Messenger Desktop" height="40">
 </a>
-*Automatically detects your platform (macOS, Windows, Linux)*
 
 ## Package Managers
 
