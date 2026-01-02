@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.6.9] - 2026-01-03
+## [0.7.0] - 2026-01-03
 
 ### Fixed
 - Develop menu no longer appears in production builds (was showing on Windows/Linux)
