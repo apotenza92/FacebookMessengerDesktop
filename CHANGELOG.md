@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.6.8] - 2026-01-03
+
+### Fixed
+- macOS: Download progress now shows in the title bar (custom title overlay was not being updated)
+
+### Improved
+- Enhanced download progress display to show more details in title bar: percentage, downloaded/total size, and speed (e.g., "Downloading update: 45% (34.2 MB / 67.5 MB) @ 2.3 MB/s")
+
 ## [0.6.7] - 2026-01-03
 
 ### Improved

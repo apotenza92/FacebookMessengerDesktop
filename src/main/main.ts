@@ -1548,17 +1548,25 @@ function showDownloadProgress(): void {
 function updateDownloadProgress(percent: number, speed: string, downloaded: string, total: string): void {
   if (!isDownloading) return;
   
+  // Show detailed progress: "Downloading update: 45% (34.2 / 67.5 MB) @ 2.3 MB/s"
+  const progressTitle = `Downloading update: ${percent}% (${downloaded} / ${total}) @ ${speed}`;
+  
   // Update taskbar/dock progress
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.setProgressBar(percent / 100);
     
-    // Update window title with progress
-    mainWindow.setTitle(`Downloading ${percent}% - Messenger`);
+    // Update window title with progress (all platforms)
+    mainWindow.setTitle(progressTitle);
+  }
+  
+  // On macOS, also update the custom title overlay (the visible title bar)
+  if (process.platform === 'darwin') {
+    updateTitleOverlayText(progressTitle);
   }
 
-  // Update tray tooltip with progress
+  // Update tray tooltip with same progress info
   if (tray) {
-    tray.setToolTip(`Messenger - Downloading ${percent}% (${speed})`);
+    tray.setToolTip(`Messenger - ${progressTitle}`);
   }
 }
 
@@ -1571,6 +1579,11 @@ function hideDownloadProgress(): void {
     
     // Restore original window title
     mainWindow.setTitle(originalWindowTitle);
+    
+    // On macOS, also restore the custom title overlay
+    if (process.platform === 'darwin') {
+      updateTitleOverlayText(originalWindowTitle);
+    }
     
     // Flash taskbar to get attention (Windows)
     if (process.platform === 'win32') {
