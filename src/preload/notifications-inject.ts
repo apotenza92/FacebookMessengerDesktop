@@ -167,6 +167,41 @@
     return false;
   };
 
+  // Detect whether a conversation is muted
+  // Messenger shows a "bell with slash" SVG icon for muted conversations in the sidebar
+  // The mute icon SVG has a path starting with "M9.244 24.99" (bell with diagonal slash)
+  const isConversationMuted = (conversationEl: Element): boolean => {
+    // PRIMARY DETECTION: Look for the mute bell icon SVG path
+    // This path represents the "bell with slash" icon shown next to muted conversations
+    // Path pattern: "M9.244 24.99..." - this is the diagonal slash through the bell
+    const paths = Array.from(conversationEl.querySelectorAll('svg path'));
+    for (const path of paths) {
+      const d = path.getAttribute('d') || '';
+      // Check for the specific mute icon path pattern
+      // The mute bell SVG path starts with "M9.244 24.99" and contains "L26.867 7.366"
+      if (d.startsWith('M9.244 24.99') || d.includes('L26.867 7.366')) {
+        log('Muted detected via SVG mute bell path');
+        return true;
+      }
+    }
+
+    // FALLBACK: Check aria-label/text indicators (less reliable)
+    const textContent = conversationEl.textContent || '';
+    const ariaLabel = conversationEl.getAttribute('aria-label') || '';
+    const lowered = ariaLabel.toLowerCase();
+    if (
+      lowered.includes('muted') ||
+      lowered.includes('notifications are off') ||
+      lowered.includes('notifications off') ||
+      textContent.includes('Notifications are off')
+    ) {
+      log('Muted detected via aria-label/text', { ariaLabel: ariaLabel.slice(0, 100) });
+      return true;
+    }
+
+    return false;
+  };
+
   // Extract conversation info from a conversation element
   const extractConversationInfo = (
     conversationEl: Element,
@@ -335,6 +370,7 @@
   // ============================================================================
   // DETECTION METHOD 1: MutationObserver on sidebar
   // ============================================================================
+  const ENABLE_MUTATION_OBSERVER_NOTIFICATIONS = true;
 
   // Track whether we're in the initial settling period (no notifications during this time)
   let isSettling = true;
@@ -365,6 +401,12 @@
 
     const processMutations = (mutationsList: MutationRecord[]) => {
       if (mutationsList.length === 0) return;
+
+      // Skip if MutationObserver notifications are disabled
+      // (disabled because sidebar rows don't contain mute status - see comment above)
+      if (!ENABLE_MUTATION_OBSERVER_NOTIFICATIONS) {
+        return;
+      }
 
       // Don't send notifications during the settling period
       if (isSettling) {
@@ -408,6 +450,11 @@
 
         // Check if this conversation is unread
         if (!isConversationUnread(conversationRow)) {
+          continue;
+        }
+
+        // Skip muted conversations
+        if (isConversationMuted(conversationRow)) {
           continue;
         }
 

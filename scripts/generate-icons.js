@@ -166,17 +166,28 @@ async function generateIcons() {
     const generalPngSizes = [512, 256, 128, 64, 48, 32, 24, 16];
     const icoFrameSizes = [256, 128, 64, 48, 32, 24, 16];
 
-    // Generate base PNGs
+    // Generate base PNGs (square, kept for reference)
     for (const size of generalPngSizes) {
       await generateIconWithWhiteBackground(svgBuffer, size, path.join(iconsDir, `icon-${size}.png`));
     }
 
-    // Use 512px as the main icon.png for Linux
-    await fs.promises.copyFile(path.join(iconsDir, 'icon-512.png'), path.join(iconsDir, 'icon.png'));
+    // Generate rounded 512px icon for Linux
+    console.log('Generating rounded Linux icon...');
+    await generateIconWithRoundedWhiteBackground(svgBuffer, 512, path.join(iconsDir, 'icon.png'));
 
-    // Generate Windows ICO (multi-size, real .ico)
+    // Generate rounded PNGs for Windows ICO
+    console.log('Generating rounded PNGs for Windows ICO...');
+    const icoRoundedDir = path.join(iconsDir, 'ico-rounded');
+    if (!fs.existsSync(icoRoundedDir)) {
+      fs.mkdirSync(icoRoundedDir, { recursive: true });
+    }
+    for (const size of icoFrameSizes) {
+      await generateIconWithRoundedWhiteBackground(svgBuffer, size, path.join(icoRoundedDir, `icon-${size}.png`));
+    }
+
+    // Generate Windows ICO (multi-size, real .ico) from rounded PNGs
     console.log('Generating Windows ICO...');
-    const icoPngPaths = icoFrameSizes.map(size => path.join(iconsDir, `icon-${size}.png`));
+    const icoPngPaths = icoFrameSizes.map(size => path.join(icoRoundedDir, `icon-${size}.png`));
     const icoBuffer = await pngToIco(icoPngPaths);
     await fs.promises.writeFile(path.join(iconsDir, 'icon.ico'), icoBuffer);
     
