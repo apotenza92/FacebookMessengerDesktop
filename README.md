@@ -24,8 +24,12 @@ brew install --cask apotenza92/tap/facebook-messenger-desktop
 winget install apotenza92.FacebookMessengerDesktop
 ```
 
-## ⚠️ Note for Windows Users
+## ⚠️ Important Notices
 
-Auto-updates are temporarily redirecting to manual downloads while we set up code signing. Windows may block unsigned installers - if this happens, right-click the downloaded file → **Properties** → check **"Unblock"** → **OK**, then run the installer.
+### Users on v0.5.3 or v0.5.4
 
-We've applied for a code signing certificate and this will be resolved soon. [See this issue for details](https://github.com/apotenza92/facebook-messenger-desktop/issues).
+Auto-update was broken in these versions. You must [manually download](https://apotenza92.github.io/facebook-messenger-desktop/) the latest version. [See issue #6 for details](https://github.com/apotenza92/facebook-messenger-desktop/issues/6).
+
+### Windows Users
+
+Auto-updates are temporarily redirecting to manual downloads while we set up code signing. Windows may block unsigned installers - if this happens, right-click the downloaded file → **Properties** → check **"Unblock"** → **OK**, then run the installer. We've applied for a code signing certificate and this will be resolved soon.
