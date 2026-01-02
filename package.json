@@ -4,7 +4,7 @@
   "description": "A self-contained desktop app for Facebook Messenger",
   "main": "dist/main/main.js",
   "scripts": {
-    "clean": "rm -rf dist release",
+    "clean": "node scripts/clean.js",
     "build": "npm run clean && tsc && tsc -p src/preload/tsconfig.json",
     "start": "npm run build && node scripts/dev.js",
     "generate-icons": "node scripts/generate-icons.js",
