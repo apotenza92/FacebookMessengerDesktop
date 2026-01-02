@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, Notification, Menu, nativeImage, screen, dialog, systemPreferences } from 'electron';
+import { app, BrowserWindow, BrowserView, ipcMain, Notification, Menu, nativeImage, screen, dialog, systemPreferences, Tray, shell, nativeTheme } from 'electron';
 import { spawn } from 'child_process';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -13,11 +13,17 @@ const resetFlag =
 const isDev = !app.isPackaged || process.env.NODE_ENV === 'development';
 
 let mainWindow: BrowserWindow | null = null;
+let contentView: BrowserView | null = null;
 let notificationHandler: NotificationHandler;
 let badgeManager: BadgeManager;
 let backgroundService: BackgroundService;
 let isQuitting = false;
 let resetApplied = false;
+let manualUpdateCheckInProgress = false;
+let tray: Tray | null = null;
+let titleOverlay: BrowserView | null = null;
+const overlayHeight = 32;
+const windowsOverlayHeight = 40; // Taller title bar for Windows
 
 type WindowState = {
   x?: number;
@@ -139,9 +145,20 @@ function ensureWindowInBounds(state: WindowState): WindowState {
   return { x: safeX, y: safeY, width: safeWidth, height: safeHeight };
 }
 
+function getOverlayColors(): { background: string; text: string; symbols: string } {
+  const isDark = nativeTheme.shouldUseDarkColors;
+  // Colors matched to Messenger's actual background colors
+  return isDark
+    ? { background: '#1a1a1a', text: '#f5f5f7', symbols: '#f5f5f7' }
+    : { background: '#f5f5f5', text: '#1c1c1e', symbols: '#1c1c1e' };
+}
+
 function createWindow(): void {
   const restoredState = ensureWindowInBounds(loadWindowState());
   const hasPosition = restoredState.x !== undefined && restoredState.y !== undefined;
+  const isMac = process.platform === 'darwin';
+  const isWindows = process.platform === 'win32';
+  const colors = getOverlayColors();
 
   mainWindow = new BrowserWindow({
     width: restoredState.width,
@@ -153,102 +170,233 @@ function createWindow(): void {
     minHeight: 400,
     title: 'Messenger',
     icon: getIconPath(),
+    // Use native hidden inset style on macOS to remove the separator while keeping drag area/buttons
+    // Use hidden style on Windows to enable custom title bar overlay
+    titleBarStyle: isMac ? 'hiddenInset' : isWindows ? 'hidden' : undefined,
+    titleBarOverlay: isMac
+      ? {
+          color: colors.background,
+          symbolColor: colors.symbols,
+          height: overlayHeight,
+        }
+      : isWindows
+      ? {
+          color: colors.background,
+          symbolColor: colors.symbols,
+          height: windowsOverlayHeight,
+        }
+      : undefined,
+    trafficLightPosition: isMac ? { x: 12, y: 10 } : undefined,
     webPreferences: {
-      preload: path.join(__dirname, '../preload/preload.js'),
+      // On macOS, main window doesn't load web content (we use BrowserView)
+      // On other platforms, load directly with preload
+      preload: !isMac ? path.join(__dirname, '../preload/preload.js') : undefined,
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false,
+      sandbox: !isMac ? false : undefined,
       webSecurity: true,
-      spellcheck: true,
+      spellcheck: !isMac ? true : undefined,
       enableWebSQL: false,
     },
+    backgroundColor: (isMac || isWindows) ? colors.background : undefined,
   });
 
-  // Set up permission handler for media (camera/microphone) and notifications
-  // This allows messenger.com to request these permissions and prompts the user via macOS
-  mainWindow.webContents.session.setPermissionRequestHandler((webContents, permission, callback, details) => {
-    const url = webContents.getURL();
-    
-    // Only allow permissions for messenger.com
-    if (!url.startsWith('https://www.messenger.com')) {
-      console.log(`[Permissions] Denied ${permission} for non-messenger URL: ${url}`);
-      callback(false);
-      return;
-    }
+  // On macOS, use BrowserView for content with title bar overlay on top
+  // Hybrid approach: content pushed down partially, overlay covers rest + some of Messenger's top UI
+  // On other platforms, load directly in the main window
+  const windowBounds = mainWindow.getBounds();
+  const contentOffset = 16; // Content pushed down 16px; overlay (24px) covers 16px dedicated + 8px of content
 
-    // List of permissions we allow for messenger.com
-    const allowedPermissions = [
-      'media',           // Camera and microphone for calls
-      'mediaKeySystem',  // DRM for media playback
-      'notifications',   // Web notifications (we override these anyway)
-      'fullscreen',      // Fullscreen for video calls
-      'pointerLock',     // Pointer lock for UI interactions
-    ];
+  if (isMac) {
+    // Create content BrowserView for messenger.com
+    contentView = new BrowserView({
+      webPreferences: {
+        preload: path.join(__dirname, '../preload/preload.js'),
+        contextIsolation: true,
+        nodeIntegration: false,
+        sandbox: false,
+        webSecurity: true,
+        spellcheck: true,
+        enableWebSQL: false,
+      },
+    });
 
-    if (allowedPermissions.includes(permission)) {
-      console.log(`[Permissions] Allowing ${permission} for messenger.com`);
-      callback(true);
-    } else {
-      console.log(`[Permissions] Denied ${permission} - not in allowlist`);
-      callback(false);
-    }
-  });
+    mainWindow.addBrowserView(contentView);
+    // Content starts at y=contentOffset; overlay sits on top covering the gap + some of Messenger's UI
+    contentView.setBounds({
+      x: 0,
+      y: contentOffset,
+      width: windowBounds.width,
+      height: windowBounds.height - contentOffset,
+    });
+    contentView.setAutoResize({ width: true, height: true });
 
-  // Handle permission check requests (for checking current permission status)
-  mainWindow.webContents.session.setPermissionCheckHandler((webContents, permission, requestingOrigin) => {
-    // Allow permission checks for messenger.com
-    if (requestingOrigin.startsWith('https://www.messenger.com')) {
-      const allowedPermissions = ['media', 'mediaKeySystem', 'notifications', 'fullscreen', 'pointerLock'];
-      return allowedPermissions.includes(permission);
-    }
-    return false;
-  });
-
-  // Load messenger.com
-  mainWindow.loadURL('https://www.messenger.com');
-
-  // Inject notification override script after page loads
-  mainWindow.webContents.on('did-finish-load', async () => {
-    try {
-      // First, inject a bridge function and listener that forwards custom events to postMessage
-      // This bridges from page context to preload context
-      await mainWindow?.webContents.executeJavaScript(`
-        (function() {
-          // Create a bridge function that forwards to the preload context
-          window.__electronNotificationBridge = function(data) {
-            // Dispatch a custom event
-            const event = new CustomEvent('electron-notification', { detail: data });
-            window.dispatchEvent(event);
-          };
-          
-          // Listen for custom events and forward via postMessage (preload can catch this)
-          window.addEventListener('electron-notification', function(event) {
-            window.postMessage({ type: 'electron-notification', data: event.detail }, '*');
-          });
-          
-          console.log('[Notification Bridge] Bridge function and listener installed');
-        })();
-      `);
-
-      // Read and inject the notification override script
-      const fs = require('fs');
-      const path = require('path');
-      const notificationScriptPath = path.join(__dirname, '../preload/notifications-inject.js');
+    // Set up permission handler on content view's session
+    contentView.webContents.session.setPermissionRequestHandler((webContents, permission, callback, details) => {
+      const url = webContents.getURL();
       
-      if (fs.existsSync(notificationScriptPath)) {
-        const notificationScript = fs.readFileSync(notificationScriptPath, 'utf8');
-        await mainWindow?.webContents.executeJavaScript(notificationScript);
-        console.log('[Main Process] Notification override script injected successfully');
-      } else {
-        console.warn('[Main Process] Notification script not found at:', notificationScriptPath);
+      if (!url.startsWith('https://www.messenger.com')) {
+        console.log(`[Permissions] Denied ${permission} for non-messenger URL: ${url}`);
+        callback(false);
+        return;
       }
-    } catch (error) {
-      console.error('[Main Process] Failed to inject notification script:', error);
-    }
-  });
+
+      const allowedPermissions = [
+        'media',
+        'mediaKeySystem',
+        'notifications',
+        'fullscreen',
+        'pointerLock',
+      ];
+
+      if (allowedPermissions.includes(permission)) {
+        console.log(`[Permissions] Allowing ${permission} for messenger.com`);
+        callback(true);
+      } else {
+        console.log(`[Permissions] Denied ${permission} - not in allowlist`);
+        callback(false);
+      }
+    });
+
+    contentView.webContents.session.setPermissionCheckHandler((webContents, permission, requestingOrigin) => {
+      if (requestingOrigin.startsWith('https://www.messenger.com')) {
+        const allowedPermissions = ['media', 'mediaKeySystem', 'notifications', 'fullscreen', 'pointerLock'];
+        return allowedPermissions.includes(permission);
+      }
+      return false;
+    });
+
+    // Load messenger.com in content view
+    contentView.webContents.loadURL('https://www.messenger.com');
+
+    // Inject notification override script after page loads
+    contentView.webContents.on('did-finish-load', async () => {
+      try {
+        await contentView?.webContents.executeJavaScript(`
+          (function() {
+            window.__electronNotificationBridge = function(data) {
+              const event = new CustomEvent('electron-notification', { detail: data });
+              window.dispatchEvent(event);
+            };
+            window.addEventListener('electron-notification', function(event) {
+              window.postMessage({ type: 'electron-notification', data: event.detail }, '*');
+            });
+            console.log('[Notification Bridge] Bridge function and listener installed');
+          })();
+        `);
+
+        const notificationScriptPath = path.join(__dirname, '../preload/notifications-inject.js');
+        if (fs.existsSync(notificationScriptPath)) {
+          const notificationScript = fs.readFileSync(notificationScriptPath, 'utf8');
+          await contentView?.webContents.executeJavaScript(notificationScript);
+          console.log('[Main Process] Notification override script injected successfully');
+        } else {
+          console.warn('[Main Process] Notification script not found at:', notificationScriptPath);
+        }
+      } catch (error) {
+        console.error('[Main Process] Failed to inject notification script:', error);
+      }
+    });
+
+    // Update title bar overlay when page title changes (e.g., "(5) Messenger" for unread counts)
+    contentView.webContents.on('page-title-updated', (event, title) => {
+      updateTitleOverlayText(title);
+      // Also update the main window title for dock/taskbar
+      if (mainWindow) {
+        mainWindow.setTitle(title);
+      }
+    });
+
+    // Handle window resize to maintain correct content bounds
+    mainWindow.on('resize', () => {
+      if (!mainWindow || !contentView) return;
+      const bounds = mainWindow.getBounds();
+      contentView.setBounds({
+        x: 0,
+        y: contentOffset,
+        width: bounds.width,
+        height: bounds.height - contentOffset,
+      });
+    });
+  } else {
+    // Non-macOS: load directly in main window (standard frame)
+    mainWindow.webContents.session.setPermissionRequestHandler((webContents, permission, callback, details) => {
+      const url = webContents.getURL();
+      
+      if (!url.startsWith('https://www.messenger.com')) {
+        console.log(`[Permissions] Denied ${permission} for non-messenger URL: ${url}`);
+        callback(false);
+        return;
+      }
+
+      const allowedPermissions = [
+        'media',
+        'mediaKeySystem',
+        'notifications',
+        'fullscreen',
+        'pointerLock',
+      ];
+
+      if (allowedPermissions.includes(permission)) {
+        console.log(`[Permissions] Allowing ${permission} for messenger.com`);
+        callback(true);
+      } else {
+        console.log(`[Permissions] Denied ${permission} - not in allowlist`);
+        callback(false);
+      }
+    });
+
+    mainWindow.webContents.session.setPermissionCheckHandler((webContents, permission, requestingOrigin) => {
+      if (requestingOrigin.startsWith('https://www.messenger.com')) {
+        const allowedPermissions = ['media', 'mediaKeySystem', 'notifications', 'fullscreen', 'pointerLock'];
+        return allowedPermissions.includes(permission);
+      }
+      return false;
+    });
+
+    mainWindow.loadURL('https://www.messenger.com');
+
+    mainWindow.webContents.on('did-finish-load', async () => {
+      try {
+        await mainWindow?.webContents.executeJavaScript(`
+          (function() {
+            window.__electronNotificationBridge = function(data) {
+              const event = new CustomEvent('electron-notification', { detail: data });
+              window.dispatchEvent(event);
+            };
+            window.addEventListener('electron-notification', function(event) {
+              window.postMessage({ type: 'electron-notification', data: event.detail }, '*');
+            });
+            console.log('[Notification Bridge] Bridge function and listener installed');
+          })();
+        `);
+
+        const notificationScriptPath = path.join(__dirname, '../preload/notifications-inject.js');
+        if (fs.existsSync(notificationScriptPath)) {
+          const notificationScript = fs.readFileSync(notificationScriptPath, 'utf8');
+          await mainWindow?.webContents.executeJavaScript(notificationScript);
+          console.log('[Main Process] Notification override script injected successfully');
+        } else {
+          console.warn('[Main Process] Notification script not found at:', notificationScriptPath);
+        }
+      } catch (error) {
+        console.error('[Main Process] Failed to inject notification script:', error);
+      }
+    });
+
+    // Update window title when page title changes (for dock/taskbar)
+    mainWindow.webContents.on('page-title-updated', (event, title) => {
+      if (mainWindow) {
+        mainWindow.setTitle(title);
+      }
+    });
+  }
 
   // Handle window closed
   mainWindow.on('closed', () => {
+    // Window is already destroyed at this point, just clean up references
+    titleOverlay = null;
+    contentView = null;
     mainWindow = null;
   });
 
@@ -258,6 +406,16 @@ function createWindow(): void {
     if (bounds) {
       console.log('[Window State] Saving state', bounds);
       saveWindowState(bounds);
+    }
+
+    if (!isQuitting) {
+      event.preventDefault();
+      if (process.platform === 'darwin') {
+        app.hide();
+      } else {
+        mainWindow?.hide();
+      }
+      return;
     }
   });
 
@@ -269,6 +427,35 @@ function createWindow(): void {
       mainWindow.show();
     }
   });
+
+  if (isMac && mainWindow) {
+    setupTitleOverlay(mainWindow, overlayHeight);
+    nativeTheme.on('updated', () => {
+      if (!mainWindow) return;
+      const colors = getOverlayColors();
+      mainWindow.setTitleBarOverlay?.({
+        color: colors.background,
+        symbolColor: colors.symbols,
+        height: overlayHeight,
+      });
+      mainWindow.setBackgroundColor(colors.background);
+      updateTitleOverlayColors();
+    });
+  }
+
+  // Handle Windows theme changes
+  if (isWindows && mainWindow) {
+    nativeTheme.on('updated', () => {
+      if (!mainWindow) return;
+      const colors = getOverlayColors();
+      mainWindow.setTitleBarOverlay?.({
+        color: colors.background,
+        symbolColor: colors.symbols,
+        height: windowsOverlayHeight,
+      });
+      mainWindow.setBackgroundColor(colors.background);
+    });
+  }
 }
 
 function getIconPath(): string | undefined {
@@ -312,6 +499,85 @@ function getIconPath(): string | undefined {
   }
   
   return undefined;
+}
+
+function getTrayIconPath(): string | undefined {
+  const trayDir = path.join(app.getAppPath(), 'assets', 'tray');
+  const devTrayDir = path.join(process.cwd(), 'assets', 'tray');
+
+  const platformIcon =
+    process.platform === 'win32'
+      ? 'icon.ico'
+      : process.platform === 'darwin'
+      ? 'iconTemplate.png'
+      : 'icon.png';
+
+  const possiblePaths = [
+    path.join(trayDir, platformIcon),
+    path.join(devTrayDir, platformIcon),
+  ];
+
+  try {
+    for (const iconPath of possiblePaths) {
+      if (fs.existsSync(iconPath)) {
+        return iconPath;
+      }
+    }
+  } catch (e) {
+    console.warn('[Tray] Failed to resolve tray icon path', e);
+  }
+
+  return undefined;
+}
+
+function showMainWindow(): void {
+  if (mainWindow) {
+    if (mainWindow.isMinimized()) {
+      mainWindow.restore();
+    }
+    mainWindow.show();
+    mainWindow.focus();
+    return;
+  }
+  createWindow();
+}
+
+function createTray(): void {
+  if (process.platform === 'darwin' || tray) {
+    return;
+  }
+
+  const trayIconPath = getTrayIconPath();
+  if (!trayIconPath) {
+    console.warn('[Tray] No tray icon found, skipping tray creation');
+    return;
+  }
+
+  try {
+    const trayIcon = nativeImage.createFromPath(trayIconPath);
+    tray = new Tray(trayIcon);
+    tray.setToolTip('Messenger');
+
+    const contextMenu = Menu.buildFromTemplate([
+      {
+        label: 'Show Messenger',
+        click: () => showMainWindow(),
+      },
+      { type: 'separator' },
+      {
+        label: 'Quit',
+        click: () => {
+          isQuitting = true;
+          app.quit();
+        },
+      },
+    ]);
+
+    tray.setContextMenu(contextMenu);
+    tray.on('double-click', () => showMainWindow());
+  } catch (e) {
+    console.warn('[Tray] Failed to create tray', e);
+  }
 }
 
 async function handleUninstallRequest(): Promise<void> {
@@ -364,6 +630,13 @@ async function handleUninstallRequest(): Promise<void> {
   const targets = uninstallTargets().map((t) => t.path);
   scheduleExternalCleanup(targets);
 
+  // Open platform-specific uninstall UI to remove the app bundle
+  if (process.platform === 'darwin') {
+    await shell.openPath('/Applications');
+  } else if (process.platform === 'win32') {
+    await shell.openExternal('ms-settings:appsfeatures');
+  }
+
   app.quit();
 }
 
@@ -389,6 +662,7 @@ function createApplicationMenu(): void {
         }).catch(() => {});
         return;
       }
+      manualUpdateCheckInProgress = true;
       autoUpdater.checkForUpdatesAndNotify().catch((err: unknown) => {
         console.warn('[AutoUpdater] manual check failed', err);
         dialog.showMessageBox({
@@ -397,6 +671,8 @@ function createApplicationMenu(): void {
           message: 'Could not check for updates. Please try again later.',
           buttons: ['OK'],
         }).catch(() => {});
+      }).finally(() => {
+        manualUpdateCheckInProgress = false;
       });
     },
   };
@@ -505,8 +781,12 @@ function setupIpcHandlers(): void {
 
   // Handle notification action (reply, etc.)
   ipcMain.on('notification-action', (event, action: string, data: any) => {
-    if (mainWindow) {
-      mainWindow.webContents.send('notification-action-handler', action, data);
+    // On macOS, content is in contentView; otherwise in mainWindow
+    const targetContents = process.platform === 'darwin' && contentView
+      ? contentView.webContents
+      : mainWindow?.webContents;
+    if (targetContents) {
+      targetContents.send('notification-action-handler', action, data);
     }
   });
 
@@ -783,6 +1063,18 @@ app.whenReady().then(async () => {
           buttons: ['OK'],
         }).catch(() => {});
       });
+      autoUpdater.on('update-not-available', () => {
+        if (!manualUpdateCheckInProgress) {
+          return;
+        }
+        dialog.showMessageBox({
+          type: 'info',
+          title: 'No Updates Available',
+          message: "You're up to date!",
+          detail: 'Messenger is running the latest version.',
+          buttons: ['OK'],
+        }).catch(() => {});
+      });
       autoUpdater.on('update-downloaded', () => {
         dialog.showMessageBox({
           type: 'info',
@@ -832,6 +1124,7 @@ app.whenReady().then(async () => {
   // Initialize managers
   notificationHandler = new NotificationHandler(() => mainWindow);
   badgeManager = new BadgeManager();
+  badgeManager.setWindowGetter(() => mainWindow);
   backgroundService = new BackgroundService();
 
   // Request notification permission on first launch (triggers macOS permission prompt)
@@ -842,6 +1135,9 @@ app.whenReady().then(async () => {
 
   // Create application menu
   createApplicationMenu();
+
+  // Create system tray (Windows/Linux)
+  createTray();
 
   // Create window
   createWindow();
@@ -861,8 +1157,97 @@ app.whenReady().then(async () => {
   }
 });
 
+function setupTitleOverlay(window: BrowserWindow, overlayHeight: number, title: string = 'Messenger'): void {
+  if (titleOverlay) {
+    window.removeBrowserView(titleOverlay);
+    titleOverlay = null;
+  }
+
+  titleOverlay = new BrowserView({
+    webPreferences: {
+      sandbox: true,
+      contextIsolation: true,
+    },
+  });
+
+  const { background: backgroundColor, text: textColor } = getOverlayColors();
+  // Escape HTML entities in title to prevent XSS
+  const safeTitle = title.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+  window.addBrowserView(titleOverlay);
+  titleOverlay.setBounds({ x: 0, y: 0, width: window.getBounds().width, height: overlayHeight });
+  titleOverlay.setAutoResize({ width: true });
+  titleOverlay.webContents.loadURL(
+    `data:text/html;charset=utf-8,${encodeURIComponent(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <style>
+            html, body {
+              margin: 0;
+              padding: 0;
+              width: 100%;
+              height: 100%;
+              background: ${backgroundColor};
+              -webkit-user-select: none;
+              cursor: default;
+            }
+            .bar {
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              padding: 0 72px;
+              height: 100%;
+              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+              font-size: 13px;
+              color: ${textColor};
+              -webkit-app-region: drag;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="bar">${safeTitle}</div>
+        </body>
+      </html>
+    `)}`
+  );
+}
+
+// Update just the title text in the overlay without rebuilding it
+function updateTitleOverlayText(title: string): void {
+  if (!titleOverlay) return;
+  const safeTitle = title.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/'/g, "\\'");
+  titleOverlay.webContents.executeJavaScript(`document.querySelector('.bar').textContent = '${safeTitle}';`).catch(() => {});
+}
+
+// Update overlay colors in-place without recreating the BrowserView
+function updateTitleOverlayColors(): void {
+  if (!titleOverlay) return;
+  const { background: backgroundColor, text: textColor } = getOverlayColors();
+  titleOverlay.webContents.executeJavaScript(`
+    document.body.style.background = '${backgroundColor}';
+    document.documentElement.style.background = '${backgroundColor}';
+    document.querySelector('.bar').style.color = '${textColor}';
+  `).catch(() => {});
+}
+
 app.on('window-all-closed', () => {
-  // Quit on all platforms (including macOS) when the last window closes
+  // Keep running in background unless user explicitly quits
+  if (isQuitting) {
+    app.quit();
+    return;
+  }
+
+  if (process.platform === 'darwin') {
+    // Standard macOS behavior: keep app running
+    return;
+  }
+
+  // If tray exists, keep alive; otherwise quit
+  if (tray) {
+    return;
+  }
+
   app.quit();
 });
 
