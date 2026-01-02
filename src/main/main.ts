@@ -109,11 +109,17 @@ const uninstallTargets = () => {
   } else if (process.platform === 'darwin') {
     // macOS: cache is in ~/Library/Caches/ (not Application Support where userData lives)
     targets.push({ label: 'Cache', path: path.join(homeDir, 'Library', 'Caches', APP_DIR_NAME) });
-    // Also clean up Saved Application State
-    targets.push({ label: 'Saved app state', path: path.join(homeDir, 'Library', 'Saved Application State', 'com.electron.messenger.savedState') });
+    // Clean up all other macOS system directories that may contain app data
+    const bundleId = 'com.facebook.messenger.desktop';
+    targets.push({ label: 'Saved app state', path: path.join(homeDir, 'Library', 'Saved Application State', `${bundleId}.savedState`) });
+    targets.push({ label: 'Preferences', path: path.join(homeDir, 'Library', 'Preferences', `${bundleId}.plist`) });
+    targets.push({ label: 'HTTP storage', path: path.join(homeDir, 'Library', 'HTTPStorages', bundleId) });
+    targets.push({ label: 'WebKit data', path: path.join(homeDir, 'Library', 'WebKit', bundleId) });
   } else {
     // Linux: cache is in ~/.cache/ (not ~/.config/ where userData lives)
     targets.push({ label: 'Cache', path: path.join(homeDir, '.cache', APP_DIR_NAME) });
+    // Also clean ~/.local/share which some Electron apps use
+    targets.push({ label: 'Local data', path: path.join(homeDir, '.local', 'share', APP_DIR_NAME) });
   }
 
   // Add sessionData if different from userData (Electron 28+)
@@ -858,6 +864,70 @@ type PackageManagerInfo = {
   uninstallCommand: string[];
 };
 
+// Cache file for install source detection (detected once on first run, never changes)
+const INSTALL_SOURCE_CACHE_FILE = 'install-source.json';
+
+type InstallSource = 'homebrew' | 'winget' | 'direct';
+
+function getInstallSourceCachePath(): string {
+  return path.join(app.getPath('userData'), INSTALL_SOURCE_CACHE_FILE);
+}
+
+function readInstallSourceCache(): InstallSource | null {
+  try {
+    const cachePath = getInstallSourceCachePath();
+    if (fs.existsSync(cachePath)) {
+      const data = fs.readFileSync(cachePath, 'utf-8');
+      const parsed = JSON.parse(data);
+      return parsed.source as InstallSource;
+    }
+  } catch (error) {
+    console.log('[InstallSource] Failed to read cache:', error instanceof Error ? error.message : 'unknown');
+  }
+  return null;
+}
+
+function writeInstallSourceCache(source: InstallSource): void {
+  try {
+    const cachePath = getInstallSourceCachePath();
+    fs.writeFileSync(cachePath, JSON.stringify({ source }, null, 2));
+    console.log('[InstallSource] Saved install source:', source);
+  } catch (error) {
+    console.log('[InstallSource] Failed to write cache:', error instanceof Error ? error.message : 'unknown');
+  }
+}
+
+// Detect install source once on first run and cache permanently
+async function detectAndCacheInstallSource(): Promise<void> {
+  // Skip in dev mode
+  if (isDev) return;
+  
+  // Already detected? Don't re-check - install method never changes
+  const cached = readInstallSourceCache();
+  if (cached) {
+    console.log('[InstallSource] Already detected:', cached);
+    return;
+  }
+  
+  console.log('[InstallSource] First run - detecting install source...');
+  
+  try {
+    if (process.platform === 'darwin') {
+      const homebrew = await detectHomebrewInstall();
+      writeInstallSourceCache(homebrew.detected ? 'homebrew' : 'direct');
+    } else if (process.platform === 'win32') {
+      const winget = await detectWingetInstall();
+      writeInstallSourceCache(winget.detected ? 'winget' : 'direct');
+    } else {
+      writeInstallSourceCache('direct');
+    }
+  } catch (error) {
+    console.log('[InstallSource] Detection failed:', error instanceof Error ? error.message : 'unknown');
+    // Assume direct install on failure - will use NSIS uninstaller which is safe
+    writeInstallSourceCache('direct');
+  }
+}
+
 async function detectHomebrewInstall(): Promise<PackageManagerInfo> {
   const result: PackageManagerInfo = {
     name: 'Homebrew',
@@ -894,29 +964,48 @@ async function detectWingetInstall(): Promise<PackageManagerInfo> {
   }
   
   try {
-    // Check if this package is installed via winget
-    const { stdout } = await execAsync(`winget list --id ${WINGET_ID} --accept-source-agreements`);
+    // Check if this package is installed via winget (with 5 second timeout)
+    const { stdout } = await execAsync(`winget list --id ${WINGET_ID} --accept-source-agreements`, { timeout: 5000 });
     // winget list returns the package info if found, check if our ID is in the output
     if (stdout.includes(WINGET_ID) || stdout.includes('FacebookMessengerDesktop')) {
       result.detected = true;
       console.log('[Uninstall] Detected winget installation');
     }
-  } catch {
-    // Command failed = not installed via winget or winget not available
-    console.log('[Uninstall] Not installed via winget or winget unavailable');
+  } catch (error) {
+    // Command failed, timed out, or winget not available
+    console.log('[Uninstall] winget detection failed or timed out:', error instanceof Error ? error.message : 'unknown error');
   }
   
   return result;
 }
 
-async function detectPackageManager(): Promise<PackageManagerInfo | null> {
-  if (process.platform === 'darwin') {
-    const homebrew = await detectHomebrewInstall();
-    if (homebrew.detected) return homebrew;
-  } else if (process.platform === 'win32') {
-    const winget = await detectWingetInstall();
-    if (winget.detected) return winget;
+function detectPackageManagerFromCache(): PackageManagerInfo | null {
+  // Read from cache (instant) instead of running slow detection commands
+  const source = readInstallSourceCache();
+  
+  if (!source || source === 'direct') {
+    console.log('[Uninstall] Install source:', source ?? 'not cached');
+    return null;
   }
+  
+  if (source === 'homebrew' && process.platform === 'darwin') {
+    console.log('[Uninstall] Using cached Homebrew detection');
+    return {
+      name: 'Homebrew',
+      detected: true,
+      uninstallCommand: ['brew', 'uninstall', '--cask', HOMEBREW_CASK],
+    };
+  }
+  
+  if (source === 'winget' && process.platform === 'win32') {
+    console.log('[Uninstall] Using cached winget detection');
+    return {
+      name: 'winget',
+      detected: true,
+      uninstallCommand: ['winget', 'uninstall', '--id', WINGET_ID, '--silent'],
+    };
+  }
+  
   return null;
 }
 
@@ -948,9 +1037,9 @@ async function handleUninstallRequest(): Promise<void> {
   const getDetailText = (): string => {
     switch (process.platform) {
       case 'darwin':
-        return 'This removes Messenger app data (settings, cache, logs) from this Mac.\n\nTo fully remove the application bundle, move Messenger.app to the Trash after this finishes.';
+        return 'This removes Messenger app data and moves the app to Trash.';
       case 'win32':
-        return 'This removes Messenger app data (settings, cache, logs) from this PC.\nTo fully uninstall the app, remove it from Apps & Features after this finishes.';
+        return 'This removes Messenger app data and runs the uninstaller.';
       case 'linux':
         return 'This removes Messenger app data (settings, cache, logs) from this machine.\nIf you installed from a package manager, remove the package separately after this finishes.';
       default:
@@ -972,8 +1061,8 @@ async function handleUninstallRequest(): Promise<void> {
     return;
   }
 
-  // Only detect package manager after user confirms (winget detection is slow on Windows)
-  const packageManager = await detectPackageManager();
+  // Read package manager from cache (instant - detection was done at app startup)
+  const packageManager = detectPackageManagerFromCache();
 
   // Show completion dialog with appropriate message
   const getCompletionDetail = (): string => {
@@ -1973,6 +2062,10 @@ app.whenReady().then(async () => {
   } else {
     console.log('[AutoUpdater] Skipped in development mode');
   }
+
+  // Detect and cache install source in background (so uninstall is instant later)
+  // This runs async and doesn't block startup
+  void detectAndCacheInstallSource();
 
   // Note: On macOS, the dock icon comes from the app bundle's .icns file
   // We don't call app.dock.setIcon() because that would override the properly-sized
