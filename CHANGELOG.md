@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.7.2] - 2026-01-03
+
+### Fixed
+- Uninstall dialog no longer hangs - install source is now detected at startup and cached
+- Uninstalling via Apps & Features now fully removes all app data (login, cache, etc.)
+- macOS: Fixed Saved Application State cleanup using wrong bundle ID
+
+### Improved
+- Install source (winget/Homebrew/direct) is detected once on first run and cached permanently
+  - No more slow winget/brew commands at uninstall time
+  - Detection only happens once - install method never changes
+- Complete data removal on all platforms during uninstall:
+  - Windows: Now cleans both %APPDATA% and %LOCALAPPDATA% via NSIS uninstaller
+  - macOS: Now also cleans Preferences, HTTPStorages, and WebKit directories
+  - Linux: Now also cleans ~/.local/share directory
+- Updated uninstall dialog text to correctly indicate automatic uninstall behavior
+
 ## [0.7.1] - 2026-01-03
 
 ### Improved

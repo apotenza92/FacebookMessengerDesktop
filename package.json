@@ -78,7 +78,9 @@
     },
     "nsis": {
       "differentialPackage": false,
-      "shortcutName": "Messenger"
+      "shortcutName": "Messenger",
+      "deleteAppDataOnUninstall": true,
+      "include": "scripts/uninstaller.nsh"
     },
     "linux": {
       "target": [
