@@ -316,6 +316,18 @@
 
         log('=== NATIVE NOTIFICATION INTERCEPTED ===', { id: this._id, title, body });
 
+        // CRITICAL: Suppress notifications during settling period AND initial startup
+        // Messenger often fires batched notifications for old messages when the app loads
+        const timeSinceStart = Date.now() - appStartTime;
+        if (isSettling || timeSinceStart < NATIVE_NOTIFICATION_SUPPRESS_MS) {
+          log('Native notification suppressed - app still settling', {
+            isSettling,
+            timeSinceStart,
+            threshold: NATIVE_NOTIFICATION_SUPPRESS_MS,
+          });
+          return;
+        }
+
         // Use title as key for deduplication (title is usually the sender name)
         const key = `native:${title}`;
         const bodyStr = String(body).slice(0, 100);
@@ -373,9 +385,15 @@
   const ENABLE_MUTATION_OBSERVER_NOTIFICATIONS = true;
 
   // Track whether we're in the initial settling period (no notifications during this time)
+  // This applies to BOTH MutationObserver and native notification interception
   let isSettling = true;
   // Track the current sidebar element to detect navigation changes
   let currentSidebarElement: Element | null = null;
+  // Track app startup time - used to suppress old notifications
+  const appStartTime = Date.now();
+  // How long after app start to suppress native notifications (longer than settling period)
+  // This accounts for Messenger batching old notification delivery on load
+  const NATIVE_NOTIFICATION_SUPPRESS_MS = 8000;
 
   // Scan and record all currently visible unread conversations (to avoid notifying on initial load)
   const recordExistingConversations = (sidebar: Element) => {
