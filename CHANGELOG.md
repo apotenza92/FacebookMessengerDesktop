@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.4] - 2026-01-03
+
+### Fixed
+- Notifications for old unread messages no longer appear when opening the app
+  - Native notifications are now suppressed during initial 8-second startup period
+  - Prevents Messenger from flooding notifications for messages that were already there
+
 ## [0.7.3] - 2026-01-04
 
 ### Fixed
