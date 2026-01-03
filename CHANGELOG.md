@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.7.5] - 2026-01-03
+
+### Added
+- Linux: Now builds .deb packages for Debian/Ubuntu users
+- Linux: Now builds .rpm packages for Fedora/RHEL users
+- Linux: Added ARM64 support for all package formats (Raspberry Pi, Pine64, etc.)
+- Download page: Linux users now see a format picker with AppImage, .deb, and .rpm options
+- Download page: Added toggle to switch between x64 and ARM64 builds
+
+### Improved
+- Download page: All Linux downloads now listed in "Other platforms" section
+- Consistent file naming across all Linux formats (x64/arm64 instead of mixed amd64/x86_64/aarch64)
+
 ## [0.7.4] - 2026-01-03
 
 ### Fixed

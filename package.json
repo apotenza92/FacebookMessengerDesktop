@@ -15,7 +15,9 @@
     "dist:win": "npm run build && electron-builder --win --arm64 --x64 --publish=never",
     "dist:win:arm": "npm run build && electron-builder --win --arm64 --publish=never",
     "dist:win:x64": "npm run build && electron-builder --win --x64 --publish=never",
-    "dist:linux": "npm run build && electron-builder --linux --publish=never",
+    "dist:linux": "npm run build && electron-builder --linux --arm64 --x64 --publish=never",
+    "dist:linux:arm": "npm run build && electron-builder --linux --arm64 --publish=never",
+    "dist:linux:x64": "npm run build && electron-builder --linux --x64 --publish=never",
     "dist:all": "npm run build && electron-builder --mac --win --linux --publish=never"
   },
   "keywords": [
@@ -86,11 +88,19 @@
     },
     "linux": {
       "target": [
-        "AppImage"
+        "AppImage",
+        "deb",
+        "rpm"
       ],
       "category": "Network",
       "icon": "assets/icons/icon.png",
-      "artifactName": "Messenger-linux.${ext}"
+      "artifactName": "Messenger-linux-${arch}.${ext}"
+    },
+    "deb": {
+      "artifactName": "Messenger-linux-${arch}.${ext}"
+    },
+    "rpm": {
+      "artifactName": "Messenger-linux-${arch}.${ext}"
     }
   }
 }
