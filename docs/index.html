@@ -148,6 +148,64 @@
       color: var(--text);
     }
     
+    .linux-formats {
+      display: none;
+      margin-top: 1rem;
+      padding: 1rem;
+      background: rgba(0, 132, 255, 0.05);
+      border-radius: 12px;
+      border: 1px solid var(--border);
+    }
+    
+    .linux-formats.visible {
+      display: block;
+    }
+    
+    .linux-formats h3 {
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      margin-bottom: 0.75rem;
+    }
+    
+    .format-options {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      justify-content: center;
+    }
+    
+    .format-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.25rem;
+      padding: 0.75rem 1rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      text-decoration: none;
+      color: var(--text);
+      transition: all 0.2s ease;
+      min-width: 100px;
+    }
+    
+    .format-btn:hover {
+      border-color: #0084ff;
+      background: rgba(0, 132, 255, 0.1);
+    }
+    
+    .format-btn .format-name {
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: #0084ff;
+    }
+    
+    .format-btn .format-desc {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+    }
+    
     .version-info {
       display: flex;
       align-items: center;
@@ -227,6 +285,41 @@
     </a>
     <p class="platform" id="platform-text">Detecting your platform...</p>
     
+    <div class="linux-formats" id="linux-formats">
+      <h3 id="linux-arch-title">Choose your preferred format (x64)</h3>
+      <div class="format-options" id="linux-x64-formats">
+        <a href="https://github.com/apotenza92/facebook-messenger-desktop/releases/latest/download/Messenger-linux-x64.AppImage" class="format-btn">
+          <span class="format-name">AppImage</span>
+          <span class="format-desc">Universal</span>
+        </a>
+        <a href="https://github.com/apotenza92/facebook-messenger-desktop/releases/latest/download/Messenger-linux-x64.deb" class="format-btn">
+          <span class="format-name">.deb</span>
+          <span class="format-desc">Ubuntu/Debian</span>
+        </a>
+        <a href="https://github.com/apotenza92/facebook-messenger-desktop/releases/latest/download/Messenger-linux-x64.rpm" class="format-btn">
+          <span class="format-name">.rpm</span>
+          <span class="format-desc">Fedora/RHEL</span>
+        </a>
+      </div>
+      <div class="format-options" id="linux-arm64-formats" style="display: none;">
+        <a href="https://github.com/apotenza92/facebook-messenger-desktop/releases/latest/download/Messenger-linux-arm64.AppImage" class="format-btn">
+          <span class="format-name">AppImage</span>
+          <span class="format-desc">Universal</span>
+        </a>
+        <a href="https://github.com/apotenza92/facebook-messenger-desktop/releases/latest/download/Messenger-linux-arm64.deb" class="format-btn">
+          <span class="format-name">.deb</span>
+          <span class="format-desc">Ubuntu/Debian</span>
+        </a>
+        <a href="https://github.com/apotenza92/facebook-messenger-desktop/releases/latest/download/Messenger-linux-arm64.rpm" class="format-btn">
+          <span class="format-name">.rpm</span>
+          <span class="format-desc">Fedora/RHEL</span>
+        </a>
+      </div>
+      <p class="linux-arch-switch" id="linux-arch-switch" style="margin-top: 0.75rem; font-size: 0.8rem; color: var(--text-muted);">
+        Looking for <a href="#" id="switch-arch-link" style="color: #0084ff;">ARM64 builds</a>?
+      </p>
+    </div>
+    
     <div class="version-info" id="version-info">
       <span>
         <svg viewBox="0 0 24 24" fill="currentColor">
@@ -245,7 +338,12 @@
         <a href="https://github.com/apotenza92/facebook-messenger-desktop/releases/latest/download/Messenger-macos-x64.zip" class="platform-link">macOS (Intel)</a>
         <a href="https://github.com/apotenza92/facebook-messenger-desktop/releases/latest/download/Messenger-windows-x64-setup.exe" class="platform-link">Windows (x64)</a>
         <a href="https://github.com/apotenza92/facebook-messenger-desktop/releases/latest/download/Messenger-windows-arm64-setup.exe" class="platform-link">Windows (ARM)</a>
-        <a href="https://github.com/apotenza92/facebook-messenger-desktop/releases/latest/download/Messenger-linux.AppImage" class="platform-link">Linux</a>
+        <a href="https://github.com/apotenza92/facebook-messenger-desktop/releases/latest/download/Messenger-linux-x64.AppImage" class="platform-link">Linux x64 (AppImage)</a>
+        <a href="https://github.com/apotenza92/facebook-messenger-desktop/releases/latest/download/Messenger-linux-x64.deb" class="platform-link">Linux x64 (.deb)</a>
+        <a href="https://github.com/apotenza92/facebook-messenger-desktop/releases/latest/download/Messenger-linux-x64.rpm" class="platform-link">Linux x64 (.rpm)</a>
+        <a href="https://github.com/apotenza92/facebook-messenger-desktop/releases/latest/download/Messenger-linux-arm64.AppImage" class="platform-link">Linux ARM64 (AppImage)</a>
+        <a href="https://github.com/apotenza92/facebook-messenger-desktop/releases/latest/download/Messenger-linux-arm64.deb" class="platform-link">Linux ARM64 (.deb)</a>
+        <a href="https://github.com/apotenza92/facebook-messenger-desktop/releases/latest/download/Messenger-linux-arm64.rpm" class="platform-link">Linux ARM64 (.rpm)</a>
       </div>
     </div>
     
@@ -277,9 +375,18 @@
         file: 'Messenger-windows-arm64-setup.exe'
       },
       'linux': {
-        url: 'https://github.com/apotenza92/facebook-messenger-desktop/releases/latest/download/Messenger-linux.AppImage',
+        url: 'https://github.com/apotenza92/facebook-messenger-desktop/releases/latest/download/Messenger-linux-x64.AppImage',
         name: 'Linux',
-        file: 'Messenger-linux.AppImage'
+        file: 'Messenger-linux-x64.AppImage',
+        showFormats: true,
+        arch: 'x64'
+      },
+      'linux-arm': {
+        url: 'https://github.com/apotenza92/facebook-messenger-desktop/releases/latest/download/Messenger-linux-arm64.AppImage',
+        name: 'Linux (ARM64)',
+        file: 'Messenger-linux-arm64.AppImage',
+        showFormats: true,
+        arch: 'arm64'
       }
     };
 
@@ -322,6 +429,10 @@
       
       // Check for Linux
       if (ua.includes('linux') && !ua.includes('android')) {
+        // Check for ARM Linux (Raspberry Pi, Pine64, etc.)
+        if (ua.includes('aarch64') || ua.includes('arm64') || platform.includes('arm')) {
+          return 'linux-arm';
+        }
         return 'linux';
       }
       
@@ -373,10 +484,52 @@
       const btn = document.getElementById('download-btn');
       const btnText = document.getElementById('btn-text');
       const platformText = document.getElementById('platform-text');
+      const linuxFormats = document.getElementById('linux-formats');
       
       btn.href = download.url;
       btnText.textContent = `Download for ${download.name}`;
       platformText.textContent = `${download.file}`;
+      
+      // Show Linux format picker if on Linux
+      if (download.showFormats && linuxFormats) {
+        linuxFormats.classList.add('visible');
+        const archLabel = download.arch === 'arm64' ? 'ARM64' : 'x64';
+        platformText.textContent = `AppImage (recommended) - or choose ${archLabel} format below`;
+        
+        // Show the correct arch formats
+        const x64Formats = document.getElementById('linux-x64-formats');
+        const arm64Formats = document.getElementById('linux-arm64-formats');
+        const archTitle = document.getElementById('linux-arch-title');
+        const switchLink = document.getElementById('switch-arch-link');
+        const switchText = document.getElementById('linux-arch-switch');
+        
+        if (download.arch === 'arm64') {
+          x64Formats.style.display = 'none';
+          arm64Formats.style.display = 'flex';
+          archTitle.textContent = 'Choose your preferred format (ARM64)';
+          switchLink.textContent = 'x64 builds';
+          switchText.innerHTML = 'Looking for <a href="#" id="switch-arch-link" style="color: #0084ff;">x64 builds</a>?';
+        }
+        
+        // Handle arch switch
+        document.getElementById('linux-arch-switch').addEventListener('click', (e) => {
+          if (e.target.tagName === 'A') {
+            e.preventDefault();
+            const showingX64 = x64Formats.style.display !== 'none';
+            if (showingX64) {
+              x64Formats.style.display = 'none';
+              arm64Formats.style.display = 'flex';
+              archTitle.textContent = 'Choose your preferred format (ARM64)';
+              e.target.textContent = 'x64 builds';
+            } else {
+              x64Formats.style.display = 'flex';
+              arm64Formats.style.display = 'none';
+              archTitle.textContent = 'Choose your preferred format (x64)';
+              e.target.textContent = 'ARM64 builds';
+            }
+          }
+        });
+      }
       
       btn.addEventListener('click', () => {
         btn.classList.add('downloading');

@@ -41,7 +41,7 @@ npm run build       # Compile TypeScript only
 npm run dist        # Build distributable for current platform
 npm run dist:mac    # macOS (both architectures)
 npm run dist:win    # Windows (both architectures)
-npm run dist:linux  # Linux AppImage
+npm run dist:linux  # Linux (AppImage + .deb)
 ```
 
 ## Key Conventions
