@@ -148,6 +148,14 @@ const uninstallTargets = () => {
     targets.push({ label: 'Cache', path: path.join(homeDir, '.cache', APP_DIR_NAME) });
     // Also clean ~/.local/share which some Electron apps use
     targets.push({ label: 'Local data', path: path.join(homeDir, '.local', 'share', APP_DIR_NAME) });
+    // Clean up user-specific desktop entries that might have been created
+    // These can persist after package removal and leave ghost icons in app menus
+    const linuxPkgName = 'facebook-messenger-desktop';
+    targets.push({ label: 'Desktop entry', path: path.join(homeDir, '.local', 'share', 'applications', `${linuxPkgName}.desktop`) });
+    targets.push({ label: 'Desktop entry (alt)', path: path.join(homeDir, '.local', 'share', 'applications', 'Messenger.desktop') });
+    // User icon directories (in case icons were copied there)
+    targets.push({ label: 'User icons', path: path.join(homeDir, '.local', 'share', 'icons', 'hicolor', '256x256', 'apps', `${linuxPkgName}.png`) });
+    targets.push({ label: 'User icons', path: path.join(homeDir, '.local', 'share', 'icons', 'hicolor', '512x512', 'apps', `${linuxPkgName}.png`) });
   }
 
   // Add sessionData if different from userData (Electron 28+)
@@ -1102,8 +1110,8 @@ async function detectDebInstall(): Promise<PackageManagerInfo> {
   const result: PackageManagerInfo = {
     name: 'apt (deb)',
     detected: false,
-    // Use pkexec for graphical sudo prompt
-    uninstallCommand: ['pkexec', 'apt', 'remove', '-y', LINUX_PACKAGE_NAME],
+    // Use pkexec for graphical sudo prompt - use full paths for GUI environments
+    uninstallCommand: ['/usr/bin/pkexec', '/usr/bin/apt', 'remove', '-y', LINUX_PACKAGE_NAME],
   };
   
   if (process.platform !== 'linux') {
@@ -1112,7 +1120,9 @@ async function detectDebInstall(): Promise<PackageManagerInfo> {
   
   try {
     // Check if package is installed via dpkg
-    const { stdout } = await execAsync(`dpkg-query -W -f='\${Status}' ${LINUX_PACKAGE_NAME} 2>/dev/null`);
+    // Use full path since GUI apps may not have /usr/bin in PATH
+    const env = { ...process.env, PATH: `/usr/bin:/bin:${process.env.PATH || ''}` };
+    const { stdout } = await execAsync(`/usr/bin/dpkg-query -W -f='\${Status}' ${LINUX_PACKAGE_NAME} 2>/dev/null`, { env });
     if (stdout.includes('install ok installed')) {
       result.detected = true;
       console.log('[Uninstall] Detected .deb package installation');
@@ -1129,8 +1139,8 @@ async function detectRpmInstall(): Promise<PackageManagerInfo> {
   const result: PackageManagerInfo = {
     name: 'dnf (rpm)',
     detected: false,
-    // Use pkexec for graphical sudo prompt
-    uninstallCommand: ['pkexec', 'dnf', 'remove', '-y', LINUX_PACKAGE_NAME],
+    // Use pkexec for graphical sudo prompt - use full paths for GUI environments
+    uninstallCommand: ['/usr/bin/pkexec', '/usr/bin/dnf', 'remove', '-y', LINUX_PACKAGE_NAME],
   };
   
   if (process.platform !== 'linux') {
@@ -1139,7 +1149,10 @@ async function detectRpmInstall(): Promise<PackageManagerInfo> {
   
   try {
     // Check if package is installed via rpm
-    await execAsync(`rpm -q ${LINUX_PACKAGE_NAME}`);
+    // Use full path to rpm since GUI apps may not have /usr/bin in PATH
+    // Also set PATH explicitly to handle various Linux environments
+    const env = { ...process.env, PATH: `/usr/bin:/bin:${process.env.PATH || ''}` };
+    await execAsync(`/usr/bin/rpm -q ${LINUX_PACKAGE_NAME}`, { env });
     result.detected = true;
     console.log('[Uninstall] Detected .rpm package installation');
   } catch {
@@ -1232,7 +1245,7 @@ function detectPackageManagerFromCache(): PackageManagerInfo | null {
     return {
       name: 'apt (deb)',
       detected: true,
-      uninstallCommand: ['pkexec', 'apt', 'remove', '-y', LINUX_PACKAGE_NAME],
+      uninstallCommand: ['/usr/bin/pkexec', '/usr/bin/apt', 'remove', '-y', LINUX_PACKAGE_NAME],
     };
   }
   
@@ -1241,7 +1254,7 @@ function detectPackageManagerFromCache(): PackageManagerInfo | null {
     return {
       name: 'dnf (rpm)',
       detected: true,
-      uninstallCommand: ['pkexec', 'dnf', 'remove', '-y', LINUX_PACKAGE_NAME],
+      uninstallCommand: ['/usr/bin/pkexec', '/usr/bin/dnf', 'remove', '-y', LINUX_PACKAGE_NAME],
     };
   }
   
@@ -1260,8 +1273,68 @@ function runPackageManagerUninstall(pm: PackageManagerInfo): void {
       stdio: 'ignore',
     });
     child.unref();
+  } else if (process.platform === 'linux' && (pm.name.includes('deb') || pm.name.includes('rpm'))) {
+    // On Linux with deb/rpm, run uninstall followed by desktop/icon cache refresh
+    // This ensures the app icon is properly removed from application menus
+    const homeDir = process.env.HOME || '';
+    const uninstallCmd = pm.uninstallCommand.join(' ');
+    
+    // Build comprehensive cleanup script:
+    // 1. Run the package manager uninstall (with pkexec for authentication)
+    // 2. Remove any lingering user desktop entries
+    // 3. Refresh icon caches (both system and user)
+    // 4. Update desktop database
+    // 5. Kill any remaining Messenger processes
+    const cleanupScript = `
+      # Run package manager uninstall (this will show pkexec authentication dialog)
+      ${uninstallCmd}
+      UNINSTALL_EXIT=$?
+      
+      # Only proceed with cleanup if uninstall succeeded
+      if [ $UNINSTALL_EXIT -eq 0 ]; then
+        # Wait for package manager to finish
+        sleep 1
+        
+        # Remove user-specific desktop entries that might persist
+        rm -f "${homeDir}/.local/share/applications/${LINUX_PACKAGE_NAME}.desktop" 2>/dev/null
+        rm -f "${homeDir}/.local/share/applications/Messenger.desktop" 2>/dev/null
+        rm -f "${homeDir}/.local/share/applications/messenger.desktop" 2>/dev/null
+        
+        # Remove user icons if they exist
+        rm -f "${homeDir}/.local/share/icons/hicolor/"*"/apps/${LINUX_PACKAGE_NAME}.png" 2>/dev/null
+        rm -f "${homeDir}/.local/share/icons/hicolor/"*"/apps/messenger.png" 2>/dev/null
+        
+        # Update user desktop database
+        if command -v update-desktop-database >/dev/null 2>&1; then
+          update-desktop-database "${homeDir}/.local/share/applications" 2>/dev/null || true
+        fi
+        
+        # Refresh icon caches (user space - no sudo needed)
+        if command -v gtk-update-icon-cache >/dev/null 2>&1; then
+          gtk-update-icon-cache -f -t "${homeDir}/.local/share/icons/hicolor" 2>/dev/null || true
+        fi
+        
+        # Force GNOME Shell to reload application list (if running GNOME)
+        if command -v dbus-send >/dev/null 2>&1; then
+          dbus-send --type=signal --dest=org.gnome.Shell /org/gnome/Shell org.gnome.Shell.AppLaunchContext 2>/dev/null || true
+        fi
+        
+        # For KDE Plasma, touch the applications directory to trigger refresh
+        touch "${homeDir}/.local/share/applications" 2>/dev/null || true
+        
+        # Kill any remaining Messenger processes (the app should already be hidden/closing)
+        pkill -f "facebook-messenger-desktop" 2>/dev/null || true
+        pkill -f "/opt/Messenger" 2>/dev/null || true
+      fi
+    `.trim();
+    
+    const child = spawn('/bin/sh', ['-c', cleanupScript], {
+      detached: true,
+      stdio: 'ignore',
+    });
+    child.unref();
   } else {
-    // On macOS/Linux, spawn directly
+    // On macOS/other Linux (Homebrew, Snap, Flatpak), spawn directly
     const child = spawn(command, args, {
       detached: true,
       stdio: 'ignore',
@@ -1318,6 +1391,20 @@ async function handleUninstallRequest(): Promise<void> {
   if (packageManager) {
     // Run the package manager uninstall command
     runPackageManagerUninstall(packageManager);
+    
+    // For Linux deb/rpm with pkexec, we need to give time for the authentication dialog to appear
+    // Hide the window but don't quit immediately - the uninstall script will terminate the app
+    if (process.platform === 'linux' && (packageManager.name.includes('deb') || packageManager.name.includes('rpm'))) {
+      console.log('[Uninstall] Hiding window for pkexec authentication...');
+      mainWindow?.hide();
+      // Give pkexec time to show its authentication dialog and complete
+      // The app will be killed by the package manager or cleanup script
+      setTimeout(() => {
+        console.log('[Uninstall] Quitting after delay for pkexec...');
+        app.quit();
+      }, 30000); // 30 second timeout as fallback
+      return;
+    }
   } else {
     // Automatically remove the app bundle/installation
     if (process.platform === 'darwin') {

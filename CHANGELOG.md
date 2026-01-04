@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.8.3] - 2026-01-04
+
+### Fixed
+- Linux: Fixed in-app uninstall not actually removing the app on Fedora/RPM systems
+  - Detection commands (rpm, dpkg-query) now use full paths for GUI environments
+  - pkexec authentication dialog now appears properly (app window hides instead of quitting immediately)
+  - Cleanup script waits for package manager to complete before refreshing caches
+- Linux: Fixed app icon remaining in application menu after uninstall
+  - User-specific desktop entries in ~/.local/share/applications/ are now cleaned up
+  - User icons in ~/.local/share/icons/hicolor/ are now removed
+  - Desktop database and icon caches are refreshed after uninstall
+  - GNOME Shell and KDE Plasma are notified to refresh their app lists
+
 ## [0.8.2] - 2026-01-04
 
 ### Fixed
