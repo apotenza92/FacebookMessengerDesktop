@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.7.8] - 2026-01-04
+
+### Fixed
+- Linux: In-app uninstall now properly removes .deb and .rpm packages
+  - Automatically detects if installed via apt/dpkg or dnf/rpm
+  - Uses pkexec for graphical password prompt to run package manager uninstall
+  - No longer shows "remove the package separately" message for .deb/.rpm installs
+
+### Changed
+- Download page: Extension now shown next to download button instead of in button text
+
 ## [0.7.7] - 2026-01-04
 
 ### Fixed
