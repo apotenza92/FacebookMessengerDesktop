@@ -21,3 +21,15 @@ brew install --cask apotenza92/tap/facebook-messenger-desktop
 ### Windows (WinGet)
 
 **Pending approval**
+
+### Linux
+
+#### Snap Store
+
+```bash
+sudo snap install facebook-messenger-desktop
+```
+
+#### Flathub
+
+**Pending approval**
