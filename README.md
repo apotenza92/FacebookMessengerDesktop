@@ -14,26 +14,25 @@ This project exists because the original Facebook Desktop Messenger app was depr
 
 ### macOS
 
-**Homebrew**
+#### Homebrew
 
 ```bash
 brew install --cask apotenza92/tap/facebook-messenger-desktop
 ```
 
-<br>
-
 ### Windows
 
-**WinGet** — *Pending approval*
+#### WinGet
 
-<br>
+Pending approval.
 
 ### Linux
 
-**Snap Store**
+#### Snap Store
 
 ```bash
 sudo snap install facebook-messenger-desktop
 ```
+#### Flathub
 
-**Flathub** — *Pending approval*
+Pending approval.
