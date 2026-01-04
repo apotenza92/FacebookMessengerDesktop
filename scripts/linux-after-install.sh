@@ -1,6 +1,12 @@
 #!/bin/bash
 # Post-installation script for Linux deb/rpm packages
-# Sets up sandbox permissions, installs icons, and updates desktop/icon caches
+# Creates symlink to /usr/bin, sets up sandbox permissions, installs icons, and updates caches
+
+# Create symlink to /usr/bin so the app is available in PATH
+# This is standard practice for apps installed to /opt/
+if [ -f "/opt/Messenger/facebook-messenger-desktop" ]; then
+    ln -sf "/opt/Messenger/facebook-messenger-desktop" "/usr/bin/facebook-messenger-desktop" 2>/dev/null || true
+fi
 
 # Fix chrome-sandbox permissions (required for Electron apps on Linux)
 # The sandbox binary must be owned by root with SUID bit set (mode 4755)

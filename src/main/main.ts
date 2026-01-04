@@ -106,8 +106,11 @@ const gotTheLock = app.requestSingleInstanceLock();
 console.log(`[SingleInstance] Lock acquired: ${gotTheLock}`);
 if (!gotTheLock) {
   // Another instance is already running - quit immediately
+  // app.quit() is asynchronous and doesn't stop code execution, so we must also
+  // call process.exit() to prevent whenReady() callbacks from running
   console.log('[SingleInstance] Another instance is already running, quitting...');
   app.quit();
+  process.exit(0);
 } else {
   // Handle second instance attempts - show existing window or create one
   // Uses showMainWindow() for consistent behavior with tray icon click
@@ -2541,8 +2544,16 @@ async function downloadWindowsUpdate(version: string): Promise<void> {
 
 // Linux direct download function - downloads .deb or .rpm package and installs with pkexec
 async function downloadLinuxPackage(version: string, packageType: 'deb' | 'rpm'): Promise<string> {
-  const arch = process.arch === 'arm64' ? 'arm64' : 'x64';
-  const fileName = `facebook-messenger-desktop-${arch}.${packageType}`;
+  // Map Node.js arch to Linux package arch naming conventions
+  // RPM uses: x86_64 / aarch64
+  // DEB uses: amd64 / arm64
+  let archName: string;
+  if (packageType === 'rpm') {
+    archName = process.arch === 'arm64' ? 'aarch64' : 'x86_64';
+  } else {
+    archName = process.arch === 'arm64' ? 'arm64' : 'amd64';
+  }
+  const fileName = `facebook-messenger-desktop-${archName}.${packageType}`;
   const downloadUrl = `https://github.com/apotenza92/FacebookMessengerDesktop/releases/download/v${version}/${fileName}`;
   
   // Get user's Downloads folder

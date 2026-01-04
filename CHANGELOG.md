@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.8.9] - 2026-01-04
+
+### Fixed
+- Linux deb/rpm: Fixed auto-updates returning 404 errors (especially on Fedora)
+  - Download URLs were using Node.js arch names (x64/arm64) instead of Linux package names
+  - RPM now correctly uses x86_64/aarch64 naming
+  - DEB now correctly uses amd64/arm64 naming
+- Linux deb/rpm: Fixed app not being available in terminal PATH after installation
+  - Symlink now created from /usr/bin/facebook-messenger-desktop to /opt/Messenger/
+  - Commands like `which facebook-messenger-desktop` now work as expected
+- Linux: Fixed double window appearing when launching app while another instance is running
+  - Single instance lock was correctly detecting the other instance but app.quit() is asynchronous
+  - Added process.exit() to immediately terminate before window creation code could run
+
 ## [0.8.8] - 2026-01-04
 
 ### Added
