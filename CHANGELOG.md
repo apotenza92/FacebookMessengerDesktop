@@ -3,6 +3,8 @@
 ## [0.8.3] - 2026-01-04
 
 ### Fixed
+- Linux Snap: Fixed Snap Store upload failing due to duplicate plugs in snap configuration
+  - Removed redundant desktop/x11/wayland/unity7 plugs that were already included in "default"
 - Linux: Fixed in-app uninstall not actually removing the app on Fedora/RPM systems
   - Detection commands (rpm, dpkg-query) now use full paths for GUI environments
   - pkexec authentication dialog now appears properly (app window hides instead of quitting immediately)
