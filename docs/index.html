@@ -62,12 +62,6 @@
       margin-bottom: 0.5rem;
     }
     
-    .subtitle {
-      color: var(--text-muted);
-      margin-bottom: 2rem;
-      font-size: 0.95rem;
-    }
-    
     .download-btn {
       display: inline-flex;
       align-items: center;
@@ -101,9 +95,9 @@
     }
     
     .platform {
-      margin-top: 0.75rem;
-      color: var(--text-subtle);
-      font-size: 0.85rem;
+      margin-bottom: 1.5rem;
+      color: var(--text-muted);
+      font-size: 0.95rem;
     }
     
     .other-platforms {
@@ -425,7 +419,7 @@
   <div class="container">
     <img src="https://raw.githubusercontent.com/apotenza92/facebook-messenger-desktop/main/assets/icons/icon-rounded.png" alt="Messenger" class="icon">
     <h1>Messenger Desktop</h1>
-    <p class="subtitle">Download for your platform</p>
+    <p class="platform" id="platform-text">Detecting your platform...</p>
     
     <div class="download-wrapper" id="download-wrapper">
       <a href="#" class="download-btn" id="download-btn">
@@ -436,7 +430,6 @@
         <span id="btn-text">Download</span>
       </a>
     </div>
-    <p class="platform" id="platform-text">Detecting your platform...</p>
     
     <div class="linux-formats" id="linux-formats">
       <h3>Linux Downloads</h3>
