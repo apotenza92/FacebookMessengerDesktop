@@ -152,12 +152,7 @@
         "default",
         "camera",
         "audio-record",
-        "removable-media",
-        "desktop",
-        "desktop-legacy",
-        "unity7",
-        "wayland",
-        "x11"
+        "removable-media"
       ]
     },
     "flatpak": {
