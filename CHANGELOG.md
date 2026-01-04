@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.8.4] - 2026-01-04
+
+### Fixed
+- Linux: Fixed double window appearing when clicking dash icon after previously closing window
+  - Added isDestroyed() check to prevent showing/focusing destroyed windows
+  - Added race condition guard to prevent simultaneous window creation from second-instance and activate events
+- Linux: Improved icon sizing in dash - icon now has transparent padding around it
+  - White rounded background is now 72% of canvas (was 100%)
+  - Messenger logo is 56% of canvas for better visibility within the smaller background
+  - Icon now appears properly sized relative to other system icons in GNOME/KDE dash
+
 ## [0.8.3] - 2026-01-04
 
 ### Fixed
