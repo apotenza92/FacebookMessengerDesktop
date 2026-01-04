@@ -159,6 +159,53 @@ async function generateIconWithRoundedWhiteBackground(svgBuffer, size, outputPat
     .toFile(outputPath);
 }
 
+// Helper function to generate Linux icon with smaller rounded background and transparent canvas
+// Linux dash icons need smaller backgrounds to match system icons (which often have padding)
+// The white rounded rectangle is shrunk relative to the canvas, with transparent space around it
+async function generateLinuxIcon(svgBuffer, size, outputPath, backgroundScale = 0.72, iconScale = 0.68) {
+  // backgroundScale controls how much of the canvas the white rounded rect covers
+  // iconScale controls how much of the canvas the messenger logo covers
+  // Both are scaled relative to the full canvas size
+  
+  const bgSize = Math.floor(size * backgroundScale);
+  const bgPadding = Math.floor((size - bgSize) / 2);
+  
+  const logoSize = Math.floor(size * iconScale);
+  const logoPadding = Math.floor((size - logoSize) / 2);
+  
+  // Corner radius relative to the background size (Big Sur style)
+  const cornerRadius = Math.floor(bgSize * 0.2237);
+  
+  // Create rounded rectangle background SVG (centered in canvas)
+  const roundedRectSvg = `
+    <svg width="${size}" height="${size}">
+      <rect x="${bgPadding}" y="${bgPadding}" width="${bgSize}" height="${bgSize}" rx="${cornerRadius}" ry="${cornerRadius}" fill="white"/>
+    </svg>
+  `;
+  
+  // Resize messenger logo
+  const svgResized = await sharp(svgBuffer)
+    .resize(logoSize, logoSize)
+    .png()
+    .toBuffer();
+  
+  // Create transparent canvas with rounded white background
+  const roundedWhiteBg = await sharp(Buffer.from(roundedRectSvg))
+    .png()
+    .toBuffer();
+  
+  // Composite: transparent canvas with white rounded bg + messenger logo centered
+  return sharp(roundedWhiteBg)
+    .composite([{ 
+      input: svgResized, 
+      blend: 'over',
+      left: logoPadding,
+      top: logoPadding
+    }])
+    .png()
+    .toFile(outputPath);
+}
+
 // Helper for transparent-background icons (used for DMG volume icon)
 async function generateIconWithTransparentBackground(svgBuffer, size, outputPath) {
   return sharp(svgBuffer)
@@ -227,17 +274,20 @@ async function generateIcons() {
     await generateIconWithRoundedWhiteBackground(svgBuffer, 512, path.join(iconsDir, 'icon.png'));
     
     // Generate Linux icons directory with proper NxN.png naming for hicolor theme
-    // Linux desktop environments (GNOME, KDE) expect smaller icons relative to canvas
-    // Using 68% scale (16% margin on each side) to match other apps in the dash
+    // Linux desktop environments (GNOME, KDE) need icons with transparent padding around
+    // the white background so the overall icon appears smaller in the dash
+    // backgroundScale: white rounded rect is 72% of canvas
+    // iconScale: messenger logo is 56% of canvas (sits inside the background)
     console.log('Generating Linux icons directory...');
     const linuxIconsDir = path.join(iconsDir, 'linux');
     if (!fs.existsSync(linuxIconsDir)) {
       fs.mkdirSync(linuxIconsDir, { recursive: true });
     }
     const linuxIconSizes = [512, 256, 128, 96, 72, 64, 48, 32, 24, 22, 16];
-    const linuxIconScale = 0.68; // Smaller than macOS/Windows to match Linux dash aesthetics
+    const linuxBgScale = 0.72;   // White background is 72% of canvas (28% transparent padding)
+    const linuxLogoScale = 0.56; // Messenger logo is 56% of canvas (larger inside background)
     for (const size of linuxIconSizes) {
-      await generateIconWithRoundedWhiteBackground(svgBuffer, size, path.join(linuxIconsDir, `${size}x${size}.png`), linuxIconScale);
+      await generateLinuxIcon(svgBuffer, size, path.join(linuxIconsDir, `${size}x${size}.png`), linuxBgScale, linuxLogoScale);
     }
 
     // Generate rounded PNGs for Windows ICO

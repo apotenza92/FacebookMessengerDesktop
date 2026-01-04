@@ -63,6 +63,7 @@ let manualUpdateCheckInProgress = false;
 let updateDownloadedAndReady = false;
 let tray: Tray | null = null;
 let titleOverlay: BrowserView | null = null;
+let isCreatingWindow = false; // Guard against race conditions during window creation
 const overlayHeight = 32;
 
 type WindowState = {
@@ -412,6 +413,15 @@ function getOverlayColors(): { background: string; text: string; symbols: string
 }
 
 function createWindow(): void {
+  // Guard against creating multiple windows due to race conditions
+  // (e.g., second-instance + activate firing simultaneously on Linux)
+  if (isCreatingWindow || (mainWindow && !mainWindow.isDestroyed())) {
+    console.log('[Window] Window creation already in progress or window exists, skipping');
+    return;
+  }
+  
+  isCreatingWindow = true;
+  
   const restoredState = ensureWindowInBounds(loadWindowState());
   const hasPosition = restoredState.x !== undefined && restoredState.y !== undefined;
   const isMac = process.platform === 'darwin';
@@ -727,6 +737,8 @@ function createWindow(): void {
     });
   }
 
+  // Window creation complete
+  isCreatingWindow = false;
 }
 
 function getIconPath(): string | undefined {
@@ -836,7 +848,8 @@ function getTrayIconPath(): string | undefined {
 }
 
 function showMainWindow(): void {
-  if (mainWindow) {
+  // Check if window exists and is not destroyed
+  if (mainWindow && !mainWindow.isDestroyed()) {
     if (mainWindow.isMinimized()) {
       mainWindow.restore();
     }
@@ -844,6 +857,18 @@ function showMainWindow(): void {
     mainWindow.focus();
     return;
   }
+  
+  // Don't create a new window if one is already being created (race condition guard)
+  if (isCreatingWindow) {
+    console.log('[Window] Window creation already in progress, waiting...');
+    return;
+  }
+  
+  // Clean up stale reference if window was destroyed
+  if (mainWindow) {
+    mainWindow = null;
+  }
+  
   createWindow();
 }
 
