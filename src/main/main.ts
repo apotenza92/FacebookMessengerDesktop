@@ -877,6 +877,7 @@ function createTray(): void {
 // Package manager constants
 const HOMEBREW_CASK = 'apotenza92/tap/facebook-messenger-desktop';
 const WINGET_ID = 'apotenza92.FacebookMessengerDesktop';
+const LINUX_PACKAGE_NAME = 'facebook-messenger-desktop';
 
 type PackageManagerInfo = {
   name: string;
@@ -887,7 +888,7 @@ type PackageManagerInfo = {
 // Cache file for install source detection (detected once on first run, never changes)
 const INSTALL_SOURCE_CACHE_FILE = 'install-source.json';
 
-type InstallSource = 'homebrew' | 'winget' | 'direct';
+type InstallSource = 'homebrew' | 'winget' | 'deb' | 'rpm' | 'direct';
 
 function getInstallSourceCachePath(): string {
   return path.join(app.getPath('userData'), INSTALL_SOURCE_CACHE_FILE);
@@ -961,9 +962,25 @@ async function detectAndCacheInstallSource(): Promise<void> {
       const newSource = winget.detected ? 'winget' : 'direct';
       writeInstallSourceCache(newSource);
       console.log('[InstallSource] Detected:', newSource);
+    } else if (process.platform === 'linux') {
+      // Check for .deb first (Debian/Ubuntu), then .rpm (Fedora/RHEL)
+      const deb = await detectDebInstall();
+      if (deb.detected) {
+        writeInstallSourceCache('deb');
+        console.log('[InstallSource] Detected: deb');
+      } else {
+        const rpm = await detectRpmInstall();
+        if (rpm.detected) {
+          writeInstallSourceCache('rpm');
+          console.log('[InstallSource] Detected: rpm');
+        } else {
+          writeInstallSourceCache('direct');
+          console.log('[InstallSource] Detected: direct (AppImage or manual)');
+        }
+      }
     } else {
       writeInstallSourceCache('direct');
-      console.log('[InstallSource] Detected: direct (Linux)');
+      console.log('[InstallSource] Detected: direct');
     }
   } catch (error) {
     console.log('[InstallSource] Detection failed:', error instanceof Error ? error.message : 'unknown');
@@ -1053,6 +1070,58 @@ async function detectWingetInstall(): Promise<PackageManagerInfo> {
   return result;
 }
 
+async function detectDebInstall(): Promise<PackageManagerInfo> {
+  const result: PackageManagerInfo = {
+    name: 'apt (deb)',
+    detected: false,
+    // Use pkexec for graphical sudo prompt
+    uninstallCommand: ['pkexec', 'apt', 'remove', '-y', LINUX_PACKAGE_NAME],
+  };
+  
+  if (process.platform !== 'linux') {
+    return result;
+  }
+  
+  try {
+    // Check if package is installed via dpkg
+    const { stdout } = await execAsync(`dpkg-query -W -f='\${Status}' ${LINUX_PACKAGE_NAME} 2>/dev/null`);
+    if (stdout.includes('install ok installed')) {
+      result.detected = true;
+      console.log('[Uninstall] Detected .deb package installation');
+    }
+  } catch {
+    // Command failed = not installed via dpkg
+    console.log('[Uninstall] Not installed via .deb package');
+  }
+  
+  return result;
+}
+
+async function detectRpmInstall(): Promise<PackageManagerInfo> {
+  const result: PackageManagerInfo = {
+    name: 'dnf (rpm)',
+    detected: false,
+    // Use pkexec for graphical sudo prompt
+    uninstallCommand: ['pkexec', 'dnf', 'remove', '-y', LINUX_PACKAGE_NAME],
+  };
+  
+  if (process.platform !== 'linux') {
+    return result;
+  }
+  
+  try {
+    // Check if package is installed via rpm
+    await execAsync(`rpm -q ${LINUX_PACKAGE_NAME}`);
+    result.detected = true;
+    console.log('[Uninstall] Detected .rpm package installation');
+  } catch {
+    // Command failed = not installed via rpm
+    console.log('[Uninstall] Not installed via .rpm package');
+  }
+  
+  return result;
+}
+
 function detectPackageManagerFromCache(): PackageManagerInfo | null {
   // Read from cache (instant) instead of running slow detection commands
   const cached = readInstallSourceCache();
@@ -1083,6 +1152,24 @@ function detectPackageManagerFromCache(): PackageManagerInfo | null {
       name: 'winget',
       detected: true,
       uninstallCommand: ['winget', 'uninstall', '--id', WINGET_ID, '--silent'],
+    };
+  }
+  
+  if (source === 'deb' && process.platform === 'linux') {
+    console.log('[Uninstall] Using cached .deb detection');
+    return {
+      name: 'apt (deb)',
+      detected: true,
+      uninstallCommand: ['pkexec', 'apt', 'remove', '-y', LINUX_PACKAGE_NAME],
+    };
+  }
+  
+  if (source === 'rpm' && process.platform === 'linux') {
+    console.log('[Uninstall] Using cached .rpm detection');
+    return {
+      name: 'dnf (rpm)',
+      detected: true,
+      uninstallCommand: ['pkexec', 'dnf', 'remove', '-y', LINUX_PACKAGE_NAME],
     };
   }
   

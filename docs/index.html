@@ -225,6 +225,20 @@
       gap: 0.75rem;
     }
     
+    .format-section-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-top: 0.5rem;
+      margin-bottom: -0.25rem;
+    }
+    
+    .format-section-label:first-child {
+      margin-top: 0;
+    }
+    
     .format-item {
       background: var(--code-bg);
       border: 1px solid var(--border);
@@ -280,7 +294,7 @@
     }
     
     .format-download .ext {
-      opacity: 0.7;
+      opacity: 1;
       font-weight: 400;
     }
     
@@ -439,26 +453,15 @@
       </div>
       
       <div class="format-list" id="format-list-x64">
-        <div class="format-item">
-          <div class="format-header">
-            <span class="format-name">AppImage</span>
-            <a href="https://github.com/apotenza92/facebook-messenger-desktop/releases/latest/download/facebook-messenger-desktop-x86_64.AppImage" class="format-download">Download <span class="ext">.AppImage</span></a>
-          </div>
-          <div class="format-command">
-            <code>wget -q https://github.com/apotenza92/facebook-messenger-desktop/releases/latest/download/facebook-messenger-desktop-x86_64.AppImage && chmod +x facebook-messenger-desktop-x86_64.AppImage && ./facebook-messenger-desktop-x86_64.AppImage</code>
-            <button class="copy-btn" title="Copy command">
-              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
-            </button>
-          </div>
-        </div>
+        <div class="format-section-label">Package Managers</div>
         
         <div class="format-item">
           <div class="format-header">
-            <span class="format-name">Fedora</span>
-            <a href="https://github.com/apotenza92/facebook-messenger-desktop/releases/latest/download/facebook-messenger-desktop-x86_64.rpm" class="format-download">Download <span class="ext">.rpm</span></a>
+            <span class="format-name">Snap</span>
+            <a href="https://snapcraft.io/facebook-messenger-desktop" class="format-download" target="_blank">View in Store</a>
           </div>
           <div class="format-command">
-            <code>wget -q https://github.com/apotenza92/facebook-messenger-desktop/releases/latest/download/facebook-messenger-desktop-x86_64.rpm && sudo dnf install ./facebook-messenger-desktop-x86_64.rpm</code>
+            <code>sudo snap install facebook-messenger-desktop</code>
             <button class="copy-btn" title="Copy command">
               <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
             </button>
@@ -478,13 +481,15 @@
           </div>
         </div>
         
+        <div class="format-section-label">Direct Downloads</div>
+        
         <div class="format-item">
           <div class="format-header">
-            <span class="format-name">Snap</span>
-            <a href="https://snapcraft.io/facebook-messenger-desktop" class="format-download" target="_blank">View in Store</a>
+            <span class="format-name">AppImage</span>
+            <a href="https://github.com/apotenza92/facebook-messenger-desktop/releases/latest/download/facebook-messenger-desktop-x86_64.AppImage" class="format-download">Download <span class="ext">.AppImage</span></a>
           </div>
           <div class="format-command">
-            <code>sudo snap install facebook-messenger-desktop</code>
+            <code>wget -q https://github.com/apotenza92/facebook-messenger-desktop/releases/latest/download/facebook-messenger-desktop-x86_64.AppImage && chmod +x facebook-messenger-desktop-x86_64.AppImage && ./facebook-messenger-desktop-x86_64.AppImage</code>
             <button class="copy-btn" title="Copy command">
               <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
             </button>
@@ -503,9 +508,24 @@
             </button>
           </div>
         </div>
+        
+        <div class="format-item">
+          <div class="format-header">
+            <span class="format-name">Fedora / RHEL</span>
+            <a href="https://github.com/apotenza92/facebook-messenger-desktop/releases/latest/download/facebook-messenger-desktop-x86_64.rpm" class="format-download">Download <span class="ext">.rpm</span></a>
+          </div>
+          <div class="format-command">
+            <code>wget -q https://github.com/apotenza92/facebook-messenger-desktop/releases/latest/download/facebook-messenger-desktop-x86_64.rpm && sudo dnf install ./facebook-messenger-desktop-x86_64.rpm</code>
+            <button class="copy-btn" title="Copy command">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+            </button>
+          </div>
+        </div>
       </div>
       
       <div class="format-list" id="format-list-arm64" style="display: none;">
+        <div class="format-section-label">Direct Downloads</div>
+        
         <div class="format-item">
           <div class="format-header">
             <span class="format-name">AppImage</span>
@@ -521,11 +541,11 @@
         
         <div class="format-item">
           <div class="format-header">
-            <span class="format-name">Fedora</span>
-            <a href="https://github.com/apotenza92/facebook-messenger-desktop/releases/latest/download/facebook-messenger-desktop-aarch64.rpm" class="format-download">Download <span class="ext">.rpm</span></a>
+            <span class="format-name">Ubuntu / Debian</span>
+            <a href="https://github.com/apotenza92/facebook-messenger-desktop/releases/latest/download/facebook-messenger-desktop-arm64.deb" class="format-download">Download <span class="ext">.deb</span></a>
           </div>
           <div class="format-command">
-            <code>wget -q https://github.com/apotenza92/facebook-messenger-desktop/releases/latest/download/facebook-messenger-desktop-aarch64.rpm && sudo dnf install ./facebook-messenger-desktop-aarch64.rpm</code>
+            <code>wget -q https://github.com/apotenza92/facebook-messenger-desktop/releases/latest/download/facebook-messenger-desktop-arm64.deb && sudo apt install ./facebook-messenger-desktop-arm64.deb</code>
             <button class="copy-btn" title="Copy command">
               <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
             </button>
@@ -534,11 +554,11 @@
         
         <div class="format-item">
           <div class="format-header">
-            <span class="format-name">Ubuntu / Debian</span>
-            <a href="https://github.com/apotenza92/facebook-messenger-desktop/releases/latest/download/facebook-messenger-desktop-arm64.deb" class="format-download">Download <span class="ext">.deb</span></a>
+            <span class="format-name">Fedora / RHEL</span>
+            <a href="https://github.com/apotenza92/facebook-messenger-desktop/releases/latest/download/facebook-messenger-desktop-aarch64.rpm" class="format-download">Download <span class="ext">.rpm</span></a>
           </div>
           <div class="format-command">
-            <code>wget -q https://github.com/apotenza92/facebook-messenger-desktop/releases/latest/download/facebook-messenger-desktop-arm64.deb && sudo apt install ./facebook-messenger-desktop-arm64.deb</code>
+            <code>wget -q https://github.com/apotenza92/facebook-messenger-desktop/releases/latest/download/facebook-messenger-desktop-aarch64.rpm && sudo dnf install ./facebook-messenger-desktop-aarch64.rpm</code>
             <button class="copy-btn" title="Copy command">
               <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
             </button>
