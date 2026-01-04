@@ -1,6 +1,9 @@
 #!/bin/bash
 # Post-removal script for Linux deb/rpm packages
-# Cleans up icons installed to the hicolor theme
+# Removes symlink from /usr/bin and cleans up icons installed to the hicolor theme
+
+# Remove symlink from /usr/bin
+rm -f "/usr/bin/facebook-messenger-desktop" 2>/dev/null || true
 
 ICONS_DST="/usr/share/icons/hicolor"
 APP_ICON="facebook-messenger-desktop.png"
