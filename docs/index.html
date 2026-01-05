@@ -312,6 +312,7 @@
       color: var(--text-muted);
       margin-bottom: 0.5rem;
       font-weight: 500;
+      text-align: center;
     }
     
     .format-item {
@@ -387,6 +388,8 @@
       font-size: 0.85rem;
       color: var(--text);
       position: relative;
+      max-width: 500px;
+      margin: 0 auto;
     }
     
     .format-command code {
@@ -402,14 +405,15 @@
       right: 0;
       top: 0;
       bottom: 0;
-      background: linear-gradient(to right, transparent, var(--bg) 30%);
+      background: linear-gradient(to right, transparent, var(--code-bg) 30%);
       border: none;
       cursor: pointer;
-      padding: 0.25rem 0.5rem 0.25rem 1.5rem;
+      padding: 0.25rem 0.75rem 0.25rem 1.5rem;
       color: var(--text-muted);
       transition: color 0.2s ease;
       display: flex;
       align-items: center;
+      border-radius: 0 8px 8px 0;
     }
     
     .copy-btn:hover {
