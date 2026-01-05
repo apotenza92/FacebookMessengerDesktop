@@ -623,23 +623,32 @@
   <script>
     // Generate a curved path with rounded corners
     function createCurvedPath(x1, y1, x2, y2, midY) {
-      const r = 18; // Corner radius (more curvy)
-      const goingRight = x2 > x1;
-      const goingLeft = x2 < x1;
+      const maxR = 18; // Maximum corner radius
+      const horizontalDist = Math.abs(x2 - x1);
+      const verticalSpace = Math.min(midY - y1, y2 - midY);
       
-      if (x1 === x2) {
-        // Straight vertical line
-        return `M ${x1} ${y1} L ${x2} ${y2}`;
+      // For very small horizontal offsets, use a smooth S-curve
+      if (horizontalDist < 30) {
+        // Simple S-curve using cubic bezier
+        const ctrl1Y = y1 + (y2 - y1) * 0.4;
+        const ctrl2Y = y1 + (y2 - y1) * 0.6;
+        return `M ${x1} ${y1} C ${x1} ${ctrl1Y} ${x2} ${ctrl2Y} ${x2} ${y2}`;
       }
       
-      // Calculate corner points
-      const corner1Y = midY - r;
-      const corner2Y = midY + r;
+      // Limit radius to available space
+      const r = Math.min(maxR, horizontalDist / 2 - 2, verticalSpace - 2);
+      
+      if (r < 4) {
+        // Not enough space for curves, use straight lines
+        return `M ${x1} ${y1} L ${x1} ${midY} L ${x2} ${midY} L ${x2} ${y2}`;
+      }
+      
+      const goingRight = x2 > x1;
       
       if (goingRight) {
-        return `M ${x1} ${y1} L ${x1} ${corner1Y} Q ${x1} ${midY} ${x1 + r} ${midY} L ${x2 - r} ${midY} Q ${x2} ${midY} ${x2} ${corner2Y} L ${x2} ${y2}`;
+        return `M ${x1} ${y1} L ${x1} ${midY - r} Q ${x1} ${midY} ${x1 + r} ${midY} L ${x2 - r} ${midY} Q ${x2} ${midY} ${x2} ${midY + r} L ${x2} ${y2}`;
       } else {
-        return `M ${x1} ${y1} L ${x1} ${corner1Y} Q ${x1} ${midY} ${x1 - r} ${midY} L ${x2 + r} ${midY} Q ${x2} ${midY} ${x2} ${corner2Y} L ${x2} ${y2}`;
+        return `M ${x1} ${y1} L ${x1} ${midY - r} Q ${x1} ${midY} ${x1 - r} ${midY} L ${x2 + r} ${midY} Q ${x2} ${midY} ${x2} ${midY + r} L ${x2} ${y2}`;
       }
     }
     
