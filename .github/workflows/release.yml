@@ -425,21 +425,15 @@ jobs:
           echo "GPG_KEY_ID=$GPG_KEY_ID" >> $GITHUB_ENV
           echo "Successfully imported GPG key: $GPG_KEY_ID"
 
-      - name: Checkout gh-pages branch
-        run: |
-          git fetch origin gh-pages:gh-pages || git checkout --orphan gh-pages
-          git worktree add gh-pages-worktree gh-pages || mkdir -p gh-pages-worktree
-          mkdir -p gh-pages-worktree/flatpak/repo
-
       - name: Build Flatpak repository
         run: |
-          REPO_PATH="gh-pages-worktree/flatpak/repo"
+          # Create a temporary directory for the OSTree repo
+          mkdir -p flatpak-repo
+          REPO_PATH="flatpak-repo"
           
-          # Initialize OSTree repo if it doesn't exist
-          if [ ! -d "$REPO_PATH/objects" ]; then
-            echo "Initializing new OSTree repository..."
-            ostree init --repo="$REPO_PATH" --mode=archive-z2
-          fi
+          # Initialize OSTree repo
+          echo "Initializing OSTree repository..."
+          ostree init --repo="$REPO_PATH" --mode=archive-z2
           
           # Import x64 flatpak
           X64_FLATPAK=$(find artifacts/x64 -name "*.flatpak" | head -1)
@@ -465,15 +459,33 @@ jobs:
           flatpak build-update-repo "$REPO_PATH" --gpg-sign="$GPG_KEY_ID" --generate-static-deltas
           
           # Export public GPG key for users
-          gpg --armor --export "$GPG_KEY_ID" > gh-pages-worktree/flatpak/repo/flatpak-repo.gpg
+          gpg --armor --export "$GPG_KEY_ID" > flatpak-repo/flatpak-repo.gpg
           
-          echo "Repository updated successfully"
+          echo "Repository built successfully"
 
       - name: Deploy to GitHub Pages
         run: |
-          cd gh-pages-worktree
+          # Clone gh-pages branch into separate directory
+          git clone --single-branch --branch gh-pages "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" gh-pages-deploy 2>/dev/null || {
+            # If gh-pages doesn't exist, create empty directory and initialize
+            echo "gh-pages branch doesn't exist, creating it..."
+            mkdir gh-pages-deploy
+            cd gh-pages-deploy
+            git init
+            git remote add origin "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+            git checkout -b gh-pages
+            cd ..
+          }
+          
+          # Copy flatpak repo to gh-pages
+          mkdir -p gh-pages-deploy/flatpak
+          rm -rf gh-pages-deploy/flatpak/repo
+          cp -r flatpak-repo gh-pages-deploy/flatpak/repo
+          
+          # Commit and push
+          cd gh-pages-deploy
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add -A
+          git add flatpak/
           git commit -m "Update Flatpak repository to v${{ steps.version.outputs.VERSION }}" || echo "No changes to commit"
           git push origin gh-pages

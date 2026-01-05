@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.7] - 2026-01-06
+
+### Fixed
+- Fixed Flatpak repository deployment to GitHub Pages
+  - Previous workflow incorrectly added all source files to gh-pages branch
+  - Now properly clones gh-pages separately and only copies flatpak repo files
+
 ## [0.9.6] - 2026-01-06
 
 ### Changed
