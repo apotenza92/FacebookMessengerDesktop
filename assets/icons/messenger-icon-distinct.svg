@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   viewBox="0 0 1000 999.99072"
+   fill="none"
+   version="1.1"
+   id="svg2"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <g
+     clip-path="none"
+     id="g2"
+     transform="translate(-0.940002,-0.91)">
+    <!-- Chat bubble matching original size -->
+    <path
+       d="m 1000.94,485.90553 c 0,278.68297 -218.33611,484.99554 -500.00001,484.99554 -50.58364,0 -99.1207,-6.66838 -144.74082,-19.2103 -8.86599,-2.45104 -18.28875,-1.75604 -26.70037,1.94548 l -99.24741,43.81288 c -25.95418,11.46807 -55.25663,-6.99732 -56.12697,-35.36414 l -2.72879,-88.95303 C 171.05517,862.18098 166.12877,851.925 157.95777,844.63842 60.667611,757.62959 0.940002,631.68181 0.940002,485.90553 0.940002,207.23536 219.27609,0.91 500.93999,0.91 782.60389,0.91 1000.94,207.23536 1000.94,485.90553 Z"
+       fill="#3B82F6"
+       id="path1"
+       style="stroke-width:12.7992" />
+    <!-- Network diagram - nodes and connections (organic distribution) -->
+    <!-- Connection lines to center -->
+    <line x1="530" y1="295" x2="500" y2="465" stroke="#ffffff" stroke-width="14" stroke-linecap="round" />
+    <line x1="755" y1="400" x2="500" y2="465" stroke="#ffffff" stroke-width="14" stroke-linecap="round" />
+    <line x1="720" y1="650" x2="500" y2="465" stroke="#ffffff" stroke-width="14" stroke-linecap="round" />
+    <line x1="490" y1="750" x2="500" y2="465" stroke="#ffffff" stroke-width="14" stroke-linecap="round" />
+    <line x1="280" y1="630" x2="500" y2="465" stroke="#ffffff" stroke-width="14" stroke-linecap="round" />
+    <line x1="250" y1="370" x2="500" y2="465" stroke="#ffffff" stroke-width="14" stroke-linecap="round" />
+    <!-- Connection lines between outer nodes -->
+    <line x1="530" y1="295" x2="755" y2="400" stroke="#ffffff" stroke-width="12" stroke-linecap="round" />
+    <line x1="755" y1="400" x2="720" y2="650" stroke="#ffffff" stroke-width="12" stroke-linecap="round" />
+    <line x1="720" y1="650" x2="490" y2="750" stroke="#ffffff" stroke-width="12" stroke-linecap="round" />
+    <line x1="490" y1="750" x2="280" y2="630" stroke="#ffffff" stroke-width="12" stroke-linecap="round" />
+    <line x1="280" y1="630" x2="250" y2="370" stroke="#ffffff" stroke-width="12" stroke-linecap="round" />
+    <line x1="250" y1="370" x2="530" y2="295" stroke="#ffffff" stroke-width="12" stroke-linecap="round" />
+    <!-- Nodes (varied sizes for organic feel) -->
+    <circle cx="500" cy="465" r="50" fill="#ffffff" />
+    <circle cx="530" cy="295" r="42" fill="#ffffff" />
+    <circle cx="755" cy="400" r="38" fill="#ffffff" />
+    <circle cx="720" cy="650" r="44" fill="#ffffff" />
+    <circle cx="490" cy="750" r="36" fill="#ffffff" />
+    <circle cx="280" cy="630" r="42" fill="#ffffff" />
+    <circle cx="250" cy="370" r="38" fill="#ffffff" />
+  </g>
+  <defs
+     id="defs2" />
+</svg>

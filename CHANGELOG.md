@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.9.4] - 2026-01-06
+
+### Changed
+- Simplified and cleaned up release workflow
+  - Separate build jobs per platform for clearer naming
+  - Removed unreliable ARM64 Snap remote build (x64 Snap only for now)
+  - Added continue-on-error to WinGet/Flatpak updates (don't fail release if these fail)
+  - Better error messages for GPG key configuration issues
+  - Proper job dependencies (release waits for all builds)
+
 ## [0.9.3] - 2026-01-06
 
 ### Fixed
