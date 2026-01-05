@@ -115,9 +115,8 @@ jobs:
         run: npm ci
         timeout-minutes: 10
 
-      - name: Install Linux build tools (Snap & Flatpak)
+      - name: Install Linux build tools (Flatpak)
         run: |
-          sudo snap install snapcraft --classic
           sudo apt-get update
           sudo apt-get install -y flatpak flatpak-builder
           flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
@@ -131,7 +130,7 @@ jobs:
         timeout-minutes: 5
 
       - name: Build distributables
-        run: npm run dist:linux
+        run: npm run dist:linux:x64
         timeout-minutes: 45
 
       - name: Upload artifacts
@@ -142,7 +141,6 @@ jobs:
             release/*.AppImage
             release/*.deb
             release/*.rpm
-            release/*.snap
             release/*.flatpak
             release/*.yml
           retention-days: 30
@@ -179,8 +177,8 @@ jobs:
         run: npm run build
         timeout-minutes: 5
 
-      - name: Build distributables (Flatpak ARM64)
-        run: npx electron-builder --linux flatpak --arm64 --publish=never
+      - name: Build distributables (ARM64)
+        run: npm run dist:linux:arm
         timeout-minutes: 45
 
       - name: Upload artifacts
@@ -188,17 +186,16 @@ jobs:
         with:
           name: linux-arm64-build
           path: |
+            release/*.AppImage
+            release/*.deb
+            release/*.rpm
             release/*.flatpak
           retention-days: 30
           if-no-files-found: error
 
-  # NOTE: ARM64 Snap builds are handled by Snapcraft's "Build from GitHub" service
-  # which automatically builds ARM64 snaps when you push to the repo.
-  # To set this up:
-  # 1. Go to https://snapcraft.io/facebook-messenger-desktop/builds
-  # 2. Link your GitHub repo
-  # 3. Enable automatic builds
-  # The ARM64 snap will be built on Launchpad and published to the Snap Store automatically.
+  # NOTE: All Snap builds (amd64 and arm64) are handled by Snapcraft's "Build from GitHub" service
+  # which automatically builds snaps when you push to the repo.
+  # See: https://snapcraft.io/facebook-messenger-desktop/builds
 
   # ============================================
   # PHASE 2: Create GitHub Release
@@ -368,34 +365,9 @@ jobs:
           installers-regex: 'Messenger-windows-x64-setup\.exe$'
           token: ${{ secrets.WINGET_TOKEN }}
 
-  update-snapstore:
-    name: Update Snap Store
-    needs: release
-    runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v') && !contains(github.ref, 'alpha') && !contains(github.ref, 'beta') && !contains(github.ref, 'rc')
-    
-    steps:
-      - name: Download Linux x64 artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: linux-x64-build
-          path: artifacts
-
-      - name: Install snapcraft
-        run: sudo snap install snapcraft --classic
-
-      - name: Upload to Snap Store
-        env:
-          SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
-        run: |
-          # Upload x64 snap (ARM64 is built by Snapcraft's "Build from GitHub" service)
-          X64_SNAP=$(find artifacts -name "*.snap" | head -1)
-          if [ -n "$X64_SNAP" ]; then
-            echo "Uploading x64 snap: $X64_SNAP to Snap Store..."
-            snapcraft upload --release=stable "$X64_SNAP"
-          else
-            echo "Warning: No x64 snap file found!"
-          fi
+  # NOTE: Snap builds are handled entirely by Snapcraft's "Build from GitHub" service
+  # which automatically builds and publishes snaps for both amd64 and arm64.
+  # See: https://snapcraft.io/facebook-messenger-desktop/builds
 
   update-flatpak-repo:
     name: Update Flatpak Repo

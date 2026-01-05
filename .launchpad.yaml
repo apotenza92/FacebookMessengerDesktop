@@ -1,0 +1,7 @@
+# Launchpad build configuration for Snapcraft "Build from GitHub"
+# This file configures automatic builds and releases
+
+# Auto-release successful builds to stable channel
+release-channels:
+  - stable
+

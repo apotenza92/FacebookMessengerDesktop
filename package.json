@@ -117,12 +117,6 @@
           ]
         },
         {
-          "target": "snap",
-          "arch": [
-            "x64"
-          ]
-        },
-        {
           "target": "flatpak",
           "arch": [
             "x64",
@@ -155,18 +149,6 @@
       "artifactName": "facebook-messenger-desktop-${arch}.${ext}",
       "afterInstall": "scripts/linux-after-install.sh",
       "afterRemove": "scripts/linux-after-remove.sh"
-    },
-    "snap": {
-      "confinement": "strict",
-      "grade": "stable",
-      "base": "core22",
-      "artifactName": "facebook-messenger-desktop-${arch}.${ext}",
-      "plugs": [
-        "default",
-        "camera",
-        "audio-record",
-        "removable-media"
-      ]
     },
     "flatpak": {
       "runtime": "org.freedesktop.Platform",
