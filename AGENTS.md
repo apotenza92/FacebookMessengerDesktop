@@ -186,8 +186,8 @@ When ready to publish a new version:
 ### Linux Build Notes
 
 - **Snap**: 
-  - **x64**: Built with electron-builder on GitHub Actions
-  - **ARM64**: Built with Snapcraft remote-build (via Launchpad) due to LXD network restrictions in GitHub Actions
+  - **x64**: Built with electron-builder on GitHub Actions and uploaded to Snap Store
+  - **ARM64**: Use Snapcraft's "Build from GitHub" service (https://snapcraft.io/facebook-messenger-desktop/builds)
 - **Flatpak**: Builds for both x64 and ARM64 (using GitHub's free ARM64 runners)
 - **Test Linux builds on CI** - local macOS/Windows machines may lack required tools
 

@@ -42,10 +42,12 @@
 
   // Track notified conversations by href - stores the last message body we notified for
   const notifiedConversations = new Map<string, { body: string; time: number }>();
-  // Use 24 hours for expiry - this prevents duplicate notifications when the app runs
-  // in the background for extended periods. Records are also cleared when conversations
-  // are marked as read.
-  const NOTIFICATION_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24 hours
+  // Use 30 days for expiry - this prevents duplicate notifications for old unread messages
+  // when the app runs in the background for extended periods. The primary cleanup mechanism
+  // is clearReadConversationRecords() which removes records when conversations are marked
+  // as read. The time-based expiry is a fallback to prevent infinite Map growth.
+  // Fixes issue #13: users getting repeated notifications for weeks-old unread messages.
+  const NOTIFICATION_EXPIRY_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
   const cleanupNotifiedConversations = () => {
     const now = Date.now();
@@ -64,8 +66,9 @@
 
     const rows = sidebar.querySelectorAll(selectors.conversationRow);
     const unreadHrefs = new Set<string>();
+    const unreadTitles = new Set<string>();
 
-    // Collect all currently unread conversation hrefs
+    // Collect all currently unread conversation hrefs and titles
     rows.forEach((row) => {
       if (isConversationUnread(row)) {
         const linkEl =
@@ -75,17 +78,30 @@
         if (href) {
           unreadHrefs.add(href);
         }
+        // Also collect titles for native notification key matching
+        const info = extractConversationInfo(row);
+        if (info?.title) {
+          unreadTitles.add(info.title);
+        }
       }
     });
 
     // Remove records for conversations that are no longer unread
     for (const key of notifiedConversations.keys()) {
-      // Skip native notification keys (they use a different format)
-      if (key.startsWith('native:')) continue;
-      
-      if (!unreadHrefs.has(key)) {
-        log('Clearing notification record for read conversation', { href: key });
-        notifiedConversations.delete(key);
+      if (key.startsWith('native:')) {
+        // For native notification keys (format: "native:SenderName"), check if
+        // the sender still has unread messages
+        const title = key.slice(7); // Remove "native:" prefix
+        if (!unreadTitles.has(title)) {
+          log('Clearing native notification record for read conversation', { title });
+          notifiedConversations.delete(key);
+        }
+      } else {
+        // For href-based keys (from MutationObserver), check against unread hrefs
+        if (!unreadHrefs.has(key)) {
+          log('Clearing notification record for read conversation', { href: key });
+          notifiedConversations.delete(key);
+        }
       }
     }
   };
