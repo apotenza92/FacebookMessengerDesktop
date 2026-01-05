@@ -192,49 +192,13 @@ jobs:
           retention-days: 30
           if-no-files-found: error
 
-  # ARM64 Snap build using snapcraft remote-build (runs on Launchpad)
-  build-snap-arm64:
-    name: Build Snap ARM64
-    runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v')
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Install Snapcraft
-        run: sudo snap install snapcraft --classic
-
-      - name: Set version from package.json
-        run: |
-          VERSION=$(node -p "require('./package.json').version")
-          sed -i "s/^version:.*/version: $VERSION/" snapcraft.yaml
-
-      - name: Remote Build Snap for ARM64
-        env:
-          SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
-        run: |
-          snapcraft remote-build --build-for=arm64 --launchpad-accept-public-upload
-        timeout-minutes: 60
-
-      - name: Find and prepare snap artifact
-        run: |
-          SNAP_FILE=$(find . -name "facebook-messenger-desktop_*_arm64.snap" | head -1)
-          if [ -n "$SNAP_FILE" ]; then
-            echo "Found snap: $SNAP_FILE"
-            mkdir -p release
-            cp "$SNAP_FILE" release/facebook-messenger-desktop-arm64.snap
-          else
-            echo "No ARM64 snap file found"
-            exit 1
-          fi
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: snap-arm64-build
-          path: release/*.snap
-          retention-days: 30
-          if-no-files-found: error
+  # NOTE: ARM64 Snap builds are handled by Snapcraft's "Build from GitHub" service
+  # which automatically builds ARM64 snaps when you push to the repo.
+  # To set this up:
+  # 1. Go to https://snapcraft.io/facebook-messenger-desktop/builds
+  # 2. Link your GitHub repo
+  # 3. Enable automatic builds
+  # The ARM64 snap will be built on Launchpad and published to the Snap Store automatically.
 
   # ============================================
   # PHASE 2: Create GitHub Release
@@ -243,7 +207,7 @@ jobs:
   
   release:
     name: Create Release
-    needs: [build-macos, build-windows, build-linux-x64, build-linux-arm64, build-snap-arm64]
+    needs: [build-macos, build-windows, build-linux-x64, build-linux-arm64]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
     
@@ -415,13 +379,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: linux-x64-build
-          path: artifacts/x64
-
-      - name: Download Snap ARM64 artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: snap-arm64-build
-          path: artifacts/arm64
+          path: artifacts
 
       - name: Install snapcraft
         run: sudo snap install snapcraft --classic
@@ -430,22 +388,13 @@ jobs:
         env:
           SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
         run: |
-          # Upload x64 snap
-          X64_SNAP=$(find artifacts/x64 -name "*.snap" | head -1)
+          # Upload x64 snap (ARM64 is built by Snapcraft's "Build from GitHub" service)
+          X64_SNAP=$(find artifacts -name "*.snap" | head -1)
           if [ -n "$X64_SNAP" ]; then
             echo "Uploading x64 snap: $X64_SNAP to Snap Store..."
             snapcraft upload --release=stable "$X64_SNAP"
           else
             echo "Warning: No x64 snap file found!"
-          fi
-          
-          # Upload ARM64 snap
-          ARM64_SNAP=$(find artifacts/arm64 -name "*.snap" | head -1)
-          if [ -n "$ARM64_SNAP" ]; then
-            echo "Uploading ARM64 snap: $ARM64_SNAP to Snap Store..."
-            snapcraft upload --release=stable "$ARM64_SNAP"
-          else
-            echo "Warning: No ARM64 snap file found!"
           fi
 
   update-flatpak-repo:
