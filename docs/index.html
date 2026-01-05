@@ -126,7 +126,7 @@
     .platform-toggle {
       display: flex;
       justify-content: center;
-      margin-bottom: 1.5rem;
+      margin-bottom: 1rem;
       position: relative;
       z-index: 1;
     }
@@ -623,8 +623,8 @@
     // Generate a smooth S-curve between two points
     function createCurvedPath(x1, y1, x2, y2) {
       // Always use smooth S-curve with cubic bezier
-      const ctrl1Y = y1 + (y2 - y1) * 0.5;
-      const ctrl2Y = y1 + (y2 - y1) * 0.5;
+      const ctrl1Y = y1 + (y2 - y1) * 0.49;
+      const ctrl2Y = y1 + (y2 - y1) * 0.51;
       return `M ${x1} ${y1} C ${x1} ${ctrl1Y} ${x2} ${ctrl2Y} ${x2} ${y2}`;
     }
     
