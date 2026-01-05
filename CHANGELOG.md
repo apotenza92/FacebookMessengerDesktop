@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.9.6] - 2026-01-06
+
+### Changed
+- All Snap builds now handled by Snapcraft's "Build from GitHub" service
+  - Removed electron-builder snap target from GitHub Actions
+  - Removed update-snapstore job from release workflow
+  - Snapcraft automatically builds and publishes both amd64 and arm64 snaps
+  - Added .launchpad.yaml for auto-release to stable channel
+- Linux ARM64 job now builds all package types (AppImage, deb, rpm, flatpak) not just flatpak
+
 ## [0.9.5] - 2026-01-06
 
 ### Changed
