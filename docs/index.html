@@ -118,7 +118,9 @@
     .connector-path {
       fill: none;
       stroke: #0084ff;
-      stroke-width: 2;
+      stroke-width: 1.5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
     }
     
     .platform-toggle {
@@ -619,6 +621,28 @@
   </div>
 
   <script>
+    // Generate a curved path with rounded corners
+    function createCurvedPath(x1, y1, x2, y2, midY) {
+      const r = 6; // Corner radius
+      const goingRight = x2 > x1;
+      const goingLeft = x2 < x1;
+      
+      if (x1 === x2) {
+        // Straight vertical line
+        return `M ${x1} ${y1} L ${x2} ${y2}`;
+      }
+      
+      // Calculate corner points
+      const corner1Y = midY - r;
+      const corner2Y = midY + r;
+      
+      if (goingRight) {
+        return `M ${x1} ${y1} L ${x1} ${corner1Y} Q ${x1} ${midY} ${x1 + r} ${midY} L ${x2 - r} ${midY} Q ${x2} ${midY} ${x2} ${corner2Y} L ${x2} ${y2}`;
+      } else {
+        return `M ${x1} ${y1} L ${x1} ${corner1Y} Q ${x1} ${midY} ${x1 - r} ${midY} L ${x2 + r} ${midY} Q ${x2} ${midY} ${x2} ${corner2Y} L ${x2} ${y2}`;
+      }
+    }
+    
     function updateConnectors() {
       const svg = document.getElementById('connector-svg');
       const flow = document.getElementById('selection-flow');
@@ -655,7 +679,7 @@
           // Draw path from platform to arch
           const path1 = document.createElementNS('http://www.w3.org/2000/svg', 'path');
           const midY1 = platformBottomY + (archTopY - platformBottomY) / 2;
-          path1.setAttribute('d', `M ${platformCenterX} ${platformBottomY} L ${platformCenterX} ${midY1} L ${archCenterX} ${midY1} L ${archCenterX} ${archTopY}`);
+          path1.setAttribute('d', createCurvedPath(platformCenterX, platformBottomY, archCenterX, archTopY, midY1));
           path1.setAttribute('class', 'connector-path');
           svg.appendChild(path1);
           
@@ -668,7 +692,7 @@
             // Draw path from arch to format
             const path2 = document.createElementNS('http://www.w3.org/2000/svg', 'path');
             const midY2 = archBottomY + (formatTopY - archBottomY) / 2;
-            path2.setAttribute('d', `M ${archCenterX} ${archBottomY} L ${archCenterX} ${midY2} L ${formatCenterX} ${midY2} L ${formatCenterX} ${formatTopY}`);
+            path2.setAttribute('d', createCurvedPath(archCenterX, archBottomY, formatCenterX, formatTopY, midY2));
             path2.setAttribute('class', 'connector-path');
             svg.appendChild(path2);
             
@@ -680,7 +704,7 @@
               // Draw path from format to download
               const path3 = document.createElementNS('http://www.w3.org/2000/svg', 'path');
               const midY3 = formatBottomY + (dlTopY - formatBottomY) / 2;
-              path3.setAttribute('d', `M ${formatCenterX} ${formatBottomY} L ${formatCenterX} ${midY3} L ${dlCenterX} ${midY3} L ${dlCenterX} ${dlTopY}`);
+              path3.setAttribute('d', createCurvedPath(formatCenterX, formatBottomY, dlCenterX, dlTopY, midY3));
               path3.setAttribute('class', 'connector-path');
               svg.appendChild(path3);
             }
@@ -702,7 +726,7 @@
           // Draw path from platform to arch
           const path1 = document.createElementNS('http://www.w3.org/2000/svg', 'path');
           const midY1 = platformBottomY + (archTopY - platformBottomY) / 2;
-          path1.setAttribute('d', `M ${platformCenterX} ${platformBottomY} L ${platformCenterX} ${midY1} L ${archCenterX} ${midY1} L ${archCenterX} ${archTopY}`);
+          path1.setAttribute('d', createCurvedPath(platformCenterX, platformBottomY, archCenterX, archTopY, midY1));
           path1.setAttribute('class', 'connector-path');
           svg.appendChild(path1);
           
@@ -714,7 +738,7 @@
             // Draw path from arch to download
             const path2 = document.createElementNS('http://www.w3.org/2000/svg', 'path');
             const midY2 = archBottomY + (dlTopY - archBottomY) / 2;
-            path2.setAttribute('d', `M ${archCenterX} ${archBottomY} L ${archCenterX} ${midY2} L ${dlCenterX} ${midY2} L ${dlCenterX} ${dlTopY}`);
+            path2.setAttribute('d', createCurvedPath(archCenterX, archBottomY, dlCenterX, dlTopY, midY2));
             path2.setAttribute('class', 'connector-path');
             svg.appendChild(path2);
           }
