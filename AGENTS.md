@@ -185,7 +185,7 @@ When ready to publish a new version:
 
 ### Linux Build Notes
 
-- **Snap**: Only builds for x64 (snapcraft cannot cross-compile to ARM64)
-- **Flatpak**: Only builds for x64 (flatpak-builder cannot cross-compile to ARM64)
+- **Snap**: Builds for both x64 and ARM64 (using GitHub's free ARM64 runners with LXD configuration)
+- **Flatpak**: Builds for both x64 and ARM64 (using GitHub's free ARM64 runners)
 - **Test Linux builds on CI** - local macOS/Windows machines may lack required tools
 

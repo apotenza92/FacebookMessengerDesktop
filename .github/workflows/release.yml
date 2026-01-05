@@ -97,8 +97,72 @@ jobs:
           retention-days: 30
           if-no-files-found: error
 
+  build-linux-arm64:
+    name: Build Linux ARM64
+    runs-on: ubuntu-22.04-arm
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+        timeout-minutes: 10
+
+      - name: Install Linux build tools (Snap & Flatpak)
+        run: |
+          # Install LXD for Snap builds
+          sudo snap install lxd
+          # Initialize LXD with auto mode
+          sudo lxd init --auto --storage-backend=dir
+          # Add user to lxd group
+          sudo usermod -aG lxd $USER
+          # Configure LXD socket permissions (allows access without group membership in same session)
+          sudo chmod 666 /var/snap/lxd/common/lxd/unix.socket || true
+          # Install snapcraft via snap
+          sudo snap install snapcraft --classic
+          # Install flatpak and flatpak-builder
+          sudo apt-get update
+          sudo apt-get install -y flatpak flatpak-builder
+          # Add flathub remote and install runtime
+          flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+          flatpak install --user -y flathub org.freedesktop.Platform//23.08 org.freedesktop.Sdk//23.08
+
+      - name: Generate icons
+        run: npm run generate-icons
+
+      - name: Build application
+        run: npm run build
+        timeout-minutes: 5
+
+      - name: Build distributables (Linux ARM64 - Snap and Flatpak)
+        run: |
+          npm run build
+          # Use sg to run with lxd group, or use newgrp in a subshell
+          # Try snap first, fallback to flatpak only if snap fails
+          sg lxd -c "npx electron-builder --linux snap flatpak --arm64 --publish=never" || npx electron-builder --linux flatpak --arm64 --publish=never
+        timeout-minutes: 45
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-arm64-build
+          path: |
+            release/*.AppImage
+            release/*.deb
+            release/*.rpm
+            release/*.snap
+            release/*.flatpak
+          retention-days: 30
+          if-no-files-found: error
+
   release:
-    needs: build
+    needs: [build, build-linux-arm64]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
     
@@ -267,14 +331,24 @@ jobs:
         env:
           SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
         run: |
-          # Find the snap file
-          SNAP_FILE=$(find artifacts -name "*.snap" | head -1)
-          if [ -z "$SNAP_FILE" ]; then
-            echo "No snap file found!"
+          # Upload x64 snap
+          X64_SNAP=$(find artifacts -name "*x64*.snap" -o -name "*.snap" | grep -v arm64 | head -1)
+          if [ -n "$X64_SNAP" ]; then
+            echo "Uploading x64 snap: $X64_SNAP to Snap Store..."
+            snapcraft upload --release=stable "$X64_SNAP"
+          fi
+          
+          # Upload ARM64 snap
+          ARM64_SNAP=$(find artifacts -name "*arm64*.snap" | head -1)
+          if [ -n "$ARM64_SNAP" ]; then
+            echo "Uploading ARM64 snap: $ARM64_SNAP to Snap Store..."
+            snapcraft upload --release=stable "$ARM64_SNAP"
+          fi
+          
+          if [ -z "$X64_SNAP" ] && [ -z "$ARM64_SNAP" ]; then
+            echo "No snap files found!"
             exit 1
           fi
-          echo "Uploading $SNAP_FILE to Snap Store..."
-          snapcraft upload --release=stable "$SNAP_FILE"
 
   update-flatpak-repo:
     needs: release
