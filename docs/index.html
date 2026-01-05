@@ -561,7 +561,7 @@
           <span id="linux-btn-text">Download AppImage</span>
         </a>
         <div class="linux-command-section">
-          <div class="command-label" id="linux-command-label">Download and run via terminal:</div>
+          <div class="command-label" id="linux-command-label">Download and run AppImage via terminal:</div>
           <div class="format-command">
             <code id="linux-command-code">wget -qO facebook-messenger-desktop-x86_64.AppImage https://github.com/apotenza92/facebook-messenger-desktop/releases/latest/download/facebook-messenger-desktop-x86_64.AppImage && chmod +x facebook-messenger-desktop-x86_64.AppImage && ./facebook-messenger-desktop-x86_64.AppImage</code>
             <button class="copy-btn" title="Copy command" id="linux-copy-btn">
@@ -716,32 +716,32 @@
         appimage: {
           url: 'https://github.com/apotenza92/facebook-messenger-desktop/releases/latest/download/facebook-messenger-desktop-x86_64.AppImage',
           btnText: 'Download AppImage (x64)',
-          label: 'Download and run via terminal:',
+          label: 'Download and run AppImage via terminal:',
           command: 'wget -qO facebook-messenger-desktop-x86_64.AppImage https://github.com/apotenza92/facebook-messenger-desktop/releases/latest/download/facebook-messenger-desktop-x86_64.AppImage && chmod +x facebook-messenger-desktop-x86_64.AppImage && ./facebook-messenger-desktop-x86_64.AppImage'
         },
         deb: {
           url: 'https://github.com/apotenza92/facebook-messenger-desktop/releases/latest/download/facebook-messenger-desktop-amd64.deb',
           btnText: 'Download .deb (x64)',
-          label: 'Download and install via terminal:',
+          label: 'Download and install .deb via terminal:',
           command: 'wget -qO facebook-messenger-desktop-amd64.deb https://github.com/apotenza92/facebook-messenger-desktop/releases/latest/download/facebook-messenger-desktop-amd64.deb && sudo apt install ./facebook-messenger-desktop-amd64.deb'
         },
         rpm: {
           url: 'https://github.com/apotenza92/facebook-messenger-desktop/releases/latest/download/facebook-messenger-desktop-x86_64.rpm',
           btnText: 'Download .rpm (x64)',
-          label: 'Download and install via terminal:',
+          label: 'Download and install .rpm via terminal:',
           command: 'wget -qO facebook-messenger-desktop-x86_64.rpm https://github.com/apotenza92/facebook-messenger-desktop/releases/latest/download/facebook-messenger-desktop-x86_64.rpm && sudo dnf install ./facebook-messenger-desktop-x86_64.rpm'
         },
         snap: {
           url: 'https://snapcraft.io/facebook-messenger-desktop',
           btnText: 'View in Snap Store',
-          label: 'Install via terminal:',
+          label: 'Install Snap via terminal:',
           command: 'sudo snap install facebook-messenger-desktop',
           external: true
         },
         flatpak: {
           url: null,
           btnText: 'Install via Terminal',
-          label: 'Add repository and install:',
+          label: 'Add Flatpak repository and install:',
           command: 'flatpak remote-add --if-not-exists --user messenger https://apotenza92.github.io/facebook-messenger-desktop/flatpak/repo && flatpak install --user messenger com.facebook.messenger.desktop',
           noDownload: true
         }
@@ -750,19 +750,19 @@
         appimage: {
           url: 'https://github.com/apotenza92/facebook-messenger-desktop/releases/latest/download/facebook-messenger-desktop-arm64.AppImage',
           btnText: 'Download AppImage (ARM64)',
-          label: 'Download and run via terminal:',
+          label: 'Download and run AppImage via terminal:',
           command: 'wget -qO facebook-messenger-desktop-arm64.AppImage https://github.com/apotenza92/facebook-messenger-desktop/releases/latest/download/facebook-messenger-desktop-arm64.AppImage && chmod +x facebook-messenger-desktop-arm64.AppImage && ./facebook-messenger-desktop-arm64.AppImage'
         },
         deb: {
           url: 'https://github.com/apotenza92/facebook-messenger-desktop/releases/latest/download/facebook-messenger-desktop-arm64.deb',
           btnText: 'Download .deb (ARM64)',
-          label: 'Download and install via terminal:',
+          label: 'Download and install .deb via terminal:',
           command: 'wget -qO facebook-messenger-desktop-arm64.deb https://github.com/apotenza92/facebook-messenger-desktop/releases/latest/download/facebook-messenger-desktop-arm64.deb && sudo apt install ./facebook-messenger-desktop-arm64.deb'
         },
         rpm: {
           url: 'https://github.com/apotenza92/facebook-messenger-desktop/releases/latest/download/facebook-messenger-desktop-aarch64.rpm',
           btnText: 'Download .rpm (ARM64)',
-          label: 'Download and install via terminal:',
+          label: 'Download and install .rpm via terminal:',
           command: 'wget -qO facebook-messenger-desktop-aarch64.rpm https://github.com/apotenza92/facebook-messenger-desktop/releases/latest/download/facebook-messenger-desktop-aarch64.rpm && sudo dnf install ./facebook-messenger-desktop-aarch64.rpm'
         },
         snap: {
