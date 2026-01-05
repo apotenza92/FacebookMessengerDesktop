@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.9.3] - 2026-01-06
+
+### Fixed
+- Fixed Linux build failure: Removed ARM64 from electron-builder snap target (ARM64 snap builds via remote build only)
+- Fixed snapcraft authentication: Updated to use environment variable directly instead of deprecated --with flag
+
 ## [0.9.2] - 2026-01-06
 
 ### Added
