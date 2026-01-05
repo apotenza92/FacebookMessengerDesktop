@@ -166,7 +166,7 @@ jobs:
   build-snap-arm64-remote:
     name: Build Snap ARM64 (Remote Build)
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/test-snap-arm64'
     continue-on-error: true
     steps:
       - name: Checkout code
