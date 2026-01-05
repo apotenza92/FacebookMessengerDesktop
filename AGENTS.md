@@ -191,5 +191,3 @@ When ready to publish a new version:
 - **Flatpak**: Builds for both x64 and ARM64 (using GitHub's free ARM64 runners)
 - **Test Linux builds on CI** - local macOS/Windows machines may lack required tools
 
-See `SNAP_SETUP.md` for details on Snap ARM64 remote build setup.
-
