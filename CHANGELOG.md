@@ -2,10 +2,17 @@
 
 ## [0.9.2] - 2026-01-06
 
+### Added
+- Linux ARM64 support for Snap and Flatpak packages
+  - Snap ARM64 builds via Snapcraft remote-build service
+  - Flatpak ARM64 builds on GitHub Actions ARM64 runners
+  - Updated download page to show ARM64 Snap and Flatpak options
+
 ### Changed
 - Cleaned up flatpak folder structure
   - Moved flatpak-repo.gpg to project root (common convention for public keys)
   - Removed flatpak README.md
+- Added engines field to package.json to specify Node.js version requirement
 
 ## [0.9.1] - 2026-01-05
 
