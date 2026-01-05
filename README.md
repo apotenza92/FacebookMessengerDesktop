@@ -6,9 +6,9 @@
   <img src="https://img.shields.io/badge/Download-Messenger%20Desktop-0084ff?style=for-the-badge&logo=messenger&logoColor=white" alt="Download Messenger Desktop" height="40">
 </a>
 
-**This is an unofficial, third-party desktop application for Facebook Messenger.**
+<br>
 
-A self-contained desktop application for Facebook Messenger, built with Electron. Wraps messenger.com with native platform notifications and badge counts.
+This is an unofficial, third-party desktop application for Facebook Messenger.
 
 This project exists because the original Facebook Desktop Messenger app was deprecated.
 
