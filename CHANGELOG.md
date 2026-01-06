@@ -3,6 +3,12 @@
 ## [0.9.7] - 2026-01-06
 
 ### Changed
+- Refined app icon design for better visual balance and macOS compatibility (issue #15)
+  - Restored original Messenger chat bubble shape for proper dock sizing on macOS
+  - Simplified network diagram with larger center node and uniform outer nodes
+  - Center node is now prominent, outer nodes are 65% the size of center
+  - Reduced icon scale from 80% to 72% for macOS Big Sur/Sequoia compatibility
+  - Icons now have proper padding for system shadow rendering
 - All Snap builds now handled by Snapcraft's "Build from GitHub" service
   - Removed electron-builder snap target from GitHub Actions
   - Removed update-snapstore job from release workflow
