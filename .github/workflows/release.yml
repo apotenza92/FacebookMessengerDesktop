@@ -148,52 +148,6 @@ jobs:
           retention-days: 30
           if-no-files-found: error
 
-  # Builds ARM64 Flatpak natively on ARM64 runner (faster/more reliable than cross-compile)
-  # The build-linux job also produces ARM64 Flatpak, but native build is preferred
-  build-flatpak-arm64:
-    name: Build Flatpak ARM64 (Native)
-    runs-on: ubuntu-22.04-arm
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-        timeout-minutes: 10
-
-      - name: Install Linux build tools (Flatpak)
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y flatpak flatpak-builder
-          flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
-          flatpak install --user -y flathub org.freedesktop.Platform//23.08 org.freedesktop.Sdk//23.08
-
-      - name: Generate icons
-        run: npm run generate-icons
-
-      - name: Build application
-        run: npm run build
-        timeout-minutes: 5
-
-      - name: Build distributables (Flatpak ARM64)
-        run: npx electron-builder --linux flatpak --arm64 --publish=never
-        timeout-minutes: 45
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: flatpak-arm64-build
-          path: |
-            release/*.flatpak
-          retention-days: 30
-          if-no-files-found: error
-
   # NOTE: All Snap builds (amd64 and arm64) are handled by Snapcraft's "Build from GitHub" service
   # which automatically builds snaps when you push to the repo.
   # See: https://snapcraft.io/facebook-messenger-desktop/builds
@@ -205,7 +159,7 @@ jobs:
   
   release:
     name: Create Release
-    needs: [build-macos, build-windows, build-linux, build-flatpak-arm64]
+    needs: [build-macos, build-windows, build-linux]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
     
@@ -391,12 +345,6 @@ jobs:
           name: linux-build
           path: artifacts/linux
 
-      - name: Download Flatpak ARM64 artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: flatpak-arm64-build
-          path: artifacts/flatpak-arm64
-
       - name: Install Flatpak tools
         run: |
           sudo apt-get update
@@ -443,8 +391,8 @@ jobs:
             flatpak build-import-bundle "$REPO_PATH" "$X64_FLATPAK" --gpg-sign="$GPG_KEY_ID"
           fi
           
-          # Import ARM64 flatpak (from flatpak-arm64-build, filename: *-aarch64.flatpak)
-          ARM64_FLATPAK=$(find artifacts/flatpak-arm64 -name "*.flatpak" | head -1)
+          # Import ARM64 flatpak (from linux-build, filename: *-aarch64.flatpak)
+          ARM64_FLATPAK=$(find artifacts/linux -name "*aarch64*.flatpak" | head -1)
           if [ -n "$ARM64_FLATPAK" ]; then
             echo "Importing ARM64 flatpak: $ARM64_FLATPAK"
             flatpak build-import-bundle "$REPO_PATH" "$ARM64_FLATPAK" --gpg-sign="$GPG_KEY_ID"
