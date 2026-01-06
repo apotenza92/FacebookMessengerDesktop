@@ -130,7 +130,7 @@ jobs:
         timeout-minutes: 5
 
       - name: Build distributables
-        run: npm run dist:linux:x64
+        run: npm run dist:linux
         timeout-minutes: 45
 
       - name: Upload artifacts
