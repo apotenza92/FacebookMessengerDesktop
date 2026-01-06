@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.0.3] - 2026-01-07
+
+### Changed
+- Snap auto-promotion now polls for build completion instead of fixed wait time
+  - Checks every 2 minutes for new builds to appear in edge channel
+  - Promotes immediately when builds complete (no more guessing)
+  - 60 minute timeout as fallback
+
+### Fixed
+- Snap desktop file not being exported correctly (icon not showing in app menu)
+  - Added desktop: directive to snapcraft.yaml for proper snapd integration
+
 ## [1.0.2] - 2026-01-06
 
 ### Added
