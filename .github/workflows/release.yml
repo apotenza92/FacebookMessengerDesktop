@@ -320,9 +320,58 @@ jobs:
           installers-regex: 'Messenger-windows-x64-setup\.exe$'
           token: ${{ secrets.WINGET_TOKEN }}
 
-  # NOTE: Snap builds are handled entirely by Snapcraft's "Build from GitHub" service
-  # which automatically builds and publishes snaps for both amd64 and arm64.
-  # See: https://snapcraft.io/facebook-messenger-desktop/builds
+  # Snap builds are handled by Snapcraft's "Build from GitHub" service
+  # This job waits for those builds to complete, then promotes them to stable
+  promote-snap-to-stable:
+    name: Promote Snap to Stable
+    needs: release
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v') && !contains(github.ref, 'alpha') && !contains(github.ref, 'beta') && !contains(github.ref, 'rc')
+    continue-on-error: true  # Don't fail the workflow if snap promotion fails
+    
+    steps:
+      - name: Install Snapcraft
+        run: sudo snap install snapcraft --classic
+
+      - name: Wait for Snapcraft builds to complete
+        run: |
+          echo "Waiting 25 minutes for Snapcraft builds to complete..."
+          echo "Builds are running at: https://snapcraft.io/facebook-messenger-desktop/builds"
+          sleep 1500  # 25 minutes
+
+      - name: Promote to stable channel
+        env:
+          SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
+        run: |
+          # Get the latest revisions from edge channel
+          echo "Checking edge channel for latest revisions..."
+          snapcraft status facebook-messenger-desktop
+          
+          # Get revision numbers for each architecture from edge
+          AMD64_REV=$(snapcraft status facebook-messenger-desktop 2>/dev/null | grep -E "latest/edge.*amd64" | awk '{print $3}' | head -1)
+          ARM64_REV=$(snapcraft status facebook-messenger-desktop 2>/dev/null | grep -E "latest/edge.*arm64" | awk '{print $3}' | head -1)
+          
+          echo "Found amd64 revision: $AMD64_REV"
+          echo "Found arm64 revision: $ARM64_REV"
+          
+          # Promote amd64 to stable
+          if [ -n "$AMD64_REV" ] && [ "$AMD64_REV" != "-" ]; then
+            echo "Promoting amd64 revision $AMD64_REV to stable..."
+            snapcraft release facebook-messenger-desktop "$AMD64_REV" stable
+          else
+            echo "Warning: No amd64 revision found in edge channel"
+          fi
+          
+          # Promote arm64 to stable
+          if [ -n "$ARM64_REV" ] && [ "$ARM64_REV" != "-" ]; then
+            echo "Promoting arm64 revision $ARM64_REV to stable..."
+            snapcraft release facebook-messenger-desktop "$ARM64_REV" stable
+          else
+            echo "Warning: No arm64 revision found in edge channel"
+          fi
+          
+          echo "Snap promotion complete!"
+          snapcraft status facebook-messenger-desktop
 
   update-flatpak-repo:
     name: Update Flatpak Repo
