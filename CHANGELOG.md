@@ -8,6 +8,9 @@
   - Removed update-snapstore job from release workflow
   - Snapcraft automatically builds and publishes both amd64 and arm64 snaps
   - Added .launchpad.yaml for auto-release to stable channel
+- Simplified Linux build workflow
+  - Removed redundant ARM64 Flatpak job (cross-compilation in main Linux job handles it)
+  - Renamed build jobs for clarity: "Build Linux" now builds all x64 and ARM64 packages
 
 ### Fixed
 - Fixed Flatpak repository deployment to GitHub Pages
