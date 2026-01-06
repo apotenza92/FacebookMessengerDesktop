@@ -10,34 +10,35 @@
      clip-path="none"
      id="g2"
      transform="translate(-0.940002,-0.91)">
-    <!-- Distinct chat bubble - rounder with simpler tail -->
+    <!-- Original Messenger chat bubble shape -->
     <path
-       d="M 500,30 C 780,30 970,220 970,485 C 970,750 780,940 500,940 C 400,940 310,910 235,860 L 100,920 C 70,935 40,905 55,875 L 115,760 C 55,680 30,590 30,485 C 30,220 220,30 500,30 Z"
-       fill="#2478FF"
+       d="m 1000.94,485.90553 c 0,278.68297 -218.33611,484.99554 -500.00001,484.99554 -50.58364,0 -99.1207,-6.66838 -144.74082,-19.2103 -8.86599,-2.45104 -18.28875,-1.75604 -26.70037,1.94548 l -99.24741,43.81288 c -25.95418,11.46807 -55.25663,-6.99732 -56.12697,-35.36414 l -2.72879,-88.95303 C 171.05517,862.18098 166.12877,851.925 157.95777,844.63842 60.667611,757.62959 0.940002,631.68181 0.940002,485.90553 0.940002,207.23536 219.27609,0.91 500.93999,0.91 782.60389,0.91 1000.94,207.23536 1000.94,485.90553 Z"
+       fill="#0866ff"
        id="path1" />
-    <!-- Network diagram - isometric cube (hexagon with Y inside) -->
+    <!-- Network diagram - simplified with uniform outer nodes -->
     <!-- Outer hexagon edges -->
-    <line x1="500" y1="185" x2="780" y2="345" stroke="#ffffff" stroke-width="13" stroke-linecap="round" />
-    <line x1="780" y1="345" x2="780" y2="625" stroke="#ffffff" stroke-width="13" stroke-linecap="round" />
-    <line x1="780" y1="625" x2="500" y2="785" stroke="#ffffff" stroke-width="13" stroke-linecap="round" />
-    <line x1="500" y1="785" x2="220" y2="625" stroke="#ffffff" stroke-width="13" stroke-linecap="round" />
-    <line x1="220" y1="625" x2="220" y2="345" stroke="#ffffff" stroke-width="13" stroke-linecap="round" />
-    <line x1="220" y1="345" x2="500" y2="185" stroke="#ffffff" stroke-width="13" stroke-linecap="round" />
-    <!-- Inner edges meeting at center -->
-    <line x1="500" y1="485" x2="500" y2="185" stroke="#ffffff" stroke-width="13" stroke-linecap="round" />
-    <line x1="500" y1="485" x2="220" y2="625" stroke="#ffffff" stroke-width="13" stroke-linecap="round" />
-    <line x1="500" y1="485" x2="780" y2="625" stroke="#ffffff" stroke-width="13" stroke-linecap="round" />
-    <line x1="500" y1="485" x2="220" y2="345" stroke="#ffffff" stroke-width="13" stroke-linecap="round" />
-    <line x1="500" y1="485" x2="780" y2="345" stroke="#ffffff" stroke-width="13" stroke-linecap="round" />
-    <line x1="500" y1="485" x2="500" y2="785" stroke="#ffffff" stroke-width="13" stroke-linecap="round" />
-    <!-- Nodes at all 7 vertices (varied sizes) -->
-    <circle cx="500" cy="485" r="50" fill="#ffffff" />
-    <circle cx="500" cy="185" r="42" fill="#ffffff" />
-    <circle cx="780" cy="345" r="38" fill="#ffffff" />
-    <circle cx="780" cy="625" r="46" fill="#ffffff" />
-    <circle cx="500" cy="785" r="40" fill="#ffffff" />
-    <circle cx="220" cy="625" r="44" fill="#ffffff" />
-    <circle cx="220" cy="345" r="36" fill="#ffffff" />
+    <line x1="500" y1="130" x2="840" y2="295" stroke="#ffffff" stroke-width="15" stroke-linecap="round" />
+    <line x1="840" y1="295" x2="840" y2="665" stroke="#ffffff" stroke-width="15" stroke-linecap="round" />
+    <line x1="840" y1="665" x2="500" y2="830" stroke="#ffffff" stroke-width="15" stroke-linecap="round" />
+    <line x1="500" y1="830" x2="160" y2="665" stroke="#ffffff" stroke-width="15" stroke-linecap="round" />
+    <line x1="160" y1="665" x2="160" y2="295" stroke="#ffffff" stroke-width="15" stroke-linecap="round" />
+    <line x1="160" y1="295" x2="500" y2="130" stroke="#ffffff" stroke-width="15" stroke-linecap="round" />
+    <!-- Inner edges from center to all vertices -->
+    <line x1="500" y1="480" x2="500" y2="130" stroke="#ffffff" stroke-width="15" stroke-linecap="round" />
+    <line x1="500" y1="480" x2="840" y2="295" stroke="#ffffff" stroke-width="15" stroke-linecap="round" />
+    <line x1="500" y1="480" x2="840" y2="665" stroke="#ffffff" stroke-width="15" stroke-linecap="round" />
+    <line x1="500" y1="480" x2="500" y2="830" stroke="#ffffff" stroke-width="15" stroke-linecap="round" />
+    <line x1="500" y1="480" x2="160" y2="665" stroke="#ffffff" stroke-width="15" stroke-linecap="round" />
+    <line x1="500" y1="480" x2="160" y2="295" stroke="#ffffff" stroke-width="15" stroke-linecap="round" />
+    <!-- Center node - much larger -->
+    <circle cx="500" cy="480" r="90" fill="#ffffff" />
+    <!-- Outer nodes - 65% the size of center -->
+    <circle cx="500" cy="130" r="58" fill="#ffffff" />
+    <circle cx="840" cy="295" r="58" fill="#ffffff" />
+    <circle cx="840" cy="665" r="58" fill="#ffffff" />
+    <circle cx="500" cy="830" r="58" fill="#ffffff" />
+    <circle cx="160" cy="665" r="58" fill="#ffffff" />
+    <circle cx="160" cy="295" r="58" fill="#ffffff" />
   </g>
   <defs
      id="defs2" />

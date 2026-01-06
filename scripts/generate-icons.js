@@ -269,9 +269,9 @@ async function generateIcons() {
       await generateIconWithWhiteBackground(svgBuffer, size, path.join(iconsDir, `icon-${size}.png`));
     }
 
-    // Generate rounded 512px icon for Linux (fallback)
+    // Generate rounded 512px icon for Linux (fallback) - use 72% scale for consistency
     console.log('Generating rounded Linux icon...');
-    await generateIconWithRoundedWhiteBackground(svgBuffer, 512, path.join(iconsDir, 'icon.png'));
+    await generateIconWithRoundedWhiteBackground(svgBuffer, 512, path.join(iconsDir, 'icon.png'), 0.72);
     
     // Generate Linux icons directory with proper NxN.png naming for hicolor theme
     // Linux desktop environments (GNOME, KDE) need slight padding around the icon
@@ -352,9 +352,14 @@ async function generateIcons() {
       { name: 'icon_512x512@2x.png', size: 1024 },
     ];
     
+    // macOS Big Sur+ (including Sequoia) expects icons with more padding for proper
+    // visual consistency with system icons. Using 72% scale (vs default 80%) gives
+    // the icon appropriate breathing room and prevents it from appearing oversized.
+    const macOSIconScale = 0.72;
+    
     for (const { name, size } of iconsetSizes) {
       // macOS icons need rounded corners so the system can apply proper shadows
-      await generateIconWithRoundedWhiteBackground(svgBuffer, size, path.join(iconsetDir, name));
+      await generateIconWithRoundedWhiteBackground(svgBuffer, size, path.join(iconsetDir, name), macOSIconScale);
     }
     
     // Generate ICNS file using iconutil (macOS only)
