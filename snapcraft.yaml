@@ -46,7 +46,8 @@ parts:
       set -e
       
       # Install dependencies
-      npm ci --production=false
+      # Skip Electron binary download - we download it manually below for the target arch
+      ELECTRON_SKIP_BINARY_DOWNLOAD=1 npm ci --production=false
       
       # Extract Electron version from installed package (after npm ci)
       ELECTRON_VERSION=$(node -p "require('electron/package.json').version" 2>/dev/null || node -p "require('./package.json').devDependencies.electron.replace('^', '')" 2>/dev/null || echo "28.3.3")

@@ -7,6 +7,9 @@
   - Native notifications now check muted status before sending
   - Badge count excludes muted conversations
   - Detects muted status via the "bell with slash" icon in sidebar
+- Fixed Snapcraft builds failing on ARM64 and x64
+  - Electron's install script was failing in the restricted build environment
+  - Now skips automatic Electron download during npm ci (manual download handles target arch)
 
 ## [0.9.7] - 2026-01-06
 
