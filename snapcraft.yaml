@@ -18,6 +18,7 @@ architectures:
 apps:
   facebook-messenger-desktop:
     command: opt/Messenger/facebook-messenger-desktop
+    desktop: meta/gui/facebook-messenger-desktop.desktop
     plugs:
       - desktop
       - desktop-legacy
@@ -100,23 +101,21 @@ parts:
       sed -i 's/^      //' $SNAPCRAFT_PART_INSTALL/opt/Messenger/facebook-messenger-desktop
       chmod +x $SNAPCRAFT_PART_INSTALL/opt/Messenger/facebook-messenger-desktop
       
-      # Create desktop file in the standard location
-      mkdir -p $SNAPCRAFT_PART_INSTALL/usr/share/applications
-      cat > $SNAPCRAFT_PART_INSTALL/usr/share/applications/facebook-messenger-desktop.desktop << 'EOF'
-      [Desktop Entry]
-      Name=Messenger
-      Comment=Unofficial desktop client for Facebook Messenger
-      Exec=facebook-messenger-desktop
-      Icon=${SNAP}/meta/gui/icon.png
-      Type=Application
-      Categories=Network;InstantMessaging;Chat;
-      StartupWMClass=Messenger
-      EOF
-      # Remove leading spaces from desktop file
-      sed -i 's/^      //' $SNAPCRAFT_PART_INSTALL/usr/share/applications/facebook-messenger-desktop.desktop
-      
-      # Copy snap icon to meta/gui for snap store
+      # Create desktop file in meta/gui for snap desktop integration
+      # Snapd will automatically export this to ~/.local/share/applications/
       mkdir -p $SNAPCRAFT_PART_INSTALL/meta/gui
+      cat > $SNAPCRAFT_PART_INSTALL/meta/gui/facebook-messenger-desktop.desktop << 'DESKTOP_EOF'
+[Desktop Entry]
+Name=Messenger
+Comment=Unofficial desktop client for Facebook Messenger
+Exec=facebook-messenger-desktop
+Icon=${SNAP}/meta/gui/icon.png
+Type=Application
+Categories=Network;InstantMessaging;Chat;
+StartupWMClass=Messenger
+DESKTOP_EOF
+      
+      # Copy icon to meta/gui for snap store and desktop integration
       if [ -f assets/icons/linux/256x256.png ]; then
         cp assets/icons/linux/256x256.png $SNAPCRAFT_PART_INSTALL/meta/gui/icon.png
       fi
