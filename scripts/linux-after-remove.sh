@@ -6,8 +6,8 @@
 rm -f "/usr/bin/facebook-messenger-desktop" 2>/dev/null || true
 
 ICONS_DST="/usr/share/icons/hicolor"
-APP_ICON="com.facebook.messenger.desktop.png"
-OLD_ICON="facebook-messenger-desktop.png"
+APP_ICON="facebook-messenger-desktop.png"
+OLD_ICON="com.facebook.messenger.desktop.png"
 
 # Remove icons from hicolor theme - explicit paths to avoid shell variable syntax issues
 # Remove both new and old icon names for upgrade compatibility
