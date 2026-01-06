@@ -1,4 +1,4 @@
-# Facebook Messenger Desktop (Unofficial)
+# Facebook Messenger Desktop
 
 <img src="assets/icons/icon-rounded.png" alt="Facebook Messenger Desktop icon" width="128" />
 

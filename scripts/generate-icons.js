@@ -273,6 +273,10 @@ async function generateIcons() {
     console.log('Generating rounded Linux icon...');
     await generateIconWithRoundedWhiteBackground(svgBuffer, 512, path.join(iconsDir, 'icon.png'), 0.72);
     
+    // Generate icon-rounded.png for README and docs page
+    console.log('Generating icon-rounded.png for docs...');
+    await generateIconWithRoundedWhiteBackground(svgBuffer, 512, path.join(iconsDir, 'icon-rounded.png'), 0.72);
+    
     // Generate Linux icons directory with proper NxN.png naming for hicolor theme
     // Linux desktop environments (GNOME, KDE) need slight padding around the icon
     // for visual consistency with system icons, but not too much or it looks tiny
