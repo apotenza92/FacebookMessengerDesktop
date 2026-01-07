@@ -8,6 +8,11 @@
 - Login page icon now uses high-resolution SVG for crisp rendering at any size
 
 ### Added
+- Native media download handling (issue #20)
+  - Images and videos from chat now download directly to Downloads folder
+  - No longer opens external browser for Facebook CDN media URLs
+  - Shows native notification when download completes
+  - Click notification to reveal file in Downloads folder
 - Verification page banner for 2FA and security checkpoint pages
   - Shows "You're signing in to Messenger Desktop" with app icon
   - Explains user is completing Facebook verification

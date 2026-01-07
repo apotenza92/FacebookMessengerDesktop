@@ -701,6 +701,18 @@ function isLoginPage(url: string): boolean {
   return isLoginPath;
 }
 
+// Check if URL is a Facebook CDN media URL (for native download handling)
+// Facebook serves images, videos, and other media from *.fbcdn.net domains
+function isFacebookMediaUrl(url: string): boolean {
+  try {
+    const hostname = new URL(url).hostname;
+    // Facebook CDN patterns: scontent*.fbcdn.net, video*.fbcdn.net, etc.
+    return hostname.endsWith('.fbcdn.net');
+  } catch {
+    return false;
+  }
+}
+
 // Check if we're on a Facebook verification/checkpoint page (2FA, security check, etc.)
 function isVerificationPage(url: string): boolean {
   const isMessengerDomain = url.startsWith('https://www.messenger.com') || url.startsWith('https://messenger.com');
@@ -1542,6 +1554,56 @@ function createWindow(source: string = 'unknown'): void {
       }
     });
 
+    // Set up native download handler for Facebook CDN media files
+    // This handles downloads initiated via webContents.downloadURL()
+    contentView.webContents.session.on('will-download', (event, item, webContents) => {
+      const url = item.getURL();
+      const suggestedFilename = item.getFilename();
+      console.log('[Download] Download started:', { url, filename: suggestedFilename });
+      
+      // Auto-save to Downloads folder
+      const downloadsPath = app.getPath('downloads');
+      const savePath = path.join(downloadsPath, suggestedFilename);
+      item.setSavePath(savePath);
+      
+      // Log progress
+      item.on('updated', (event, state) => {
+        if (state === 'progressing') {
+          if (item.isPaused()) {
+            console.log('[Download] Paused');
+          } else {
+            const received = item.getReceivedBytes();
+            const total = item.getTotalBytes();
+            const percent = total > 0 ? Math.round((received / total) * 100) : 0;
+            console.log(`[Download] Progress: ${percent}% (${received} / ${total})`);
+          }
+        } else if (state === 'interrupted') {
+          console.log('[Download] Interrupted');
+        }
+      });
+      
+      // Handle completion
+      item.once('done', (event, state) => {
+        if (state === 'completed') {
+          console.log('[Download] Completed:', savePath);
+          // Show native notification
+          const notification = new Notification({
+            title: 'Download Complete',
+            body: `Saved to Downloads: ${suggestedFilename}`,
+          });
+          notification.on('click', () => {
+            // Open the Downloads folder and select the file
+            shell.showItemInFolder(savePath);
+          });
+          notification.show();
+        } else if (state === 'cancelled') {
+          console.log('[Download] Cancelled');
+        } else {
+          console.log('[Download] Failed:', state);
+        }
+      });
+    });
+
     // Load messenger.com/login/ directly - simpler login page with just the form
     contentView.webContents.loadURL('https://www.messenger.com/login/');
 
@@ -1581,6 +1643,13 @@ function createWindow(source: string = 'unknown'): void {
             },
           },
         };
+      }
+      
+      // Check if this is a Facebook media URL - download natively instead of opening browser
+      if (isFacebookMediaUrl(url)) {
+        console.log('[Download] Initiating native download for Facebook media:', url);
+        contentView!.webContents.downloadURL(url);
+        return { action: 'deny' };
       }
       
       // Open external URLs in system browser
@@ -1863,6 +1932,55 @@ function createWindow(source: string = 'unknown'): void {
       return hasPermission;
     });
 
+    // Set up native download handler for Facebook CDN media files (fallback path)
+    mainWindow.webContents.session.on('will-download', (event, item, webContents) => {
+      const url = item.getURL();
+      const suggestedFilename = item.getFilename();
+      console.log('[Download] Download started:', { url, filename: suggestedFilename });
+      
+      // Auto-save to Downloads folder
+      const downloadsPath = app.getPath('downloads');
+      const savePath = path.join(downloadsPath, suggestedFilename);
+      item.setSavePath(savePath);
+      
+      // Log progress
+      item.on('updated', (event, state) => {
+        if (state === 'progressing') {
+          if (item.isPaused()) {
+            console.log('[Download] Paused');
+          } else {
+            const received = item.getReceivedBytes();
+            const total = item.getTotalBytes();
+            const percent = total > 0 ? Math.round((received / total) * 100) : 0;
+            console.log(`[Download] Progress: ${percent}% (${received} / ${total})`);
+          }
+        } else if (state === 'interrupted') {
+          console.log('[Download] Interrupted');
+        }
+      });
+      
+      // Handle completion
+      item.once('done', (event, state) => {
+        if (state === 'completed') {
+          console.log('[Download] Completed:', savePath);
+          // Show native notification
+          const notification = new Notification({
+            title: 'Download Complete',
+            body: `Saved to Downloads: ${suggestedFilename}`,
+          });
+          notification.on('click', () => {
+            // Open the Downloads folder and select the file
+            shell.showItemInFolder(savePath);
+          });
+          notification.show();
+        } else if (state === 'cancelled') {
+          console.log('[Download] Cancelled');
+        } else {
+          console.log('[Download] Failed:', state);
+        }
+      });
+    });
+
     // Load messenger.com/login/ directly - simpler login page with just the form
     mainWindow.loadURL('https://www.messenger.com/login/');
 
@@ -1902,6 +2020,13 @@ function createWindow(source: string = 'unknown'): void {
             },
           },
         };
+      }
+      
+      // Check if this is a Facebook media URL - download natively instead of opening browser
+      if (isFacebookMediaUrl(url)) {
+        console.log('[Download] Initiating native download for Facebook media:', url);
+        mainWindow!.webContents.downloadURL(url);
+        return { action: 'deny' };
       }
       
       // Open external URLs in system browser
