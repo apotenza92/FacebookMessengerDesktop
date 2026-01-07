@@ -379,10 +379,10 @@ jobs:
             CURRENT_AMD64=$(get_edge_rev "amd64")
             CURRENT_ARM64=$(get_edge_rev "arm64")
             
-            # Check if either revision changed
-            if [ "$CURRENT_AMD64" != "$INITIAL_AMD64" ] || [ "$CURRENT_ARM64" != "$INITIAL_ARM64" ]; then
+            # Check if BOTH revisions changed (both builds completed)
+            if [ "$CURRENT_AMD64" != "$INITIAL_AMD64" ] && [ "$CURRENT_ARM64" != "$INITIAL_ARM64" ]; then
               echo ""
-              echo "✅ New builds detected!"
+              echo "✅ Both builds detected!"
               echo "New edge revisions: amd64=$CURRENT_AMD64, arm64=$CURRENT_ARM64"
               NEW_BUILDS_DETECTED=true
               break
