@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.7-beta.4] - 2026-01-08
+
+### Added
+- Develop menu now available to beta testers
+  - Access via menu bar on all platforms
+  - Includes testing tools: Update workflow, Notification, Taskbar shortcut fix (Windows)
+
 ## [1.0.7-beta.3] - 2026-01-08
 
 ### Fixed
