@@ -31,33 +31,37 @@ modules:
       - cp -r squashfs-root/* /app/messenger/
       # Create launcher script using zypak for sandbox compatibility
       - install -Dm755 launcher.sh /app/bin/facebook-messenger-desktop
-      # Install desktop file and metainfo from upstream repo
+      # Install desktop file and metainfo
       - install -Dm644 io.github.apotenza92.messenger.desktop /app/share/applications/io.github.apotenza92.messenger.desktop
       - install -Dm644 io.github.apotenza92.messenger.metainfo.xml /app/share/metainfo/io.github.apotenza92.messenger.metainfo.xml
-      # Install icons
+      # Install icons from extracted AppImage
       - install -Dm644 squashfs-root/usr/share/icons/hicolor/256x256/apps/facebook-messenger-desktop.png /app/share/icons/hicolor/256x256/apps/io.github.apotenza92.messenger.png
       - install -Dm644 squashfs-root/usr/share/icons/hicolor/128x128/apps/facebook-messenger-desktop.png /app/share/icons/hicolor/128x128/apps/io.github.apotenza92.messenger.png
       - install -Dm644 squashfs-root/usr/share/icons/hicolor/64x64/apps/facebook-messenger-desktop.png /app/share/icons/hicolor/64x64/apps/io.github.apotenza92.messenger.png
-      # Install license
-      - install -Dm644 squashfs-root/LICENSE* /app/share/licenses/io.github.apotenza92.messenger/LICENSE || install -Dm644 LICENSE /app/share/licenses/io.github.apotenza92.messenger/LICENSE
+      # Install license from extracted AppImage
+      - install -Dm644 squashfs-root/LICENSE.electron.txt /app/share/licenses/io.github.apotenza92.messenger/LICENSE.electron.txt || true
+      - install -Dm644 squashfs-root/LICENSES.chromium.html /app/share/licenses/io.github.apotenza92.messenger/LICENSES.chromium.html || true
     sources:
-      # x86_64 AppImage
+      # x86_64 AppImage (~100MB)
       - type: file
         only-arches: [x86_64]
         url: https://github.com/apotenza92/facebook-messenger-desktop/releases/download/v0.9.1/facebook-messenger-desktop-x86_64.AppImage
         sha256: REPLACE_WITH_X64_SHA256
         dest-filename: facebook-messenger-desktop.AppImage
-      # aarch64 AppImage  
+      # aarch64 AppImage (~100MB)
       - type: file
         only-arches: [aarch64]
         url: https://github.com/apotenza92/facebook-messenger-desktop/releases/download/v0.9.1/facebook-messenger-desktop-arm64.AppImage
         sha256: REPLACE_WITH_ARM64_SHA256
         dest-filename: facebook-messenger-desktop.AppImage
-      # Desktop and metainfo files from repo
-      - type: git
-        url: https://github.com/apotenza92/facebook-messenger-desktop.git
-        tag: v0.9.1
-        commit: REPLACE_WITH_COMMIT
+      # Desktop file (~500B) - from upstream repo
+      - type: file
+        url: https://raw.githubusercontent.com/apotenza92/facebook-messenger-desktop/v0.9.1/io.github.apotenza92.messenger.desktop
+        sha256: REPLACE_WITH_DESKTOP_SHA256
+      # Metainfo file (~2KB) - from upstream repo
+      - type: file
+        url: https://raw.githubusercontent.com/apotenza92/facebook-messenger-desktop/v0.9.1/io.github.apotenza92.messenger.metainfo.xml
+        sha256: REPLACE_WITH_METAINFO_SHA256
       # Launcher script
       - type: script
         dest-filename: launcher.sh
