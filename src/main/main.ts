@@ -25,15 +25,16 @@ if (process.platform === 'linux' && process.env.APPIMAGE && !process.env.MESSENG
 
 // On Linux: Apply XWayland preference if set (for screen sharing compatibility)
 // This must happen before the app is ready
-if (process.platform === 'linux' && !process.env.MESSENGER_XWAYLAND_CHECKED) {
+// Skip in Flatpak - the launcher script handles ozone platform via command line flag
+if (process.platform === 'linux' && !process.env.MESSENGER_XWAYLAND_CHECKED && !process.env.FLATPAK_ID) {
   // Mark that we've checked to prevent infinite restart loop
   process.env.MESSENGER_XWAYLAND_CHECKED = '1';
   
-  // Check if user prefers XWayland mode
-  const userDataPath = app.getPath('userData');
-  const xwaylandPrefFile = path.join(userDataPath, 'xwayland-preference.json');
-  
   try {
+    // Check if user prefers XWayland mode
+    const userDataPath = app.getPath('userData');
+    const xwaylandPrefFile = path.join(userDataPath, 'xwayland-preference.json');
+    
     if (fs.existsSync(xwaylandPrefFile)) {
       const data = JSON.parse(fs.readFileSync(xwaylandPrefFile, 'utf8'));
       const shouldUseXWayland = data.useXWayland === true;
@@ -53,6 +54,7 @@ if (process.platform === 'linux' && !process.env.MESSENGER_XWAYLAND_CHECKED) {
     }
   } catch (e) {
     // Ignore errors, just continue with default mode
+    console.log('[XWayland] Error checking preference, continuing with default:', e);
   }
 }
 
@@ -2575,7 +2577,7 @@ const HOMEBREW_CASK = 'apotenza92/tap/facebook-messenger-desktop';
 const WINGET_ID = 'apotenza92.FacebookMessengerDesktop';
 const LINUX_PACKAGE_NAME = 'facebook-messenger-desktop';
 const SNAP_PACKAGE_NAME = 'facebook-messenger-desktop';
-const FLATPAK_APP_ID = 'com.facebook.messenger.desktop';
+const FLATPAK_APP_ID = 'io.github.apotenza92.messenger';
 
 type PackageManagerInfo = {
   name: string;
@@ -3220,123 +3222,6 @@ rm -f "${scriptPath}"
     });
     child.unref();
     console.log('[Uninstall] Fallback: scheduled snap uninstall via direct spawn');
-  }
-}
-
-function scheduleFlatpakUninstall(): void {
-  // Flatpak apps run in a sandbox and may have issues uninstalling themselves while running.
-  // We schedule the uninstall to run AFTER the app exits by spawning a detached process.
-  // Use pkexec for authentication to support both user and system installs.
-  const homeDir = process.env.HOME || '';
-  
-  // Write the uninstall script to a temp file so systemd-run can execute it
-  const scriptPath = path.join('/tmp', `messenger-flatpak-uninstall-${Date.now()}.sh`);
-  
-  const uninstallScript = `#!/bin/sh
-# Wait for the Messenger flatpak to fully exit
-sleep 3
-
-# Wait for any messenger processes to terminate (with timeout)
-WAIT_COUNT=0
-while pgrep -f "${FLATPAK_APP_ID}" > /dev/null 2>&1; do
-  sleep 1
-  WAIT_COUNT=$((WAIT_COUNT + 1))
-  if [ $WAIT_COUNT -gt 30 ]; then
-    break
-  fi
-done
-
-# Additional wait to ensure flatpak recognizes the app is closed
-sleep 2
-
-# Run flatpak uninstall with pkexec for authentication
-# This shows the system's native authentication dialog
-/usr/bin/pkexec /usr/bin/flatpak uninstall -y ${FLATPAK_APP_ID}
-UNINSTALL_EXIT=$?
-
-# Only proceed with cleanup if uninstall succeeded
-if [ $UNINSTALL_EXIT -eq 0 ]; then
-  sleep 2
-  
-  # Remove user-specific desktop entries that might persist
-  rm -f "${homeDir}/.local/share/applications/${FLATPAK_APP_ID}.desktop" 2>/dev/null
-  rm -f "${homeDir}/.local/share/applications/${LINUX_PACKAGE_NAME}.desktop" 2>/dev/null
-  rm -f "${homeDir}/.local/share/applications/Messenger.desktop" 2>/dev/null
-  
-  # Clear pop-launcher cache (for Pop!_OS COSMIC)
-  rm -rf "${homeDir}/.cache/pop-launcher/" 2>/dev/null || true
-  rm -rf "${homeDir}/.local/share/pop-launcher/" 2>/dev/null || true
-  
-  # Clear COSMIC app cache
-  rm -rf "${homeDir}/.cache/cosmic"* 2>/dev/null || true
-  
-  # Update user desktop database
-  if command -v update-desktop-database >/dev/null 2>&1; then
-    update-desktop-database "${homeDir}/.local/share/applications" 2>/dev/null || true
-  fi
-  
-  # Refresh icon caches
-  if command -v gtk-update-icon-cache >/dev/null 2>&1; then
-    gtk-update-icon-cache -f -t "${homeDir}/.local/share/icons/hicolor" 2>/dev/null || true
-  fi
-  
-  # Force desktop environment to reload application list
-  if command -v dbus-send >/dev/null 2>&1; then
-    dbus-send --type=signal --dest=org.gnome.Shell /org/gnome/Shell org.gnome.Shell.AppLaunchContext 2>/dev/null || true
-  fi
-  
-  touch "${homeDir}/.local/share/applications" 2>/dev/null || true
-fi
-
-# Clean up this script
-rm -f "${scriptPath}"
-`;
-
-  try {
-    // Write script to temp location (accessible outside flatpak sandbox)
-    fs.writeFileSync(scriptPath, uninstallScript, { mode: 0o755 });
-    console.log('[Uninstall] Wrote uninstall script to:', scriptPath);
-    
-    // Use systemd-run to schedule execution outside the Flatpak's sandbox
-    // This ensures the process survives when the Flatpak app exits
-    // --user: Run in user session (no root needed to start)
-    // --scope: Run in a new scope that persists after we exit
-    // --collect: Clean up the scope after the script finishes
-    const child = spawn('/usr/bin/systemd-run', [
-      '--user',
-      '--scope',
-      '--collect',
-      '--description=Messenger Uninstaller',
-      '/bin/sh', scriptPath,
-    ], {
-      detached: true,
-      stdio: 'ignore',
-      env: {
-        // Minimal env outside flatpak
-        HOME: homeDir,
-        PATH: '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin',
-        DISPLAY: process.env.DISPLAY || ':0',
-        XAUTHORITY: process.env.XAUTHORITY || `${homeDir}/.Xauthority`,
-        XDG_RUNTIME_DIR: process.env.XDG_RUNTIME_DIR || `/run/user/${process.getuid?.() || 1000}`,
-        DBUS_SESSION_BUS_ADDRESS: process.env.DBUS_SESSION_BUS_ADDRESS || '',
-      },
-    });
-    child.unref();
-    console.log('[Uninstall] Scheduled Flatpak uninstall via systemd-run');
-  } catch (error) {
-    console.error('[Uninstall] Failed to schedule flatpak uninstall:', error);
-    // Fallback: try direct spawn (might not work but better than nothing)
-    const child = spawn('/usr/bin/sh', ['-c', `sleep 3 && /usr/bin/pkexec /usr/bin/flatpak uninstall -y ${FLATPAK_APP_ID}`], {
-      detached: true,
-      stdio: 'ignore',
-      env: {
-        HOME: homeDir,
-        PATH: '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin',
-        DISPLAY: process.env.DISPLAY || ':0',
-      },
-    });
-    child.unref();
-    console.log('[Uninstall] Fallback: scheduled flatpak uninstall via direct spawn');
   }
 }
 
