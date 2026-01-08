@@ -3858,6 +3858,92 @@ function createApplicationMenu(): void {
         label: 'Test Notification',
         click: () => { testNotification(); },
       },
+      {
+        label: 'Test Taskbar Shortcut Fix',
+        visible: process.platform === 'win32',
+        click: async () => {
+          const { exec } = await import('child_process');
+          const { promisify } = await import('util');
+          const execAsync = promisify(exec);
+          
+          const exePath = process.execPath.replace(/\\/g, '\\\\');
+          const instDir = path.dirname(process.execPath).replace(/\\/g, '\\\\');
+          
+          // Simple PowerShell script to check and update shortcuts
+          const script = `
+$exePath = "${exePath}"
+$instDir = "${instDir}"
+$shell = New-Object -ComObject WScript.Shell
+$results = @{ taskbar = 0; startMenu = 0; found = @() }
+
+# Check taskbar
+$taskbar = "$env:APPDATA\\Microsoft\\Internet Explorer\\Quick Launch\\User Pinned\\TaskBar"
+Get-ChildItem $taskbar -Filter "*.lnk" -ErrorAction SilentlyContinue | ForEach-Object {
+    $lnk = $shell.CreateShortcut($_.FullName)
+    $results.found += @{ name = $_.Name; target = $lnk.TargetPath; location = "taskbar" }
+    if ($lnk.TargetPath -like "*Messenger*") {
+        $lnk.TargetPath = $exePath
+        $lnk.WorkingDirectory = $instDir
+        $lnk.IconLocation = "$exePath,0"
+        $lnk.Save()
+        $results.taskbar++
+    }
+}
+
+# Check Start Menu
+$startMenu = "$env:APPDATA\\Microsoft\\Windows\\Start Menu\\Programs"
+Get-ChildItem $startMenu -Filter "*.lnk" -Recurse -ErrorAction SilentlyContinue | ForEach-Object {
+    $lnk = $shell.CreateShortcut($_.FullName)
+    if ($lnk.TargetPath -like "*Messenger*") {
+        $results.found += @{ name = $_.Name; target = $lnk.TargetPath; location = "startmenu" }
+        $lnk.TargetPath = $exePath
+        $lnk.WorkingDirectory = $instDir
+        $lnk.IconLocation = "$exePath,0"
+        $lnk.Save()
+        $results.startMenu++
+    }
+}
+
+$results | ConvertTo-Json -Depth 3
+`;
+
+          try {
+            console.log('[Test] Running taskbar shortcut fix test...');
+            const { stdout } = await execAsync(
+              `powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "${script.replace(/"/g, '\\"')}"`,
+              { timeout: 30000 }
+            );
+            
+            let results = { taskbar: 0, startMenu: 0, found: [] as Array<{name: string; target: string; location: string}> };
+            try {
+              results = JSON.parse(stdout.trim());
+            } catch {
+              console.log('[Test] Raw output:', stdout);
+            }
+            
+            const foundList = results.found?.map((f: {name: string; target: string; location: string}) => 
+              `• ${f.name} (${f.location})\n  Target: ${f.target}`
+            ).join('\n') || 'None found';
+            
+            await dialog.showMessageBox({
+              type: 'info',
+              title: 'Taskbar Shortcut Fix Results',
+              message: 'Shortcut scan completed',
+              detail: `Updated shortcuts:\n• Taskbar: ${results.taskbar}\n• Start Menu: ${results.startMenu}\n\nShortcuts found:\n${foundList}\n\nCurrent exe: ${process.execPath}`,
+              buttons: ['OK'],
+            });
+          } catch (err) {
+            console.error('[Test] Taskbar fix error:', err);
+            await dialog.showMessageBox({
+              type: 'error',
+              title: 'Taskbar Shortcut Fix Error',
+              message: 'Failed to run shortcut fix',
+              detail: `Error: ${err instanceof Error ? err.message : String(err)}`,
+              buttons: ['OK'],
+            });
+          }
+        },
+      },
       { type: 'separator' },
       {
         label: 'Toggle Developer Tools',
@@ -3907,8 +3993,8 @@ function createApplicationMenu(): void {
       { role: 'editMenu' as const },
       { role: 'viewMenu' as const },
       { role: 'windowMenu' as const },
-      // Only include Develop menu in dev mode
-      ...(isDev ? [developMenu] : []),
+      // Include Develop menu in dev mode or for beta testers
+      ...(isDev || isBetaOptedIn() ? [developMenu] : []),
     ];
     const menu = Menu.buildFromTemplate(template);
     Menu.setApplicationMenu(menu);
@@ -3975,8 +4061,8 @@ function createApplicationMenu(): void {
         { role: 'about' as const },
       ],
     },
-    // Only include Develop menu in dev mode
-    ...(isDev ? [developMenu] : []),
+    // Include Develop menu in dev mode or for beta testers
+    ...(isDev || isBetaOptedIn() ? [developMenu] : []),
   ];
 
   const menu = Menu.buildFromTemplate(template);
