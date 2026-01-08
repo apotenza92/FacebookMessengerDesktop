@@ -225,12 +225,12 @@
   };
 
   // Check if a message is fresh enough to warrant a notification
-  // Only messages with NO timestamp (brand new) or "now"/"just now" should trigger notifications
+  // Messages with NO timestamp, "now"/"just now", or "1m" should trigger notifications
   // This prevents notifications for old messages that appear when scrolling or after app restart
   const isMessageFresh = (conversationEl: Element): boolean => {
     const timestamp = extractTimestamp(conversationEl);
-    // Only notify if no timestamp (brand new) or "now"/"just now"
-    const isFresh = timestamp === null || timestamp === 'now';
+    // Notify if no timestamp (brand new), "now"/"just now", or within 1 minute
+    const isFresh = timestamp === null || timestamp === 'now' || timestamp === '1m';
     if (!isFresh) {
       log('Message not fresh - has timestamp', { timestamp });
     }
