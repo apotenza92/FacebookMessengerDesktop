@@ -3888,66 +3888,69 @@ function createApplicationMenu(): void {
           const exePath = process.execPath.replace(/\\/g, '\\\\');
           const instDir = path.dirname(process.execPath).replace(/\\/g, '\\\\');
           
-          // Diagnostic PowerShell script to check shortcuts
+          // Diagnostic PowerShell script - check multiple possible locations
           const script = `
 $exePath = "${exePath}"
 $instDir = "${instDir}"
 $shell = New-Object -ComObject WScript.Shell
 $results = @{ 
-    taskbarUpdated = 0
-    startMenuUpdated = 0
-    taskbarPath = ""
-    taskbarExists = $false
-    allTaskbarShortcuts = @()
-    messengerShortcuts = @()
+    updated = 0
+    paths = @()
+    shortcuts = @()
+    windowsVersion = [System.Environment]::OSVersion.Version.ToString()
+    appdata = $env:APPDATA
+    localappdata = $env:LOCALAPPDATA
 }
 
-# Check taskbar folder
-$taskbar = "$env:APPDATA\\Microsoft\\Internet Explorer\\Quick Launch\\User Pinned\\TaskBar"
-$results.taskbarPath = $taskbar
-$results.taskbarExists = Test-Path $taskbar
+# List of possible taskbar/shortcut locations to check
+$locations = @(
+    @{ name = "TaskBar (Classic)"; path = "$env:APPDATA\\Microsoft\\Internet Explorer\\Quick Launch\\User Pinned\\TaskBar" },
+    @{ name = "Quick Launch"; path = "$env:APPDATA\\Microsoft\\Internet Explorer\\Quick Launch" },
+    @{ name = "Start Menu Programs"; path = "$env:APPDATA\\Microsoft\\Windows\\Start Menu\\Programs" },
+    @{ name = "Start Menu Root"; path = "$env:APPDATA\\Microsoft\\Windows\\Start Menu" },
+    @{ name = "Public Start Menu"; path = "$env:ProgramData\\Microsoft\\Windows\\Start Menu\\Programs" },
+    @{ name = "Desktop"; path = "$env:USERPROFILE\\Desktop" },
+    @{ name = "Public Desktop"; path = "$env:PUBLIC\\Desktop" }
+)
 
-if ($results.taskbarExists) {
-    # List ALL shortcuts in taskbar (for debugging)
-    Get-ChildItem $taskbar -Filter "*.lnk" -ErrorAction SilentlyContinue | ForEach-Object {
-        $lnk = $shell.CreateShortcut($_.FullName)
-        $results.allTaskbarShortcuts += "$($_.Name) -> $($lnk.TargetPath)"
+foreach ($loc in $locations) {
+    $exists = Test-Path $loc.path
+    $count = 0
+    $messengerFound = $false
+    
+    if ($exists) {
+        $shortcuts = Get-ChildItem $loc.path -Filter "*.lnk" -ErrorAction SilentlyContinue
+        $count = ($shortcuts | Measure-Object).Count
         
-        # Check if this is a Messenger shortcut
-        if ($lnk.TargetPath -like "*Messenger*" -or $lnk.TargetPath -like "*messenger*") {
-            $results.messengerShortcuts += @{ 
-                name = $_.Name
-                target = $lnk.TargetPath 
-                location = "taskbar"
+        foreach ($file in $shortcuts) {
+            $lnk = $shell.CreateShortcut($file.FullName)
+            if ($lnk.TargetPath -like "*Messenger*" -or $lnk.TargetPath -like "*messenger*") {
+                $messengerFound = $true
+                $results.shortcuts += @{
+                    location = $loc.name
+                    name = $file.Name
+                    target = $lnk.TargetPath
+                }
+                # Update the shortcut
+                $lnk.TargetPath = $exePath
+                $lnk.WorkingDirectory = $instDir
+                $lnk.IconLocation = "$exePath,0"
+                $lnk.Save()
+                $results.updated++
             }
-            $lnk.TargetPath = $exePath
-            $lnk.WorkingDirectory = $instDir
-            $lnk.IconLocation = "$exePath,0"
-            $lnk.Save()
-            $results.taskbarUpdated++
         }
+    }
+    
+    $results.paths += @{
+        name = $loc.name
+        path = $loc.path
+        exists = $exists
+        shortcutCount = $count
+        hasMessenger = $messengerFound
     }
 }
 
-# Check Start Menu
-$startMenu = "$env:APPDATA\\Microsoft\\Windows\\Start Menu\\Programs"
-Get-ChildItem $startMenu -Filter "*.lnk" -Recurse -ErrorAction SilentlyContinue | ForEach-Object {
-    $lnk = $shell.CreateShortcut($_.FullName)
-    if ($lnk.TargetPath -like "*Messenger*" -or $lnk.TargetPath -like "*messenger*") {
-        $results.messengerShortcuts += @{ 
-            name = $_.Name
-            target = $lnk.TargetPath 
-            location = "startmenu"
-        }
-        $lnk.TargetPath = $exePath
-        $lnk.WorkingDirectory = $instDir
-        $lnk.IconLocation = "$exePath,0"
-        $lnk.Save()
-        $results.startMenuUpdated++
-    }
-}
-
-$results | ConvertTo-Json -Depth 3
+$results | ConvertTo-Json -Depth 4
 `;
 
           try {
@@ -3959,13 +3962,15 @@ $results | ConvertTo-Json -Depth 3
             
             console.log('[Test] Raw output:', stdout);
             
+            interface PathInfo { name: string; path: string; exists: boolean; shortcutCount: number; hasMessenger: boolean }
+            interface ShortcutInfo { location: string; name: string; target: string }
             let results = { 
-              taskbarUpdated: 0, 
-              startMenuUpdated: 0, 
-              taskbarPath: '',
-              taskbarExists: false,
-              allTaskbarShortcuts: [] as string[],
-              messengerShortcuts: [] as Array<{name: string; target: string; location: string}>
+              updated: 0,
+              paths: [] as PathInfo[],
+              shortcuts: [] as ShortcutInfo[],
+              windowsVersion: '',
+              appdata: '',
+              localappdata: ''
             };
             try {
               results = JSON.parse(stdout.trim());
@@ -3973,27 +3978,28 @@ $results | ConvertTo-Json -Depth 3
               console.log('[Test] JSON parse error:', e);
             }
             
-            const allShortcuts = results.allTaskbarShortcuts?.join('\n') || 'None';
-            const messengerList = results.messengerShortcuts?.map((f: {name: string; target: string; location: string}) => 
-              `• ${f.name} (${f.location})\n  ${f.target}`
+            const pathsInfo = results.paths?.map((p: PathInfo) => 
+              `${p.exists ? '✓' : '✗'} ${p.name}: ${p.shortcutCount} shortcuts${p.hasMessenger ? ' (Messenger found!)' : ''}`
+            ).join('\n') || 'None';
+            
+            const shortcutsList = results.shortcuts?.map((s: ShortcutInfo) => 
+              `• ${s.name} (${s.location})\n  ${s.target}`
             ).join('\n') || 'None found';
             
             await dialog.showMessageBox({
               type: 'info',
-              title: 'Taskbar Shortcut Fix Results',
-              message: 'Diagnostic Results',
+              title: 'Taskbar Shortcut Diagnostic',
+              message: `Windows ${results.windowsVersion}`,
               detail: [
-                `Taskbar folder: ${results.taskbarPath}`,
-                `Folder exists: ${results.taskbarExists}`,
+                `Locations checked:`,
+                pathsInfo,
                 ``,
-                `All taskbar shortcuts:`,
-                allShortcuts,
+                `Messenger shortcuts found:`,
+                shortcutsList,
                 ``,
-                `Messenger shortcuts found: ${results.messengerShortcuts?.length || 0}`,
-                messengerList,
+                `Updated: ${results.updated}`,
                 ``,
-                `Updated: ${results.taskbarUpdated} taskbar, ${results.startMenuUpdated} start menu`,
-                ``,
+                `APPDATA: ${results.appdata}`,
                 `Current exe: ${process.execPath}`
               ].join('\n'),
               buttons: ['OK'],
