@@ -31,6 +31,10 @@
   - Previously, badge wouldn't update until switching to another chat
   - Now excludes the currently-viewed conversation from unread count when window is focused
   - Added responsive badge updates when user interacts (clicks, types) in a conversation
+- Flatpak: App now launches correctly
+  - Fixed Electron binary corruption caused by flatpak-builder stripping
+  - Fixed missing resources directory (flatpak-builder flattens archive structure)
+  - Added in-app uninstall support via flatpak-spawn
 
 ## [1.0.7-beta.7] - 2026-01-09
 
