@@ -1,6 +1,6 @@
 # Flathub Manifest - Source Build
-# Per Flathub guidelines: build from source, download Electron separately
-# Note: Electron is downloaded as a separate source since npm postinstall doesn't work offline
+# Builds from source per Flathub requirements
+# Downloads Electron separately since npm postinstall doesn't work in offline builds
 
 app-id: io.github.apotenza92.messenger
 runtime: org.freedesktop.Platform
@@ -23,6 +23,7 @@ finish-args:
   - --talk-name=org.freedesktop.Notifications
   - --talk-name=org.kde.StatusNotifierWatcher
   - --filesystem=xdg-download
+  # For webcam/video calls
   - --device=all
 
 build-options:
@@ -68,9 +69,10 @@ modules:
       - install -Dm644 assets/icons/linux/256x256.png /app/share/icons/hicolor/256x256/apps/io.github.apotenza92.messenger.png
       - install -Dm644 assets/icons/linux/128x128.png /app/share/icons/hicolor/128x128/apps/io.github.apotenza92.messenger.png
       - install -Dm644 assets/icons/linux/64x64.png /app/share/icons/hicolor/64x64/apps/io.github.apotenza92.messenger.png
-      # License
+      # License (required by Flathub)
       - install -Dm644 LICENSE /app/share/licenses/io.github.apotenza92.messenger/LICENSE
     sources:
+      # Source code archive
       - type: archive
         url: https://github.com/apotenza92/facebook-messenger-desktop/archive/refs/tags/v0.9.1.tar.gz
         sha256: REPLACE_WITH_SOURCE_SHA256
@@ -80,17 +82,18 @@ modules:
         only-arches:
           - x86_64
         url: https://github.com/electron/electron/releases/download/v28.0.0/electron-v28.0.0-linux-x64.zip
-        sha256: REPLACE_WITH_ELECTRON_X64_SHA256
+        sha256: d66b6774b886bd57519d49b9eb8e6e745b523519414a8819f67aa19f76e2b53c
         dest: electron
       # Electron binary (aarch64)
       - type: archive
         only-arches:
           - aarch64
         url: https://github.com/electron/electron/releases/download/v28.0.0/electron-v28.0.0-linux-arm64.zip
-        sha256: REPLACE_WITH_ELECTRON_ARM64_SHA256
+        sha256: 32f9f7592359cf8b341946b41d758466533bd7a2bc0dc316072a3a1af4b92d84
         dest: electron
       # npm dependencies (generate with: flatpak-node-generator npm package-lock.json)
       - generated-sources.json
+      # Launcher script
       - type: script
         dest-filename: launcher.sh
         commands:
