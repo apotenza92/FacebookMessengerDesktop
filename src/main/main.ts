@@ -1,4 +1,6 @@
+console.log('[FLATPAK DEBUG] main.ts loading...');
 import { app, BrowserWindow, BrowserView, ipcMain, Notification, Menu, nativeImage, screen, dialog, systemPreferences, Tray, shell, nativeTheme, desktopCapturer } from 'electron';
+console.log('[FLATPAK DEBUG] electron imported');
 import { spawn, exec } from 'child_process';
 import { promisify } from 'util';
 import * as https from 'https';
