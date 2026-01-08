@@ -3884,14 +3884,17 @@ function createApplicationMenu(): void {
           const { exec } = await import('child_process');
           const { promisify } = await import('util');
           const execAsync = promisify(exec);
+          const os = await import('os');
           
-          const exePath = process.execPath.replace(/\\/g, '\\\\');
-          const instDir = path.dirname(process.execPath).replace(/\\/g, '\\\\');
+          const exePath = process.execPath;
+          const instDir = path.dirname(process.execPath);
+          const tempScript = path.join(os.tmpdir(), 'messenger-shortcut-diagnostic.ps1');
           
-          // Diagnostic PowerShell script - check multiple possible locations
-          const script = `
-$exePath = "${exePath}"
-$instDir = "${instDir}"
+          // Write PowerShell script to temp file to avoid escaping issues
+          const scriptContent = `
+$ErrorActionPreference = "Continue"
+$exePath = '${exePath.replace(/'/g, "''")}'
+$instDir = '${instDir.replace(/'/g, "''")}'
 $shell = New-Object -ComObject WScript.Shell
 $results = @{ 
     updated = 0
@@ -3900,67 +3903,79 @@ $results = @{
     windowsVersion = [System.Environment]::OSVersion.Version.ToString()
     appdata = $env:APPDATA
     localappdata = $env:LOCALAPPDATA
+    error = ""
 }
 
-# List of possible taskbar/shortcut locations to check
-$locations = @(
-    @{ name = "TaskBar (Classic)"; path = "$env:APPDATA\\Microsoft\\Internet Explorer\\Quick Launch\\User Pinned\\TaskBar" },
-    @{ name = "Quick Launch"; path = "$env:APPDATA\\Microsoft\\Internet Explorer\\Quick Launch" },
-    @{ name = "Start Menu Programs"; path = "$env:APPDATA\\Microsoft\\Windows\\Start Menu\\Programs" },
-    @{ name = "Start Menu Root"; path = "$env:APPDATA\\Microsoft\\Windows\\Start Menu" },
-    @{ name = "Public Start Menu"; path = "$env:ProgramData\\Microsoft\\Windows\\Start Menu\\Programs" },
-    @{ name = "Desktop"; path = "$env:USERPROFILE\\Desktop" },
-    @{ name = "Public Desktop"; path = "$env:PUBLIC\\Desktop" }
-)
+try {
+    $locations = @(
+        @{ name = "TaskBar"; path = "$env:APPDATA\\Microsoft\\Internet Explorer\\Quick Launch\\User Pinned\\TaskBar" },
+        @{ name = "Quick Launch"; path = "$env:APPDATA\\Microsoft\\Internet Explorer\\Quick Launch" },
+        @{ name = "Start Menu"; path = "$env:APPDATA\\Microsoft\\Windows\\Start Menu\\Programs" },
+        @{ name = "Public Start Menu"; path = "$env:ProgramData\\Microsoft\\Windows\\Start Menu\\Programs" },
+        @{ name = "Desktop"; path = "$env:USERPROFILE\\Desktop" },
+        @{ name = "Public Desktop"; path = "$env:PUBLIC\\Desktop" }
+    )
 
-foreach ($loc in $locations) {
-    $exists = Test-Path $loc.path
-    $count = 0
-    $messengerFound = $false
-    
-    if ($exists) {
-        $shortcuts = Get-ChildItem $loc.path -Filter "*.lnk" -ErrorAction SilentlyContinue
-        $count = ($shortcuts | Measure-Object).Count
+    foreach ($loc in $locations) {
+        $exists = Test-Path $loc.path
+        $count = 0
+        $messengerFound = $false
         
-        foreach ($file in $shortcuts) {
-            $lnk = $shell.CreateShortcut($file.FullName)
-            if ($lnk.TargetPath -like "*Messenger*" -or $lnk.TargetPath -like "*messenger*") {
-                $messengerFound = $true
-                $results.shortcuts += @{
-                    location = $loc.name
-                    name = $file.Name
-                    target = $lnk.TargetPath
-                }
-                # Update the shortcut
-                $lnk.TargetPath = $exePath
-                $lnk.WorkingDirectory = $instDir
-                $lnk.IconLocation = "$exePath,0"
-                $lnk.Save()
-                $results.updated++
+        if ($exists) {
+            $files = Get-ChildItem $loc.path -Filter "*.lnk" -ErrorAction SilentlyContinue
+            $count = @($files).Count
+            
+            foreach ($file in $files) {
+                try {
+                    $lnk = $shell.CreateShortcut($file.FullName)
+                    $target = $lnk.TargetPath
+                    if ($target -like "*Messenger*" -or $target -like "*messenger*") {
+                        $messengerFound = $true
+                        $results.shortcuts += @{
+                            location = $loc.name
+                            name = $file.Name
+                            target = $target
+                        }
+                        $lnk.TargetPath = $exePath
+                        $lnk.WorkingDirectory = $instDir
+                        $lnk.IconLocation = "$exePath,0"
+                        $lnk.Save()
+                        $results.updated++
+                    }
+                } catch {}
             }
         }
+        
+        $results.paths += @{
+            name = $loc.name
+            path = $loc.path
+            exists = $exists
+            shortcutCount = $count
+            hasMessenger = $messengerFound
+        }
     }
-    
-    $results.paths += @{
-        name = $loc.name
-        path = $loc.path
-        exists = $exists
-        shortcutCount = $count
-        hasMessenger = $messengerFound
-    }
+} catch {
+    $results.error = $_.Exception.Message
 }
 
-$results | ConvertTo-Json -Depth 4
+$results | ConvertTo-Json -Depth 4 -Compress
 `;
 
           try {
-            console.log('[Test] Running taskbar shortcut fix test...');
-            const { stdout } = await execAsync(
-              `powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "${script.replace(/"/g, '\\"')}"`,
+            console.log('[Test] Writing script to:', tempScript);
+            fs.writeFileSync(tempScript, scriptContent, 'utf8');
+            
+            console.log('[Test] Running taskbar shortcut diagnostic...');
+            const { stdout, stderr } = await execAsync(
+              `powershell.exe -NoProfile -ExecutionPolicy Bypass -File "${tempScript}"`,
               { timeout: 30000 }
             );
             
-            console.log('[Test] Raw output:', stdout);
+            console.log('[Test] stdout:', stdout);
+            if (stderr) console.log('[Test] stderr:', stderr);
+            
+            // Clean up temp file
+            try { fs.unlinkSync(tempScript); } catch {}
             
             interface PathInfo { name: string; path: string; exists: boolean; shortcutCount: number; hasMessenger: boolean }
             interface ShortcutInfo { location: string; name: string; target: string }
@@ -3970,38 +3985,51 @@ $results | ConvertTo-Json -Depth 4
               shortcuts: [] as ShortcutInfo[],
               windowsVersion: '',
               appdata: '',
-              localappdata: ''
+              localappdata: '',
+              error: ''
             };
+            
             try {
               results = JSON.parse(stdout.trim());
             } catch (e) {
               console.log('[Test] JSON parse error:', e);
+              // Show raw output if JSON fails
+              await dialog.showMessageBox({
+                type: 'warning',
+                title: 'Diagnostic Output',
+                message: 'Raw PowerShell output',
+                detail: stdout || 'No output',
+                buttons: ['OK'],
+              });
+              return;
             }
             
             const pathsInfo = results.paths?.map((p: PathInfo) => 
-              `${p.exists ? '✓' : '✗'} ${p.name}: ${p.shortcutCount} shortcuts${p.hasMessenger ? ' (Messenger found!)' : ''}`
-            ).join('\n') || 'None';
+              `${p.exists ? '✓' : '✗'} ${p.name}: ${p.shortcutCount} shortcuts${p.hasMessenger ? ' [MESSENGER]' : ''}`
+            ).join('\n') || 'None checked';
             
             const shortcutsList = results.shortcuts?.map((s: ShortcutInfo) => 
-              `• ${s.name} (${s.location})\n  ${s.target}`
-            ).join('\n') || 'None found';
+              `• ${s.name} @ ${s.location}\n  ${s.target}`
+            ).join('\n') || 'None';
             
             await dialog.showMessageBox({
               type: 'info',
               title: 'Taskbar Shortcut Diagnostic',
               message: `Windows ${results.windowsVersion}`,
               detail: [
-                `Locations checked:`,
+                `APPDATA: ${results.appdata}`,
+                ``,
+                `Locations:`,
                 pathsInfo,
                 ``,
-                `Messenger shortcuts found:`,
+                `Messenger shortcuts: ${results.shortcuts?.length || 0}`,
                 shortcutsList,
                 ``,
                 `Updated: ${results.updated}`,
+                results.error ? `Error: ${results.error}` : '',
                 ``,
-                `APPDATA: ${results.appdata}`,
-                `Current exe: ${process.execPath}`
-              ].join('\n'),
+                `Exe: ${process.execPath}`
+              ].filter(Boolean).join('\n'),
               buttons: ['OK'],
             });
           } catch (err) {
@@ -4009,7 +4037,7 @@ $results | ConvertTo-Json -Depth 4
             await dialog.showMessageBox({
               type: 'error',
               title: 'Taskbar Shortcut Fix Error',
-              message: 'Failed to run shortcut fix',
+              message: 'Failed to run diagnostic',
               detail: `Error: ${err instanceof Error ? err.message : String(err)}`,
               buttons: ['OK'],
             });
