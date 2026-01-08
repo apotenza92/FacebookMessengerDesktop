@@ -8,8 +8,7 @@
   - "Match System", "Light Icon", and "Dark Icon" options now properly switch the dock icon
   - Tahoe glass/clear effects still work in "Match System" mode
 - Update dialog changelog section no longer overflows the screen (issue #23)
-  - Limits changelog to 3 most recent versions
-  - Truncates very long changelogs with "..." indicator
+  - Shows only the changelog for the version being updated to
   - Dialog is now always visible and buttons are accessible
 
 ## [1.0.7] - 2026-01-09
