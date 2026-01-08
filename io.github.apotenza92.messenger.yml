@@ -64,10 +64,13 @@ modules:
       # Install app
       - mkdir -p /app/lib/messenger
       - cp -r dist assets package.json node_modules /app/lib/messenger/
-      # Install Electron
+      # Install Electron (preserve directory structure including resources/)
       - mkdir -p /app/lib/electron
-      - cp -r electron/* /app/lib/electron/
+      - cp -a electron/. /app/lib/electron/
       - chmod +x /app/lib/electron/electron
+      # Debug: show what we have
+      - ls -la /app/lib/electron/
+      - ls -la /app/lib/electron/resources/ || echo "NO RESOURCES DIR"
       # Install launcher
       - install -Dm755 launcher.sh /app/bin/facebook-messenger-desktop
       # Install desktop integration
