@@ -142,9 +142,12 @@ When ready to publish a new version:
    - Never use bold (`**text**`) in changelog entries - keep it plain text
 
 2. Commit with proper issue references in the commit message:
-   - Use `fixes #21` or `closes #21` to auto-close issues and create "mentioned in commit" links
-   - Do NOT use `(#21)` in parentheses - GitHub may not recognize it
-   - Example: `fix(macOS): media viewer controls obscured - fixes #21`
+   - Use `#21` in the commit message to create a "mentioned in commit" link on the issue
+   - Use `fixes #21` or `closes #21` to ALSO auto-close the issue when merged
+   - Avoid `(#21)` in parentheses at the end - GitHub may not recognize it for auto-linking
+   - Good: `fix(macOS): media viewer controls obscured - fixes #21`
+   - Good: `fix: resolve title bar overlap #21`
+   - Bad: `fix(macOS): media viewer controls (#21)` (parentheses may prevent linking)
 
 3. Run `npm version` to bump version AND create an **annotated** git tag:
    ```bash
