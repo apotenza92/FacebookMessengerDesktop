@@ -1,3 +1,14 @@
+# Flathub Manifest for Messenger
+#
+# This uses the pre-built AppImage approach (~100MB).
+# Flathub prefers source builds, but Electron apps often use pre-built
+# binaries due to npm dependency complexity. This may be discussed during review.
+#
+# Alternative: Source build would be ~5MB but requires:
+# - flatpak-node-generator to create npm dependency manifest
+# - More complex build process
+# See: https://github.com/nickvision-apps/nickvision-money for example
+
 app-id: io.github.apotenza92.messenger
 runtime: org.freedesktop.Platform
 runtime-version: '24.08'
@@ -23,48 +34,47 @@ modules:
   - name: facebook-messenger-desktop
     buildsystem: simple
     build-commands:
-      # Extract the AppImage
+      # Extract AppImage
       - chmod +x facebook-messenger-desktop.AppImage
       - ./facebook-messenger-desktop.AppImage --appimage-extract
-      # Install the extracted app
+      # Install app
       - mkdir -p /app/messenger
       - cp -r squashfs-root/* /app/messenger/
-      # Create launcher script using zypak for sandbox compatibility
+      # Launcher
       - install -Dm755 launcher.sh /app/bin/facebook-messenger-desktop
-      # Install desktop file and metainfo
+      # Desktop integration
       - install -Dm644 io.github.apotenza92.messenger.desktop /app/share/applications/io.github.apotenza92.messenger.desktop
       - install -Dm644 io.github.apotenza92.messenger.metainfo.xml /app/share/metainfo/io.github.apotenza92.messenger.metainfo.xml
-      # Install icons from extracted AppImage
+      # Icons
       - install -Dm644 squashfs-root/usr/share/icons/hicolor/256x256/apps/facebook-messenger-desktop.png /app/share/icons/hicolor/256x256/apps/io.github.apotenza92.messenger.png
       - install -Dm644 squashfs-root/usr/share/icons/hicolor/128x128/apps/facebook-messenger-desktop.png /app/share/icons/hicolor/128x128/apps/io.github.apotenza92.messenger.png
       - install -Dm644 squashfs-root/usr/share/icons/hicolor/64x64/apps/facebook-messenger-desktop.png /app/share/icons/hicolor/64x64/apps/io.github.apotenza92.messenger.png
-      # Install license from extracted AppImage
+      # License
       - install -Dm644 squashfs-root/LICENSE.electron.txt /app/share/licenses/io.github.apotenza92.messenger/LICENSE.electron.txt || true
-      - install -Dm644 squashfs-root/LICENSES.chromium.html /app/share/licenses/io.github.apotenza92.messenger/LICENSES.chromium.html || true
     sources:
-      # x86_64 AppImage (~100MB)
+      # x86_64 AppImage
       - type: file
         only-arches: [x86_64]
         url: https://github.com/apotenza92/facebook-messenger-desktop/releases/download/v0.9.1/facebook-messenger-desktop-x86_64.AppImage
         sha256: REPLACE_WITH_X64_SHA256
         dest-filename: facebook-messenger-desktop.AppImage
-      # aarch64 AppImage (~100MB)
+      # aarch64 AppImage
       - type: file
         only-arches: [aarch64]
         url: https://github.com/apotenza92/facebook-messenger-desktop/releases/download/v0.9.1/facebook-messenger-desktop-arm64.AppImage
         sha256: REPLACE_WITH_ARM64_SHA256
         dest-filename: facebook-messenger-desktop.AppImage
-      # Desktop file (~500B) - from upstream repo
+      # Desktop file
       - type: file
         url: https://raw.githubusercontent.com/apotenza92/facebook-messenger-desktop/v0.9.1/io.github.apotenza92.messenger.desktop
         sha256: REPLACE_WITH_DESKTOP_SHA256
-      # Metainfo file (~2KB) - from upstream repo
+      # Metainfo
       - type: file
         url: https://raw.githubusercontent.com/apotenza92/facebook-messenger-desktop/v0.9.1/io.github.apotenza92.messenger.metainfo.xml
         sha256: REPLACE_WITH_METAINFO_SHA256
-      # Launcher script
+      # Launcher
       - type: script
         dest-filename: launcher.sh
         commands:
-          - export TMPDIR="$XDG_RUNTIME_DIR/app/$FLATPAK_ID"
+          - export TMPDIR="${XDG_RUNTIME_DIR}/app/${FLATPAK_ID}"
           - exec zypak-wrapper /app/messenger/facebook-messenger-desktop "$@"
