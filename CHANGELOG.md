@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.7-beta.2] - 2026-01-08
+
+### Changed
+- Joining beta program now automatically checks for beta updates
+  - Previously showed a message telling users to manually check
+  - Now immediately checks and notifies if a beta update is available
+
 ## [1.0.7-beta.1] - 2026-01-08
 
 ### Fixed

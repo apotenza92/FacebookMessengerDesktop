@@ -3701,9 +3701,13 @@ function createApplicationMenu(): void {
             type: 'info',
             title: 'Joined Beta Program',
             message: 'Welcome to the beta program!',
-            detail: 'You\'ll now receive beta updates. Use "Check for Beta Updates" to see if any are available.',
+            detail: 'You\'ll now receive beta updates. Checking for beta updates now…',
             buttons: ['OK'],
           }).catch(() => {});
+          // Automatically check for beta updates after joining
+          autoUpdater.checkForUpdates().catch((err: unknown) => {
+            console.warn('[AutoUpdater] Beta update check failed:', err);
+          });
         }
       }
     },
