@@ -98,10 +98,9 @@ jobs:
           retention-days: 30
           if-no-files-found: error
 
-  # Builds all Linux packages for BOTH x64 and ARM64 (cross-compilation)
-  # Produces: AppImage, deb, rpm, flatpak for both architectures
-  build-linux:
-    name: Build Linux
+  # Linux x64 builds (AppImage, deb, rpm, flatpak)
+  build-linux-x64:
+    name: Build Linux (x64)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -117,7 +116,7 @@ jobs:
         run: npm ci
         timeout-minutes: 10
 
-      - name: Install Linux build tools (Flatpak)
+      - name: Install Flatpak tools
         run: |
           sudo apt-get update
           sudo apt-get install -y flatpak flatpak-builder
@@ -132,13 +131,62 @@ jobs:
         timeout-minutes: 5
 
       - name: Build distributables
-        run: npm run dist:linux
+        run: npm run dist:linux:x64
         timeout-minutes: 45
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: linux-build
+          name: linux-x64-build
+          path: |
+            release/*.AppImage
+            release/*.deb
+            release/*.rpm
+            release/*.flatpak
+            release/*.yml
+          retention-days: 30
+          if-no-files-found: error
+
+  # Linux ARM64 builds (AppImage, deb, rpm, flatpak) - native ARM64 runner
+  build-linux-arm64:
+    name: Build Linux (ARM64)
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+        timeout-minutes: 10
+
+      - name: Install Flatpak tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flatpak flatpak-builder
+          flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+          flatpak install --user -y flathub org.freedesktop.Platform//23.08 org.freedesktop.Sdk//23.08
+
+      - name: Generate icons
+        run: npm run generate-icons
+
+      - name: Build application
+        run: npm run build
+        timeout-minutes: 5
+
+      - name: Build distributables
+        run: npm run dist:linux:arm
+        timeout-minutes: 45
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-arm64-build
           path: |
             release/*.AppImage
             release/*.deb
@@ -159,7 +207,7 @@ jobs:
   
   release:
     name: Create Release
-    needs: [build-macos, build-windows, build-linux]
+    needs: [build-macos, build-windows, build-linux-x64, build-linux-arm64]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
     
@@ -472,8 +520,9 @@ jobs:
       - name: Download Linux artifacts
         uses: actions/download-artifact@v4
         with:
-          name: linux-build
+          pattern: linux-*-build
           path: artifacts/linux
+          merge-multiple: true
 
       - name: Install Flatpak tools
         run: |
@@ -514,15 +563,19 @@ jobs:
           echo "Initializing OSTree repository..."
           ostree init --repo="$REPO_PATH" --mode=archive-z2
           
-          # Import x64 flatpak (from linux-build, filename: *-x86_64.flatpak)
-          X64_FLATPAK=$(find artifacts/linux -name "*x86_64*.flatpak" | head -1)
+          # List available flatpak files for debugging
+          echo "Available flatpak files:"
+          find artifacts/linux -name "*.flatpak" -type f || echo "No flatpak files found"
+          
+          # Import x64 flatpak (electron-builder uses 'x64' in filename)
+          X64_FLATPAK=$(find artifacts/linux -name "*x64*.flatpak" -type f | head -1)
           if [ -n "$X64_FLATPAK" ]; then
             echo "Importing x64 flatpak: $X64_FLATPAK"
             flatpak build-import-bundle "$REPO_PATH" "$X64_FLATPAK" --gpg-sign="$GPG_KEY_ID"
           fi
           
-          # Import ARM64 flatpak (from linux-build, filename: *-aarch64.flatpak)
-          ARM64_FLATPAK=$(find artifacts/linux -name "*aarch64*.flatpak" | head -1)
+          # Import ARM64 flatpak (electron-builder uses 'arm64' in filename)
+          ARM64_FLATPAK=$(find artifacts/linux -name "*arm64*.flatpak" -type f | head -1)
           if [ -n "$ARM64_FLATPAK" ]; then
             echo "Importing ARM64 flatpak: $ARM64_FLATPAK"
             flatpak build-import-bundle "$REPO_PATH" "$ARM64_FLATPAK" --gpg-sign="$GPG_KEY_ID"
