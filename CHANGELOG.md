@@ -1,16 +1,16 @@
 # Changelog
 
-## [1.0.9] - 2026-01-09
+## [1.0.10] - 2026-01-09
 
 ### Added
 - Linux: Flatpak builds now included in releases
   - Available for both x64 and ARM64 architectures
   - Self-hosted Flatpak repository updated automatically on release
 
+## [1.0.9] - 2026-01-09
+
 ### Changed
-- CI: Linux builds now use native runners for each architecture
-  - x64 builds run on standard Ubuntu runners
-  - ARM64 builds run on native ARM64 runners (more reliable than cross-compilation)
+- CI: Attempted native ARM64 runners (reverted in 1.0.10 due to electron-builder issues)
 
 ## [1.0.8] - 2026-01-09
 

@@ -98,9 +98,9 @@ jobs:
           retention-days: 30
           if-no-files-found: error
 
-  # Linux x64 builds (AppImage, deb, rpm, flatpak)
-  build-linux-x64:
-    name: Build Linux (x64)
+  # Linux builds (AppImage, deb, rpm, flatpak) for both x64 and ARM64
+  build-linux:
+    name: Build Linux
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -131,62 +131,13 @@ jobs:
         timeout-minutes: 5
 
       - name: Build distributables
-        run: npm run dist:linux:x64
-        timeout-minutes: 45
+        run: npm run dist:linux
+        timeout-minutes: 60
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: linux-x64-build
-          path: |
-            release/*.AppImage
-            release/*.deb
-            release/*.rpm
-            release/*.flatpak
-            release/*.yml
-          retention-days: 30
-          if-no-files-found: error
-
-  # Linux ARM64 builds (AppImage, deb, rpm, flatpak) - native ARM64 runner
-  build-linux-arm64:
-    name: Build Linux (ARM64)
-    runs-on: ubuntu-24.04-arm
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-        timeout-minutes: 10
-
-      - name: Install Flatpak tools
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y flatpak flatpak-builder
-          flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
-          flatpak install --user -y flathub org.freedesktop.Platform//23.08 org.freedesktop.Sdk//23.08
-
-      - name: Generate icons
-        run: npm run generate-icons
-
-      - name: Build application
-        run: npm run build
-        timeout-minutes: 5
-
-      - name: Build distributables
-        run: npm run dist:linux:arm
-        timeout-minutes: 45
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: linux-arm64-build
+          name: linux-build
           path: |
             release/*.AppImage
             release/*.deb
@@ -207,7 +158,7 @@ jobs:
   
   release:
     name: Create Release
-    needs: [build-macos, build-windows, build-linux-x64, build-linux-arm64]
+    needs: [build-macos, build-windows, build-linux]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
     
@@ -520,9 +471,8 @@ jobs:
       - name: Download Linux artifacts
         uses: actions/download-artifact@v4
         with:
-          pattern: linux-*-build
+          name: linux-build
           path: artifacts/linux
-          merge-multiple: true
 
       - name: Install Flatpak tools
         run: |
