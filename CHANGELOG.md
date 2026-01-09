@@ -4,8 +4,6 @@
 
 ### Summary
 - Stability milestone release
-- All major features are complete and working reliably
-- No new changes from 1.0.10 - just marking the project as stable
 
 ## [1.0.10] - 2026-01-09
 
