@@ -125,6 +125,13 @@
             "x64",
             "arm64"
           ]
+        },
+        {
+          "target": "flatpak",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
         }
       ],
       "category": "Network",
@@ -140,6 +147,24 @@
     },
     "appImage": {
       "artifactName": "facebook-messenger-desktop-${arch}.${ext}"
+    },
+    "flatpak": {
+      "artifactName": "facebook-messenger-desktop-${arch}.${ext}",
+      "runtimeVersion": "23.08",
+      "baseVersion": "23.08",
+      "finishArgs": [
+        "--socket=wayland",
+        "--socket=fallback-x11",
+        "--share=ipc",
+        "--socket=pulseaudio",
+        "--share=network",
+        "--device=dri",
+        "--device=all",
+        "--talk-name=org.freedesktop.Notifications",
+        "--talk-name=org.kde.StatusNotifierWatcher",
+        "--filesystem=xdg-download",
+        "--filesystem=/tmp"
+      ]
     },
     "deb": {
       "packageName": "facebook-messenger-desktop",
