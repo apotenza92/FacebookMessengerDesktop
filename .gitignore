@@ -35,3 +35,6 @@ Desktop.ini
 .pnpm-store/
 .test-credentials.json
 test-screenshots/
+
+# Flatpak repository binaries
+docs/flatpak/repo/
