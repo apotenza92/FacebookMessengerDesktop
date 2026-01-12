@@ -107,6 +107,12 @@ let appReady = false; // Flag to indicate app is fully initialized (window creat
 let pendingShowWindow = false; // Queue second-instance events that arrive before app is ready
 const overlayHeight = 32;
 
+// Login flow state tracking - prevents redirect loops during authentication
+// Once user starts login, we don't redirect back to custom login page until they explicitly log out
+// or the app is restarted without valid session cookies
+let loginFlowActive = false; // True once user clicks "Login with Facebook"
+let hasTriedMessengerOnce = false; // True after first messenger.com load attempt
+
 type WindowState = {
   x?: number;
   y?: number;
@@ -1541,6 +1547,72 @@ function getOverlayColors(): { background: string; text: string; symbols: string
     : { background: '#f5f5f5', text: '#1c1c1e', symbols: '#1c1c1e' };
 }
 
+/**
+ * Set up context menu (right-click) handling for webContents
+ * Shows spelling suggestions, dictionary options, and standard edit actions
+ */
+function setupContextMenu(webContents: Electron.WebContents): void {
+  webContents.on('context-menu', (event, params) => {
+    const menuItems: Electron.MenuItemConstructorOptions[] = [];
+    
+    // Add spelling suggestions if word is misspelled
+    if (params.misspelledWord && params.dictionarySuggestions.length > 0) {
+      // Add spelling suggestions
+      for (const suggestion of params.dictionarySuggestions.slice(0, 5)) {
+        menuItems.push({
+          label: suggestion,
+          click: () => webContents.replaceMisspelling(suggestion),
+        });
+      }
+      menuItems.push({ type: 'separator' });
+      
+      // Add to dictionary option
+      menuItems.push({
+        label: `Add "${params.misspelledWord}" to Dictionary`,
+        click: () => webContents.session.addWordToSpellCheckerDictionary(params.misspelledWord),
+      });
+      menuItems.push({ type: 'separator' });
+    }
+    
+    // Standard edit actions for editable fields
+    if (params.isEditable) {
+      menuItems.push({
+        label: 'Cut',
+        role: 'cut',
+        enabled: params.editFlags.canCut,
+      });
+      menuItems.push({
+        label: 'Copy',
+        role: 'copy',
+        enabled: params.editFlags.canCopy,
+      });
+      menuItems.push({
+        label: 'Paste',
+        role: 'paste',
+        enabled: params.editFlags.canPaste,
+      });
+      menuItems.push({
+        label: 'Select All',
+        role: 'selectAll',
+        enabled: params.editFlags.canSelectAll,
+      });
+    } else if (params.selectionText) {
+      // Non-editable area with selected text
+      menuItems.push({
+        label: 'Copy',
+        role: 'copy',
+        enabled: params.editFlags.canCopy,
+      });
+    }
+    
+    // Only show menu if there are items
+    if (menuItems.length > 0) {
+      const menu = Menu.buildFromTemplate(menuItems);
+      menu.popup();
+    }
+  });
+}
+
 function createWindow(source: string = 'unknown'): void {
   const now = Date.now();
   const windowState = mainWindow 
@@ -1860,9 +1932,35 @@ function createWindow(source: string = 'unknown'): void {
     contentView.webContents.session.setUserAgent(userAgent);
     console.log('[UserAgent] Set to:', userAgent);
 
-    // Try loading messenger.com first - if user is already logged in, this will work
-    // Only show login page if messenger.com redirects to a login page
-    contentView.webContents.loadURL('https://www.messenger.com/');
+    // Set up context menu (right-click) with spelling suggestions and edit actions
+    setupContextMenu(contentView.webContents);
+
+    // Smart startup: check for existing session before loading
+    // If user has session cookies, try messenger.com first
+    // If no cookies (new user), go directly to custom login page
+    contentView.webContents.session.cookies.get({ url: 'https://messenger.com' })
+      .then((cookies) => {
+        // Check for actual session cookies (c_user indicates logged-in Facebook session)
+        const hasSessionCookie = cookies.some(c => c.name === 'c_user' || c.name === 'xs');
+        console.log('[ContentView] Session check - has session:', hasSessionCookie, 'cookies:', cookies.length);
+        
+        if (hasSessionCookie) {
+          // User likely logged in, try messenger.com
+          console.log('[ContentView] Session cookies found, loading messenger.com...');
+          loginFlowActive = true; // Assume they're in a valid session
+          contentView?.webContents.loadURL('https://www.messenger.com/');
+        } else {
+          // No session, show custom login page directly (no flash)
+          console.log('[ContentView] No session cookies, showing login page directly...');
+          contentView?.webContents.loadURL(getCustomLoginPageURL());
+        }
+        hasTriedMessengerOnce = true;
+      })
+      .catch((err) => {
+        console.warn('[ContentView] Cookie check failed, trying messenger.com:', err);
+        contentView?.webContents.loadURL('https://www.messenger.com/');
+        hasTriedMessengerOnce = true;
+      });
 
     // Handle new window requests (target="_blank" links, window.open, etc.)
     // Allow Messenger pop-up windows (for calls) but open external URLs in system browser
@@ -2083,7 +2181,13 @@ function createWindow(source: string = 'unknown'): void {
     // Inject notification override script after page loads
     contentView.webContents.on('did-finish-load', async () => {
       const currentUrl = contentView?.webContents.getURL() || '';
-      console.log('[ContentView] Page loaded:', currentUrl);
+      console.log('[ContentView] Page loaded:', currentUrl, '| loginFlowActive:', loginFlowActive);
+      
+      // User clicked "Login with Facebook" - mark login flow as active
+      if (currentUrl.includes('facebook.com/login') || currentUrl.includes('facebook.com/checkpoint')) {
+        console.log('[ContentView] Facebook login/checkpoint page - login flow is active');
+        loginFlowActive = true;
+      }
       
       // After Facebook login completes, redirect to Messenger if we're on Facebook homepage
       if (currentUrl.startsWith('https://www.facebook.com') || currentUrl.startsWith('https://facebook.com')) {
@@ -2091,17 +2195,32 @@ function createWindow(source: string = 'unknown'): void {
         const isLoggedInHomepage = (urlObj.pathname === '/' || urlObj.pathname === '') && !currentUrl.includes('login') && !currentUrl.includes('checkpoint');
         if (isLoggedInHomepage) {
           console.log('[ContentView] Facebook homepage detected after login, redirecting to Messenger...');
-          contentView?.webContents.loadURL('https://www.messenger.com/');
+          // Give cookies a moment to settle before redirecting
+          setTimeout(() => {
+            contentView?.webContents.loadURL('https://www.messenger.com/');
+          }, 500);
           return;
         }
       }
       
-      // If messenger.com redirected to a login page, show our custom login page
+      // Handle messenger.com login page
       if (currentUrl.startsWith('https://www.messenger.com') || currentUrl.startsWith('https://messenger.com')) {
         if (isLoginPage(currentUrl)) {
-          console.log('[ContentView] Messenger login page detected, showing custom login...');
-          contentView?.webContents.loadURL(getCustomLoginPageURL());
-          return;
+          // ONLY redirect to custom login if we're NOT in an active login flow
+          // This prevents redirect loops after Facebook login/checkpoint completes
+          if (!loginFlowActive) {
+            console.log('[ContentView] Messenger login page detected (no active login flow), showing custom login...');
+            contentView?.webContents.loadURL(getCustomLoginPageURL());
+            return;
+          } else {
+            // User is in the middle of logging in - wait for session to establish
+            console.log('[ContentView] Messenger login page detected during active login flow - waiting for session...');
+            // The page will automatically redirect once cookies are established
+          }
+        } else {
+          // Successfully loaded messenger.com with content - login complete!
+          console.log('[ContentView] Messenger loaded successfully!');
+          loginFlowActive = true; // Keep this true so we don't redirect on future navigations
         }
       }
       
@@ -2156,7 +2275,13 @@ function createWindow(source: string = 'unknown'): void {
     
     // Handle navigation events to inject disclaimer on page changes
     contentView.webContents.on('did-navigate', async (event, url) => {
-      console.log('[ContentView] Navigated to:', url);
+      console.log('[ContentView] did-navigate:', url, '| loginFlowActive:', loginFlowActive);
+      
+      // Track when user enters Facebook login flow
+      if (url.includes('facebook.com/login') || url.includes('facebook.com/checkpoint') || url.includes('facebook.com/two_step')) {
+        console.log('[ContentView] Entering Facebook auth flow');
+        loginFlowActive = true;
+      }
       
       // After Facebook login completes, redirect to Messenger
       // Detect Facebook homepage (logged in) and redirect
@@ -2165,20 +2290,15 @@ function createWindow(source: string = 'unknown'): void {
         const isLoggedInHomepage = (urlObj.pathname === '/' || urlObj.pathname === '') && !url.includes('login') && !url.includes('checkpoint');
         if (isLoggedInHomepage) {
           console.log('[ContentView] Facebook login complete, redirecting to Messenger...');
-          contentView?.webContents.loadURL('https://www.messenger.com/');
+          setTimeout(() => {
+            contentView?.webContents.loadURL('https://www.messenger.com/');
+          }, 500);
           return;
         }
       }
       
-      // If messenger.com redirects to a login page, show our custom login page
-      if (url.startsWith('https://www.messenger.com') || url.startsWith('https://messenger.com')) {
-        if (isLoginPage(url)) {
-          console.log('[ContentView] Messenger redirected to login page, showing custom login...');
-          contentView?.webContents.loadURL(getCustomLoginPageURL());
-          return;
-        }
-      }
-      
+      // Don't interfere with messenger.com during active login flow
+      // Just let it load and establish the session
       if (contentView && url.startsWith('https://')) {
         await injectLoginPageCSS(contentView.webContents);
       }
@@ -2187,18 +2307,25 @@ function createWindow(source: string = 'unknown'): void {
     contentView.webContents.on('did-navigate-in-page', async (event, url) => {
       console.log('[ContentView] In-page navigation to:', url);
       
+      // Track Facebook auth flow via SPA navigation
+      if (url.includes('facebook.com/login') || url.includes('facebook.com/checkpoint')) {
+        loginFlowActive = true;
+      }
+      
       // After Facebook login completes, redirect to Messenger (also check SPA navigation)
       if (url.startsWith('https://www.facebook.com') || url.startsWith('https://facebook.com')) {
         const urlObj = new URL(url);
         const isLoggedInHomepage = (urlObj.pathname === '/' || urlObj.pathname === '') && !url.includes('login') && !url.includes('checkpoint');
         if (isLoggedInHomepage) {
           console.log('[ContentView] Facebook login complete (SPA nav), redirecting to Messenger...');
-          contentView?.webContents.loadURL('https://www.messenger.com/');
+          setTimeout(() => {
+            contentView?.webContents.loadURL('https://www.messenger.com/');
+          }, 500);
           return;
         }
       }
       
-      // In-page navigation (SPA-style) - re-check if we're on login page
+      // In-page navigation (SPA-style) - inject CSS but don't redirect
       if (contentView && url.startsWith('https://')) {
         await injectLoginPageCSS(contentView.webContents);
       }
@@ -2361,9 +2488,35 @@ function createWindow(source: string = 'unknown'): void {
     mainWindow.webContents.session.setUserAgent(userAgent);
     console.log('[UserAgent] Set to:', userAgent);
 
-    // Load custom login page that lets user login via system browser
-    // This provides the best login experience (password managers, passkeys work natively)
-    mainWindow.loadURL(getCustomLoginPageURL());
+    // Set up context menu (right-click) with spelling suggestions and edit actions
+    setupContextMenu(mainWindow.webContents);
+
+    // Smart startup: check for existing session before loading
+    // If user has session cookies, try messenger.com first
+    // If no cookies (new user), go directly to custom login page
+    mainWindow.webContents.session.cookies.get({ url: 'https://messenger.com' })
+      .then((cookies) => {
+        // Check for actual session cookies (c_user indicates logged-in Facebook session)
+        const hasSessionCookie = cookies.some(c => c.name === 'c_user' || c.name === 'xs');
+        console.log('[MainWindow] Session check - has session:', hasSessionCookie, 'cookies:', cookies.length);
+        
+        if (hasSessionCookie) {
+          // User likely logged in, try messenger.com
+          console.log('[MainWindow] Session cookies found, loading messenger.com...');
+          loginFlowActive = true; // Assume they're in a valid session
+          mainWindow?.loadURL('https://www.messenger.com/');
+        } else {
+          // No session, show custom login page directly (no flash)
+          console.log('[MainWindow] No session cookies, showing login page directly...');
+          mainWindow?.loadURL(getCustomLoginPageURL());
+        }
+        hasTriedMessengerOnce = true;
+      })
+      .catch((err) => {
+        console.warn('[MainWindow] Cookie check failed, showing login page:', err);
+        mainWindow?.loadURL(getCustomLoginPageURL());
+        hasTriedMessengerOnce = true;
+      });
 
     // Handle new window requests (target="_blank" links, window.open, etc.)
     // Allow Messenger pop-up windows (for calls) but open external URLs in system browser
@@ -2605,7 +2758,43 @@ function createWindow(source: string = 'unknown'): void {
 
     mainWindow.webContents.on('did-finish-load', async () => {
       const currentUrl = mainWindow?.webContents.getURL() || '';
-      console.log('[MainWindow] Page loaded:', currentUrl);
+      console.log('[MainWindow] Page loaded:', currentUrl, '| loginFlowActive:', loginFlowActive);
+      
+      // User clicked "Login with Facebook" - mark login flow as active
+      if (currentUrl.includes('facebook.com/login') || currentUrl.includes('facebook.com/checkpoint')) {
+        console.log('[MainWindow] Facebook login/checkpoint page - login flow is active');
+        loginFlowActive = true;
+      }
+      
+      // After Facebook login completes, redirect to Messenger if we're on Facebook homepage
+      if (currentUrl.startsWith('https://www.facebook.com') || currentUrl.startsWith('https://facebook.com')) {
+        const urlObj = new URL(currentUrl);
+        const isLoggedInHomepage = (urlObj.pathname === '/' || urlObj.pathname === '') && !currentUrl.includes('login') && !currentUrl.includes('checkpoint');
+        if (isLoggedInHomepage) {
+          console.log('[MainWindow] Facebook homepage detected after login, redirecting to Messenger...');
+          setTimeout(() => {
+            mainWindow?.loadURL('https://www.messenger.com/');
+          }, 500);
+          return;
+        }
+      }
+      
+      // Handle messenger.com login page
+      if (currentUrl.startsWith('https://www.messenger.com') || currentUrl.startsWith('https://messenger.com')) {
+        if (isLoginPage(currentUrl)) {
+          // ONLY redirect to custom login if we're NOT in an active login flow
+          if (!loginFlowActive) {
+            console.log('[MainWindow] Messenger login page detected (no active login flow), showing custom login...');
+            mainWindow?.loadURL(getCustomLoginPageURL());
+            return;
+          } else {
+            console.log('[MainWindow] Messenger login page detected during active login flow - waiting for session...');
+          }
+        } else {
+          console.log('[MainWindow] Messenger loaded successfully!');
+          loginFlowActive = true;
+        }
+      }
       
       // Inject custom login page CSS on login pages
       if (mainWindow) {
@@ -2654,27 +2843,56 @@ function createWindow(source: string = 'unknown'): void {
     
     // Handle navigation events to inject disclaimer on page changes
     mainWindow.webContents.on('did-navigate', async (event, url) => {
-      console.log('[MainWindow] Navigated to:', url);
+      console.log('[MainWindow] did-navigate:', url, '| loginFlowActive:', loginFlowActive);
+      
+      // Track when user enters Facebook login flow
+      if (url.includes('facebook.com/login') || url.includes('facebook.com/checkpoint') || url.includes('facebook.com/two_step')) {
+        console.log('[MainWindow] Entering Facebook auth flow');
+        loginFlowActive = true;
+      }
       
       // After Facebook login completes, redirect to Messenger
       // Detect Facebook homepage (logged in) and redirect
       if (url.startsWith('https://www.facebook.com') || url.startsWith('https://facebook.com')) {
         const urlObj = new URL(url);
-        const isLoggedInHomepage = urlObj.pathname === '/' && !url.includes('login');
+        const isLoggedInHomepage = (urlObj.pathname === '/' || urlObj.pathname === '') && !url.includes('login') && !url.includes('checkpoint');
         if (isLoggedInHomepage) {
           console.log('[MainWindow] Facebook login complete, redirecting to Messenger...');
-          mainWindow?.loadURL('https://www.messenger.com/');
+          setTimeout(() => {
+            mainWindow?.loadURL('https://www.messenger.com/');
+          }, 500);
           return;
         }
       }
       
+      // Don't interfere with messenger.com during active login flow
       if (mainWindow && url.startsWith('https://')) {
         await injectLoginPageCSS(mainWindow.webContents);
       }
     });
     
     mainWindow.webContents.on('did-navigate-in-page', async (event, url) => {
-      // In-page navigation (SPA-style) - re-check if we're on login page
+      console.log('[MainWindow] In-page navigation to:', url);
+      
+      // Track Facebook auth flow via SPA navigation
+      if (url.includes('facebook.com/login') || url.includes('facebook.com/checkpoint')) {
+        loginFlowActive = true;
+      }
+      
+      // After Facebook login completes, redirect to Messenger (also check SPA navigation)
+      if (url.startsWith('https://www.facebook.com') || url.startsWith('https://facebook.com')) {
+        const urlObj = new URL(url);
+        const isLoggedInHomepage = (urlObj.pathname === '/' || urlObj.pathname === '') && !url.includes('login') && !url.includes('checkpoint');
+        if (isLoggedInHomepage) {
+          console.log('[MainWindow] Facebook login complete (SPA nav), redirecting to Messenger...');
+          setTimeout(() => {
+            mainWindow?.loadURL('https://www.messenger.com/');
+          }, 500);
+          return;
+        }
+      }
+      
+      // In-page navigation (SPA-style) - inject CSS but don't redirect
       if (mainWindow && url.startsWith('https://')) {
         await injectLoginPageCSS(mainWindow.webContents);
       }

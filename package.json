@@ -7,8 +7,7 @@
     "clean": "node scripts/clean.js",
     "build": "npm run clean && tsc && tsc -p src/preload/tsconfig.json",
     "start": "npm run build && node scripts/dev.js",
-    "start:reset": "npm run build && node scripts/dev.js --reset-window",
-    "start:fresh": "node scripts/reset-userdata.js && npm start",
+    "start:reset": "node scripts/reset-userdata.js && npm run build && node scripts/dev.js --reset-window",
     "generate-icons": "node scripts/generate-icons.js",
     "dist": "npm run build && electron-builder --publish=never",
     "dist:mac": "npm run build && electron-builder --mac --arm64 --x64 --publish=never",
@@ -40,9 +39,11 @@
     "electron-updater": "^6.1.8"
   },
   "devDependencies": {
+    "@playwright/test": "1.57.0",
     "@types/node": "^20.10.0",
     "electron": "^28.0.0",
     "electron-builder": "^24.9.1",
+    "playwright": "1.57.0",
     "png-to-ico": "^2.1.8",
     "sharp": "0.33.5",
     "typescript": "^5.3.3"
