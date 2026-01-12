@@ -3,14 +3,20 @@
 ## [1.1.6] - 2026-01-12
 
 ### Fixed
-- Login flow: App now checks if user is already logged in before showing login page (issue #29)
-  - Previously always showed login page even if user was already authenticated
-  - Now tries loading messenger.com first, only shows login page if authentication is required
-  - Improved redirect detection after Facebook login to ensure proper redirect to messenger.com
-  - Handles both full page navigation and SPA-style navigation
+- Login flow: Robust new user login that prevents redirect loops and flash of login page (issue #29)
+  - App checks for existing session cookies before showing login page
+  - State-based tracking prevents premature redirects during Facebook authentication
+  - Properly handles 2FA, checkpoints, and "Trust this device" screens
+  - Session persists correctly after app restart
 - macOS: Spellcheck now enabled (issue #30)
   - Previously disabled on macOS, now works correctly
   - Both webpage-based and native spellcheck now functional
+
+### Added
+- Automated login flow test script (scripts/test-login.js)
+  - Uses Playwright to automate the full login flow for testing
+  - Integrates with 1Password CLI for credentials and TOTP
+  - Tests session persistence after app restart
 
 ## [1.1.5] - 2026-01-12
 

@@ -33,3 +33,5 @@ Desktop.ini
 # Package manager
 .npm/
 .pnpm-store/
+.test-credentials.json
+test-screenshots/
