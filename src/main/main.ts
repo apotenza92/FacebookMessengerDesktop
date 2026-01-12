@@ -716,6 +716,151 @@ function shouldAllowInternalNavigation(url: string): boolean {
   return isHomePage || authPaths.some(path => url.includes(path));
 }
 
+// Generate custom login page that opens Facebook in system browser
+// This allows password managers and passkeys to work natively
+function getCustomLoginPageURL(): string {
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Messenger Desktop</title>
+      <style>
+        * {
+          margin: 0;
+          padding: 0;
+          box-sizing: border-box;
+        }
+        body {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+          background: linear-gradient(135deg, #0088ff 0%, #0066dd 100%);
+          min-height: 100vh;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: white;
+        }
+        .container {
+          text-align: center;
+          padding: 40px;
+          max-width: 400px;
+        }
+        .icon {
+          width: 80px;
+          height: 80px;
+          margin-bottom: 24px;
+          filter: drop-shadow(0 4px 12px rgba(0,0,0,0.15));
+        }
+        h1 {
+          font-size: 28px;
+          font-weight: 600;
+          margin-bottom: 12px;
+        }
+        .subtitle {
+          font-size: 16px;
+          opacity: 0.9;
+          margin-bottom: 32px;
+          line-height: 1.5;
+        }
+        .btn {
+          display: block;
+          width: 100%;
+          padding: 14px 24px;
+          border: none;
+          border-radius: 8px;
+          font-size: 16px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: transform 0.1s, box-shadow 0.1s;
+          margin-bottom: 12px;
+          text-decoration: none;
+        }
+        .btn:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        .btn:active {
+          transform: translateY(0);
+        }
+        .btn-primary {
+          background: white;
+          color: #0066dd;
+        }
+        .btn-secondary {
+          background: rgba(255,255,255,0.15);
+          color: white;
+          border: 2px solid rgba(255,255,255,0.3);
+        }
+        .btn-secondary:hover {
+          background: rgba(255,255,255,0.25);
+        }
+        .divider {
+          display: flex;
+          align-items: center;
+          margin: 20px 0;
+          opacity: 0.6;
+        }
+        .divider::before, .divider::after {
+          content: '';
+          flex: 1;
+          height: 1px;
+          background: white;
+        }
+        .divider span {
+          padding: 0 12px;
+          font-size: 12px;
+          text-transform: uppercase;
+        }
+        .footer {
+          margin-top: 32px;
+          font-size: 12px;
+          opacity: 0.7;
+        }
+        .footer a {
+          color: white;
+        }
+        .status {
+          margin-top: 16px;
+          padding: 12px;
+          background: rgba(255,255,255,0.1);
+          border-radius: 8px;
+          font-size: 14px;
+          display: none;
+        }
+        .status.show {
+          display: block;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <img class="icon" src="${APP_ICON_SVG}" alt="Messenger Desktop">
+        <h1>Messenger Desktop</h1>
+        <p class="subtitle">Login with your Facebook account to start messaging</p>
+        
+        <button class="btn btn-primary" id="loginBtn">
+          Login with Facebook
+        </button>
+        
+        <div class="footer">
+          Unofficial open-source app — not affiliated with Meta<br>
+          <a href="https://github.com/apotenza92/facebook-messenger-desktop" target="_blank">View on GitHub</a>
+        </div>
+      </div>
+      
+      <script>
+        document.getElementById('loginBtn').addEventListener('click', () => {
+          // Navigate to Facebook login within the app
+          window.location.href = 'https://www.facebook.com/login?next=https%3A%2F%2Fwww.messenger.com%2F';
+        });
+      </script>
+    </body>
+    </html>
+  `;
+  return 'data:text/html;charset=utf-8,' + encodeURIComponent(html);
+}
+
 // Generate offline page HTML with retry button (issue #25)
 // Shown when app starts without internet connection
 function getOfflinePageHTML(errorDescription: string): string {
@@ -1532,9 +1677,15 @@ function createWindow(source: string = 'unknown'): void {
         isMainFrame: details.isMainFrame,
         details: JSON.stringify(details),
       });
+
+      // Allow permissions for both messenger.com and facebook.com (login flow)
+      const isAllowedDomain = url.startsWith('https://www.messenger.com') || 
+                              url.startsWith('https://messenger.com') ||
+                              url.startsWith('https://www.facebook.com') ||
+                              url.startsWith('https://facebook.com');
       
-      if (!url.startsWith('https://www.messenger.com') && !url.startsWith('https://messenger.com')) {
-        console.log(`[Permissions] Denied ${permission} for non-messenger URL: ${url}`);
+      if (!isAllowedDomain) {
+        console.log(`[Permissions] Denied ${permission} for non-allowed URL: ${url}`);
         callback(false);
         return;
       }
@@ -1548,7 +1699,7 @@ function createWindow(source: string = 'unknown'): void {
       ];
 
       if (allowedPermissions.includes(permission)) {
-        console.log(`[Permissions] Allowing ${permission} for messenger.com`);
+        console.log(`[Permissions] Allowing ${permission}`);
         callback(true);
       } else {
         console.log(`[Permissions] Denied ${permission} - not in allowlist`);
@@ -1558,7 +1709,10 @@ function createWindow(source: string = 'unknown'): void {
 
     contentView.webContents.session.setPermissionCheckHandler((webContents, permission, requestingOrigin) => {
       const allowedPermissions = ['media', 'mediaKeySystem', 'notifications', 'fullscreen', 'pointerLock'];
-      const isAllowed = requestingOrigin.startsWith('https://www.messenger.com') || requestingOrigin.startsWith('https://messenger.com');
+      const isAllowed = requestingOrigin.startsWith('https://www.messenger.com') || 
+                        requestingOrigin.startsWith('https://messenger.com') ||
+                        requestingOrigin.startsWith('https://www.facebook.com') ||
+                        requestingOrigin.startsWith('https://facebook.com');
       const hasPermission = isAllowed && allowedPermissions.includes(permission);
       console.log(`[Permissions] Check: ${permission} from ${requestingOrigin} -> ${hasPermission ? 'allowed' : 'denied'}`);
       return hasPermission;
@@ -1706,9 +1860,9 @@ function createWindow(source: string = 'unknown'): void {
     contentView.webContents.session.setUserAgent(userAgent);
     console.log('[UserAgent] Set to:', userAgent);
 
-    // Load Facebook login with redirect to Messenger after auth
-    // This provides a more robust login flow than messenger.com's limited login page
-    contentView.webContents.loadURL('https://www.facebook.com/login?next=https%3A%2F%2Fwww.messenger.com%2F');
+    // Load custom login page that lets user login via system browser
+    // This provides the best login experience (password managers, passkeys work natively)
+    contentView.webContents.loadURL(getCustomLoginPageURL());
 
     // Handle new window requests (target="_blank" links, window.open, etc.)
     // Allow Messenger pop-up windows (for calls) but open external URLs in system browser
@@ -1792,11 +1946,18 @@ function createWindow(source: string = 'unknown'): void {
         });
         
         // Check both current URL and requesting URL (for about:blank windows)
-        const isMessengerUrl = url.startsWith('https://www.messenger.com') || url.startsWith('https://messenger.com') || url === 'about:blank';
-        const isMessengerRequest = requestingUrl.startsWith('https://www.messenger.com') || requestingUrl.startsWith('https://messenger.com');
+        const isAllowedUrl = url.startsWith('https://www.messenger.com') || 
+                             url.startsWith('https://messenger.com') || 
+                             url.startsWith('https://www.facebook.com') || 
+                             url.startsWith('https://facebook.com') || 
+                             url === 'about:blank';
+        const isAllowedRequest = requestingUrl.startsWith('https://www.messenger.com') || 
+                                 requestingUrl.startsWith('https://messenger.com') ||
+                                 requestingUrl.startsWith('https://www.facebook.com') ||
+                                 requestingUrl.startsWith('https://facebook.com');
         
-        if (!isMessengerUrl && !isMessengerRequest) {
-          console.log(`[Permissions] Denied ${permission} for non-messenger URL: ${url} (requesting: ${requestingUrl})`);
+        if (!isAllowedUrl && !isAllowedRequest) {
+          console.log(`[Permissions] Denied ${permission} for non-allowed URL: ${url} (requesting: ${requestingUrl})`);
           callback(false);
           return;
         }
@@ -1810,7 +1971,7 @@ function createWindow(source: string = 'unknown'): void {
         ];
 
         if (allowedPermissions.includes(permission)) {
-          console.log(`[Permissions] Allowing ${permission} for messenger.com (child window)`);
+          console.log(`[Permissions] Allowing ${permission} (child window)`);
           callback(true);
         } else {
           console.log(`[Permissions] Denied ${permission} - not in allowlist (child window)`);
@@ -1820,7 +1981,10 @@ function createWindow(source: string = 'unknown'): void {
       
       childWindow.webContents.session.setPermissionCheckHandler((webContents, permission, requestingOrigin) => {
         const allowedPermissions = ['media', 'mediaKeySystem', 'notifications', 'fullscreen', 'pointerLock'];
-        const isAllowed = requestingOrigin.startsWith('https://www.messenger.com') || requestingOrigin.startsWith('https://messenger.com');
+        const isAllowed = requestingOrigin.startsWith('https://www.messenger.com') || 
+                          requestingOrigin.startsWith('https://messenger.com') ||
+                          requestingOrigin.startsWith('https://www.facebook.com') ||
+                          requestingOrigin.startsWith('https://facebook.com');
         const hasPermission = isAllowed && allowedPermissions.includes(permission);
         console.log(`[Permissions] Child window check: ${permission} from ${requestingOrigin} -> ${hasPermission ? 'allowed' : 'denied'}`);
         return hasPermission;
@@ -2057,9 +2221,15 @@ function createWindow(source: string = 'unknown'): void {
         isMainFrame: details.isMainFrame,
         details: JSON.stringify(details),
       });
+
+      // Allow permissions for both messenger.com and facebook.com (login flow)
+      const isAllowedDomain = url.startsWith('https://www.messenger.com') || 
+                              url.startsWith('https://messenger.com') ||
+                              url.startsWith('https://www.facebook.com') ||
+                              url.startsWith('https://facebook.com');
       
-      if (!url.startsWith('https://www.messenger.com') && !url.startsWith('https://messenger.com')) {
-        console.log(`[Permissions] Denied ${permission} for non-messenger URL: ${url}`);
+      if (!isAllowedDomain) {
+        console.log(`[Permissions] Denied ${permission} for non-allowed URL: ${url}`);
         callback(false);
         return;
       }
@@ -2073,7 +2243,7 @@ function createWindow(source: string = 'unknown'): void {
       ];
 
       if (allowedPermissions.includes(permission)) {
-        console.log(`[Permissions] Allowing ${permission} for messenger.com`);
+        console.log(`[Permissions] Allowing ${permission}`);
         callback(true);
       } else {
         console.log(`[Permissions] Denied ${permission} - not in allowlist`);
@@ -2083,7 +2253,10 @@ function createWindow(source: string = 'unknown'): void {
 
     mainWindow.webContents.session.setPermissionCheckHandler((webContents, permission, requestingOrigin) => {
       const allowedPermissions = ['media', 'mediaKeySystem', 'notifications', 'fullscreen', 'pointerLock'];
-      const isAllowed = requestingOrigin.startsWith('https://www.messenger.com') || requestingOrigin.startsWith('https://messenger.com');
+      const isAllowed = requestingOrigin.startsWith('https://www.messenger.com') || 
+                        requestingOrigin.startsWith('https://messenger.com') ||
+                        requestingOrigin.startsWith('https://www.facebook.com') ||
+                        requestingOrigin.startsWith('https://facebook.com');
       const hasPermission = isAllowed && allowedPermissions.includes(permission);
       console.log(`[Permissions] Check: ${permission} from ${requestingOrigin} -> ${hasPermission ? 'allowed' : 'denied'}`);
       return hasPermission;
@@ -2146,9 +2319,9 @@ function createWindow(source: string = 'unknown'): void {
     mainWindow.webContents.session.setUserAgent(userAgent);
     console.log('[UserAgent] Set to:', userAgent);
 
-    // Load Facebook login with redirect to Messenger after auth
-    // This provides a more robust login flow than messenger.com's limited login page
-    mainWindow.loadURL('https://www.facebook.com/login?next=https%3A%2F%2Fwww.messenger.com%2F');
+    // Load custom login page that lets user login via system browser
+    // This provides the best login experience (password managers, passkeys work natively)
+    mainWindow.loadURL(getCustomLoginPageURL());
 
     // Handle new window requests (target="_blank" links, window.open, etc.)
     // Allow Messenger pop-up windows (for calls) but open external URLs in system browser
@@ -2232,11 +2405,18 @@ function createWindow(source: string = 'unknown'): void {
         });
         
         // Check both current URL and requesting URL (for about:blank windows)
-        const isMessengerUrl = url.startsWith('https://www.messenger.com') || url.startsWith('https://messenger.com') || url === 'about:blank';
-        const isMessengerRequest = requestingUrl.startsWith('https://www.messenger.com') || requestingUrl.startsWith('https://messenger.com');
+        const isAllowedUrl = url.startsWith('https://www.messenger.com') || 
+                             url.startsWith('https://messenger.com') || 
+                             url.startsWith('https://www.facebook.com') || 
+                             url.startsWith('https://facebook.com') || 
+                             url === 'about:blank';
+        const isAllowedRequest = requestingUrl.startsWith('https://www.messenger.com') || 
+                                 requestingUrl.startsWith('https://messenger.com') ||
+                                 requestingUrl.startsWith('https://www.facebook.com') ||
+                                 requestingUrl.startsWith('https://facebook.com');
         
-        if (!isMessengerUrl && !isMessengerRequest) {
-          console.log(`[Permissions] Denied ${permission} for non-messenger URL: ${url} (requesting: ${requestingUrl})`);
+        if (!isAllowedUrl && !isAllowedRequest) {
+          console.log(`[Permissions] Denied ${permission} for non-allowed URL: ${url} (requesting: ${requestingUrl})`);
           callback(false);
           return;
         }
@@ -2250,7 +2430,7 @@ function createWindow(source: string = 'unknown'): void {
         ];
 
         if (allowedPermissions.includes(permission)) {
-          console.log(`[Permissions] Allowing ${permission} for messenger.com (child window)`);
+          console.log(`[Permissions] Allowing ${permission} (child window)`);
           callback(true);
         } else {
           console.log(`[Permissions] Denied ${permission} - not in allowlist (child window)`);
@@ -2260,7 +2440,10 @@ function createWindow(source: string = 'unknown'): void {
       
       childWindow.webContents.session.setPermissionCheckHandler((webContents, permission, requestingOrigin) => {
         const allowedPermissions = ['media', 'mediaKeySystem', 'notifications', 'fullscreen', 'pointerLock'];
-        const isAllowed = requestingOrigin.startsWith('https://www.messenger.com') || requestingOrigin.startsWith('https://messenger.com');
+        const isAllowed = requestingOrigin.startsWith('https://www.messenger.com') || 
+                          requestingOrigin.startsWith('https://messenger.com') ||
+                          requestingOrigin.startsWith('https://www.facebook.com') ||
+                          requestingOrigin.startsWith('https://facebook.com');
         const hasPermission = isAllowed && allowedPermissions.includes(permission);
         console.log(`[Permissions] Child window check: ${permission} from ${requestingOrigin} -> ${hasPermission ? 'allowed' : 'denied'}`);
         return hasPermission;

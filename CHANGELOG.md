@@ -7,6 +7,7 @@
   - Messenger.com's login has issues with "approve from another device" verification
   - Facebook.com provides a more robust and complete authentication flow
   - After login, automatically redirects to Messenger
+- New branded login intro page before Facebook authentication
 - Consistent banner shown throughout entire login/verification flow
 
 ## [1.1.4] - 2026-01-12
