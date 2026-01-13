@@ -1,6 +1,6 @@
 # Changelog
 
-## [1.1.7-beta.0] - 2026-01-13
+## [1.1.8-beta.0] - 2026-01-13
 
 ### Added
 - Auto-hide menu bar with hover, Alt, and F10 toggle (issue #31)
