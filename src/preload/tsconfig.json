@@ -6,7 +6,11 @@
     "outDir": "../../dist/preload",
     "rootDir": "."
   },
-  "include": ["./preload.ts", "./notifications-inject.ts"],
+  "include": [
+    "./preload.ts",
+    "./notifications-inject.ts",
+    "./call-window-preload.ts"
+  ],
   "exclude": []
 }
 

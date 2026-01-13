@@ -1205,8 +1205,10 @@ let currentIconTheme: IconTheme = "system";
 
 // Request single instance lock early (before app.whenReady) to prevent race conditions
 // on Linux/Windows where multiple instances might start before lock is checked
-const gotTheLock = app.requestSingleInstanceLock();
-console.log(`[SingleInstance] Lock acquired: ${gotTheLock}`);
+// Skip for testing if SKIP_SINGLE_INSTANCE_LOCK is set
+const skipSingleInstance = process.env.SKIP_SINGLE_INSTANCE_LOCK === 'true';
+const gotTheLock = skipSingleInstance || app.requestSingleInstanceLock();
+console.log(`[SingleInstance] Lock acquired: ${gotTheLock}${skipSingleInstance ? ' (skipped for testing)' : ''}`);
 if (!gotTheLock) {
   // Another instance is already running - quit immediately
   // app.quit() is asynchronous and doesn't stop code execution, so we must also
@@ -7714,6 +7716,11 @@ function setupAutoUpdater(): void {
     autoUpdater.autoInstallOnAppQuit = true;
     autoUpdater.logger = console;
 
+    // TEMPORARY: Force update checking in dev mode for testing
+    if (isDev) {
+      autoUpdater.forceDevUpdateConfig = true;
+    }
+
     console.log(
       "[AutoUpdater] Beta opt-in:",
       isBetaOptedIn() ? "enabled" : "disabled",
@@ -7814,7 +7821,7 @@ app.whenReady().then(async () => {
   console.log("[Beta] Loaded beta opt-in preference:", betaOptedIn);
 
   // Auto-updater setup (skip in dev mode, Snap, and Flatpak - they use their own update mechanisms)
-  if (isDev) {
+  if (false && isDev) { // TEMPORARILY ENABLED FOR TESTING
     console.log("[AutoUpdater] Skipped in development mode");
   } else if (detectSnapInstall()) {
     console.log(
