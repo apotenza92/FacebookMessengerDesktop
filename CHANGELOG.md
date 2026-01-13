@@ -1,5 +1,33 @@
 # Changelog
 
+## [1.1.8] - 2026-01-13
+
+### Added
+- Auto-hide menu bar with hover, Alt, and F10 toggle (issue #31)
+  - Menu bar is hidden by default on Windows/Linux
+  - Hovering near top of window (3px zone) temporarily shows menu bar
+  - Alt key temporarily shows menu bar while held (Electron default behavior)
+  - F10 key or View menu item toggles permanent visibility
+  - Menu bar state persists correctly between temporary and permanent visibility
+- Retry logic for channel version fetching with exponential backoff
+  - 3 attempts with 1s, 2s, 4s delays for network resilience
+  - Better handling of temporary network issues
+  - User-friendly error dialogs instead of silent failures
+
+### Fixed
+- Beta/stable channel auto-update system improvements
+  - Automatic YML file generation for both latest and beta channels across all platforms
+  - Fixed promise error handling with proper rejection and 30-second timeout
+  - Network failures now show clear error messages to users
+- Windows 11 taskbar shortcuts breaking after auto-updates
+  - Auto-updates now run the shortcut fix script before restart
+  - Ensures AppUserModelId property is maintained on taskbar pins
+  - Shortcuts remain functional after app updates
+  - Test feature available in Develop menu for Windows users
+- Cross-platform build improvements
+  - YML generator now works correctly on macOS, Linux, and Windows
+  - Platform-agnostic validation for build artifacts
+
 ## [1.1.8-beta.2] - 2026-01-13
 
 ### Fixed
