@@ -1563,11 +1563,15 @@
                         (r) => r.prerelease && !r.draft,
                     );
 
-                    // Show the channel toggle if beta is available
-                    if (cachedReleases.beta) {
-                        document.getElementById(
-                            "channel-toggle",
-                        ).style.display = "flex";
+                    // Show the channel toggle only if beta is newer than stable
+                    if (cachedReleases.beta && cachedReleases.stable) {
+                        const betaDate = new Date(cachedReleases.beta.published_at);
+                        const stableDate = new Date(cachedReleases.stable.published_at);
+                        if (betaDate > stableDate) {
+                            document.getElementById(
+                                "channel-toggle",
+                            ).style.display = "flex";
+                        }
                     }
 
                     // Update display for current channel
