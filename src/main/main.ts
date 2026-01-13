@@ -2519,12 +2519,39 @@ function createWindow(source: string = "unknown"): void {
         },
       );
 
-      // Log when child window loads
-      childWindow.webContents.on("did-finish-load", () => {
-        console.log(
-          "[Window] Child window finished loading:",
-          childWindow.webContents.getURL(),
-        );
+      // Inject call window cleanup script and log when child window loads
+      childWindow.webContents.on("did-finish-load", async () => {
+        const url = childWindow.webContents.getURL();
+        console.log("[Window] Child window finished loading:", url);
+
+        // Inject MediaStream cleanup script for call windows
+        try {
+          const callWindowPreloadPath = path.join(
+            __dirname,
+            "../preload/call-window-preload.js",
+          );
+
+          if (fs.existsSync(callWindowPreloadPath)) {
+            const callWindowScript = fs.readFileSync(
+              callWindowPreloadPath,
+              "utf8",
+            );
+            await childWindow.webContents.executeJavaScript(callWindowScript);
+            console.log(
+              "[Window] Call window cleanup script injected successfully",
+            );
+          } else {
+            console.warn(
+              "[Window] Call window preload script not found at:",
+              callWindowPreloadPath,
+            );
+          }
+        } catch (error) {
+          console.error(
+            "[Window] Failed to inject call window cleanup script:",
+            error,
+          );
+        }
       });
 
       // Log console messages from child window
@@ -2538,6 +2565,11 @@ function createWindow(source: string = "unknown"): void {
           );
         },
       );
+
+      // Handle child window closed event
+      childWindow.on("closed", () => {
+        console.log("[Window] Child window closed and cleaned up");
+      });
     });
 
     // Inject notification override script after page loads
@@ -3265,12 +3297,39 @@ function createWindow(source: string = "unknown"): void {
         },
       );
 
-      // Log when child window loads
-      childWindow.webContents.on("did-finish-load", () => {
-        console.log(
-          "[Window] Child window finished loading:",
-          childWindow.webContents.getURL(),
-        );
+      // Inject call window cleanup script and log when child window loads
+      childWindow.webContents.on("did-finish-load", async () => {
+        const url = childWindow.webContents.getURL();
+        console.log("[Window] Child window finished loading:", url);
+
+        // Inject MediaStream cleanup script for call windows
+        try {
+          const callWindowPreloadPath = path.join(
+            __dirname,
+            "../preload/call-window-preload.js",
+          );
+
+          if (fs.existsSync(callWindowPreloadPath)) {
+            const callWindowScript = fs.readFileSync(
+              callWindowPreloadPath,
+              "utf8",
+            );
+            await childWindow.webContents.executeJavaScript(callWindowScript);
+            console.log(
+              "[Window] Call window cleanup script injected successfully",
+            );
+          } else {
+            console.warn(
+              "[Window] Call window preload script not found at:",
+              callWindowPreloadPath,
+            );
+          }
+        } catch (error) {
+          console.error(
+            "[Window] Failed to inject call window cleanup script:",
+            error,
+          );
+        }
       });
 
       // Log console messages from child window
@@ -3284,6 +3343,11 @@ function createWindow(source: string = "unknown"): void {
           );
         },
       );
+
+      // Handle child window closed event
+      childWindow.on("closed", () => {
+        console.log("[Window] Child window closed and cleaned up");
+      });
     });
 
     // Log console messages from main window
@@ -6786,7 +6850,7 @@ async function fetchChannelVersionWithRetry(
         console.error(
           `[AutoUpdater] All ${maxRetries} attempts failed for ${channel}`,
         );
-        throw err; // Throw on final attempt to propagate error
+        return null; // Return null on final attempt so Promise.all doesn't reject
       }
 
       // Exponential backoff: 1s, 2s, 4s
