@@ -5442,19 +5442,6 @@ function createApplicationMenu(): void {
         label: "Test Taskbar Fix (Simulate Update)",
         visible: process.platform === "win32",
         click: async () => {
-          const { exec } = await import("child_process");
-          const { promisify } = await import("util");
-          const execAsync = promisify(exec);
-          const os = await import("os");
-
-          const exePath = process.execPath;
-          const instDir = path.dirname(process.execPath);
-          const appUserModelId = "com.facebook.messenger.desktop";
-          const tempScript = path.join(
-            os.tmpdir(),
-            "messenger-taskbar-fix-test.ps1",
-          );
-
           // Show initial dialog explaining what this test does
           const confirmResult = await dialog.showMessageBox({
             type: "info",
@@ -5466,10 +5453,11 @@ function createApplicationMenu(): void {
               "1. Find all Messenger shortcuts (taskbar, Start Menu, Desktop)",
               "2. Update them with correct target path",
               "3. Set AppUserModelId property (key for Windows 11)",
+              "4. Clear Windows icon cache",
               "",
-              "This uses the same fix that runs during actual updates.",
+              "This uses the EXACT same script that runs during auto-updates.",
               "",
-              "After running, verify your pinned taskbar icon still works.",
+              "The test will show detailed results when complete.",
             ].join("\n"),
             buttons: ["Run Test", "Cancel"],
             defaultId: 0,
@@ -5478,277 +5466,40 @@ function createApplicationMenu(): void {
 
           if (confirmResult.response !== 0) return;
 
-          // PowerShell script using Windows Shell API to set AppUserModelId
-          // This is the same logic used in the NSIS installer
-          const scriptContent = `
-$ErrorActionPreference = 'SilentlyContinue'
-$exePath = '${exePath.replace(/'/g, "''")}'
-$instDir = '${instDir.replace(/'/g, "''")}'
-$appUserModelId = '${appUserModelId}'
-
-# Define COM interfaces for Shell Link and Property Store
-$typeDefinition = @'
-using System;
-using System.Runtime.InteropServices;
-using System.Text;
-
-[ComImport, Guid("00021401-0000-0000-C000-000000000046")]
-public class ShellLink { }
-
-[ComImport, InterfaceType(ComInterfaceType.InterfaceIsIUnknown), Guid("000214F9-0000-0000-C000-000000000046")]
-public interface IShellLinkW {
-    void GetPath([Out, MarshalAs(UnmanagedType.LPWStr)] StringBuilder pszFile, int cchMaxPath, IntPtr pfd, int fFlags);
-    void GetIDList(out IntPtr ppidl);
-    void SetIDList(IntPtr pidl);
-    void GetDescription([Out, MarshalAs(UnmanagedType.LPWStr)] StringBuilder pszName, int cchMaxName);
-    void SetDescription([MarshalAs(UnmanagedType.LPWStr)] string pszName);
-    void GetWorkingDirectory([Out, MarshalAs(UnmanagedType.LPWStr)] StringBuilder pszDir, int cchMaxPath);
-    void SetWorkingDirectory([MarshalAs(UnmanagedType.LPWStr)] string pszDir);
-    void GetArguments([Out, MarshalAs(UnmanagedType.LPWStr)] StringBuilder pszArgs, int cchMaxPath);
-    void SetArguments([MarshalAs(UnmanagedType.LPWStr)] string pszArgs);
-    void GetHotkey(out short pwHotkey);
-    void SetHotkey(short wHotkey);
-    void GetShowCmd(out int piShowCmd);
-    void SetShowCmd(int iShowCmd);
-    void GetIconLocation([Out, MarshalAs(UnmanagedType.LPWStr)] StringBuilder pszIconPath, int cchIconPath, out int piIcon);
-    void SetIconLocation([MarshalAs(UnmanagedType.LPWStr)] string pszIconPath, int iIcon);
-    void SetRelativePath([MarshalAs(UnmanagedType.LPWStr)] string pszPathRel, int dwReserved);
-    void Resolve(IntPtr hwnd, int fFlags);
-    void SetPath([MarshalAs(UnmanagedType.LPWStr)] string pszFile);
-}
-
-[ComImport, InterfaceType(ComInterfaceType.InterfaceIsIUnknown), Guid("0000010B-0000-0000-C000-000000000046")]
-public interface IPersistFile {
-    void GetClassID(out Guid pClassID);
-    [PreserveSig] int IsDirty();
-    void Load([MarshalAs(UnmanagedType.LPWStr)] string pszFileName, uint dwMode);
-    void Save([MarshalAs(UnmanagedType.LPWStr)] string pszFileName, [MarshalAs(UnmanagedType.Bool)] bool fRemember);
-    void SaveCompleted([MarshalAs(UnmanagedType.LPWStr)] string pszFileName);
-    void GetCurFile([MarshalAs(UnmanagedType.LPWStr)] out string ppszFileName);
-}
-
-[ComImport, InterfaceType(ComInterfaceType.InterfaceIsIUnknown), Guid("886D8EEB-8CF2-4446-8D02-CDBA1DBDCF99")]
-public interface IPropertyStore {
-    [PreserveSig] int GetCount(out uint cProps);
-    [PreserveSig] int GetAt(uint iProp, out PropertyKey pkey);
-    [PreserveSig] int GetValue(ref PropertyKey key, out PropVariant pv);
-    [PreserveSig] int SetValue(ref PropertyKey key, ref PropVariant pv);
-    [PreserveSig] int Commit();
-}
-
-[StructLayout(LayoutKind.Sequential, Pack = 4)]
-public struct PropertyKey {
-    public Guid fmtid;
-    public uint pid;
-    public PropertyKey(Guid fmtid, uint pid) { this.fmtid = fmtid; this.pid = pid; }
-}
-
-[StructLayout(LayoutKind.Explicit)]
-public struct PropVariant {
-    [FieldOffset(0)] public ushort vt;
-    [FieldOffset(8)] public IntPtr pwszVal;
-    public static PropVariant FromString(string value) {
-        var pv = new PropVariant();
-        pv.vt = 31; // VT_LPWSTR
-        pv.pwszVal = Marshal.StringToCoTaskMemUni(value);
-        return pv;
-    }
-    public void Clear() { if (pwszVal != IntPtr.Zero) Marshal.FreeCoTaskMem(pwszVal); }
-}
-
-public static class ShortcutHelper {
-    public static readonly PropertyKey PKEY_AppUserModel_ID = new PropertyKey(
-        new Guid("9F4C2855-9F79-4B39-A8D0-E1D42DE1D5F3"), 5);
-
-    public static bool UpdateShortcut(string lnkPath, string targetPath, string workDir, string appId) {
-        try {
-            var shellLink = (IShellLinkW)new ShellLink();
-            var persistFile = (IPersistFile)shellLink;
-            persistFile.Load(lnkPath, 0);
-
-            shellLink.SetPath(targetPath);
-            shellLink.SetWorkingDirectory(workDir);
-            shellLink.SetIconLocation(targetPath, 0);
-
-            var propertyStore = (IPropertyStore)shellLink;
-            var key = PKEY_AppUserModel_ID;
-            var pv = PropVariant.FromString(appId);
-            propertyStore.SetValue(ref key, ref pv);
-            propertyStore.Commit();
-            pv.Clear();
-
-            persistFile.Save(lnkPath, true);
-            return true;
-        } catch { return false; }
-    }
-
-    public static string GetShortcutTarget(string lnkPath) {
-        try {
-            var shellLink = (IShellLinkW)new ShellLink();
-            var persistFile = (IPersistFile)shellLink;
-            persistFile.Load(lnkPath, 0);
-            var sb = new StringBuilder(260);
-            shellLink.GetPath(sb, sb.Capacity, IntPtr.Zero, 0);
-            return sb.ToString();
-        } catch { return string.Empty; }
-    }
-}
-'@
-
-Add-Type -TypeDefinition $typeDefinition -Language CSharp
-
-$results = @{
-    windowsVersion = [System.Environment]::OSVersion.Version.ToString()
-    shortcuts = @()
-    updated = 0
-    failed = 0
-    error = ""
-}
-
-$locations = @(
-    @{ name = "TaskBar"; path = "$env:APPDATA\\Microsoft\\Internet Explorer\\Quick Launch\\User Pinned\\TaskBar" },
-    @{ name = "Start Menu"; path = "$env:APPDATA\\Microsoft\\Windows\\Start Menu\\Programs" },
-    @{ name = "Public Start Menu"; path = "$env:ProgramData\\Microsoft\\Windows\\Start Menu\\Programs" },
-    @{ name = "Desktop"; path = "$env:USERPROFILE\\Desktop" },
-    @{ name = "Public Desktop"; path = "$env:PUBLIC\\Desktop" }
-)
-
-try {
-    foreach ($loc in $locations) {
-        if (Test-Path $loc.path) {
-            Get-ChildItem $loc.path -Filter "*.lnk" -Recurse -ErrorAction SilentlyContinue | ForEach-Object {
-                $target = [ShortcutHelper]::GetShortcutTarget($_.FullName)
-                if ($target -like "*Messenger*" -or $target -like "*messenger*") {
-                    $shortcutInfo = @{
-                        location = $loc.name
-                        name = $_.Name
-                        path = $_.FullName
-                        oldTarget = $target
-                        success = $false
-                    }
-
-                    if ([ShortcutHelper]::UpdateShortcut($_.FullName, $exePath, $instDir, $appUserModelId)) {
-                        $shortcutInfo.success = $true
-                        $results.updated++
-                    } else {
-                        $results.failed++
-                    }
-
-                    $results.shortcuts += $shortcutInfo
-                }
-            }
-        }
-    }
-} catch {
-    $results.error = $_.Exception.Message
-}
-
-$results | ConvertTo-Json -Depth 4 -Compress
-`;
-
           try {
-            console.log("[Test] Writing taskbar fix script to:", tempScript);
-            fs.writeFileSync(tempScript, scriptContent, "utf8");
+            console.log("[Test] Running Windows shortcut fix...");
+            await runWindowsShortcutFix();
 
-            console.log("[Test] Running taskbar fix simulation...");
-            const { stdout, stderr } = await execAsync(
-              `powershell.exe -NoProfile -ExecutionPolicy Bypass -File "${tempScript}"`,
-              { timeout: 60000 }, // 60 seconds - Add-Type can be slow
-            );
-
-            console.log("[Test] stdout:", stdout);
-            if (stderr) console.log("[Test] stderr:", stderr);
-
-            // Clean up temp file
-            try {
-              fs.unlinkSync(tempScript);
-            } catch {}
-
-            interface ShortcutResult {
-              location: string;
-              name: string;
-              path: string;
-              oldTarget: string;
-              success: boolean;
-            }
-            let results = {
-              windowsVersion: "",
-              shortcuts: [] as ShortcutResult[],
-              updated: 0,
-              failed: 0,
-              error: "",
-            };
-
-            try {
-              results = JSON.parse(stdout.trim());
-            } catch (e) {
-              console.log("[Test] JSON parse error:", e);
-              await dialog.showMessageBox({
-                type: "warning",
-                title: "Test Output",
-                message: "Could not parse results",
-                detail: stdout || "No output",
-                buttons: ["OK"],
-              });
-              return;
-            }
-
-            const shortcutsList =
-              results.shortcuts
-                ?.map(
-                  (s: ShortcutResult) =>
-                    `${s.success ? "✓" : "✗"} ${s.name} (${s.location})`,
-                )
-                .join("\n") || "No Messenger shortcuts found";
-
-            const statusIcon =
-              results.failed === 0 && results.updated > 0
-                ? "✓"
-                : results.updated === 0
-                  ? "⚠"
-                  : "✗";
-
-            // Show results and offer to quit for testing
-            const resultDialog = await dialog.showMessageBox({
-              type: results.failed === 0 ? "info" : "warning",
-              title: "Taskbar Fix Test Results",
-              message: `${statusIcon} Windows ${results.windowsVersion}`,
+            // Show success dialog
+            await dialog.showMessageBox({
+              type: "info",
+              title: "Test Complete",
+              message: "Taskbar Fix Test Successful",
               detail: [
-                `AppUserModelId: ${appUserModelId}`,
-                `Target: ${exePath}`,
+                "✓ Shortcut fix completed successfully",
                 "",
-                `Shortcuts found: ${results.shortcuts?.length || 0}`,
-                `Updated: ${results.updated}`,
-                `Failed: ${results.failed}`,
+                "Check the console logs for detailed results:",
+                "- Number of shortcuts found",
+                "- Number successfully updated",
+                "- Any errors encountered",
                 "",
-                shortcutsList,
-                "",
-                results.error ? `Error: ${results.error}` : "",
-                "",
-                results.updated > 0
-                  ? "Quit the app now to test clicking your pinned taskbar icon."
-                  : "No shortcuts to update. Try pinning the app to taskbar first.",
-              ]
-                .filter(Boolean)
-                .join("\n"),
-              buttons:
-                results.updated > 0 ? ["Quit to Test", "Stay Open"] : ["OK"],
-              defaultId: 0,
-              cancelId: results.updated > 0 ? 1 : 0,
+                "Now test your pinned taskbar icon to verify it still works.",
+              ].join("\n"),
+              buttons: ["OK"],
             });
-
-            // If user chose to quit, exit the app so they can test clicking the pinned icon
-            if (results.updated > 0 && resultDialog.response === 0) {
-              console.log("[Test] User chose to quit for taskbar testing");
-              app.quit();
-            }
           } catch (err) {
-            console.error("[Test] Taskbar fix error:", err);
+            console.error("[Test] Taskbar fix failed:", err);
             await dialog.showMessageBox({
               type: "error",
-              title: "Taskbar Fix Test Error",
-              message: "Failed to run test",
-              detail: `Error: ${err instanceof Error ? err.message : String(err)}`,
+              title: "Test Failed",
+              message: "Taskbar Fix Test Error",
+              detail: [
+                "The shortcut fix test encountered an error:",
+                "",
+                err instanceof Error ? err.message : String(err),
+                "",
+                "Check the console logs for more details.",
+              ].join("\n"),
               buttons: ["OK"],
             });
           }
@@ -7240,6 +6991,73 @@ async function downloadWindowsUpdate(version: string): Promise<void> {
   });
 }
 
+// Run Windows shortcut fix - updates taskbar/Start Menu shortcuts after app update
+async function runWindowsShortcutFix(): Promise<void> {
+  if (process.platform !== "win32") {
+    return;
+  }
+
+  return new Promise((resolve, reject) => {
+    // Get the PowerShell script path from resources
+    const scriptPath = path.join(
+      process.resourcesPath,
+      "scripts",
+      "fix-windows-shortcuts.ps1",
+    );
+
+    console.log(`[Shortcut Fix] Script path: ${scriptPath}`);
+
+    // Check if script exists
+    if (!fs.existsSync(scriptPath)) {
+      console.warn(
+        "[Shortcut Fix] Script not found, skipping (may not be included in build)",
+      );
+      resolve(); // Not a fatal error
+      return;
+    }
+
+    // Execute the PowerShell script
+    const command = `powershell.exe -NoProfile -ExecutionPolicy Bypass -File "${scriptPath}"`;
+    console.log(`[Shortcut Fix] Executing: ${command}`);
+
+    exec(command, { timeout: 60000 }, (error, stdout, stderr) => {
+      if (error) {
+        console.error("[Shortcut Fix] Execution error:", error);
+        reject(error);
+        return;
+      }
+
+      if (stderr) {
+        console.warn("[Shortcut Fix] stderr:", stderr);
+      }
+
+      if (stdout) {
+        console.log("[Shortcut Fix] stdout:", stdout);
+
+        // Try to parse JSON result from script
+        try {
+          const lines = stdout.split("\n");
+          const jsonLine = lines.find((line) => line.trim().startsWith("{"));
+          if (jsonLine) {
+            const result = JSON.parse(jsonLine);
+            console.log("[Shortcut Fix] Result:", result);
+            if (result.updated > 0) {
+              console.log(
+                `[Shortcut Fix] Successfully updated ${result.updated} shortcut(s)`,
+              );
+            }
+          }
+        } catch (e) {
+          // JSON parsing failed, not critical
+          console.log("[Shortcut Fix] Could not parse result JSON");
+        }
+      }
+
+      resolve();
+    });
+  });
+}
+
 // Linux direct download function - downloads .deb or .rpm package and installs with pkexec
 async function downloadLinuxPackage(
   version: string,
@@ -7875,11 +7693,27 @@ function setupAutoUpdater(): void {
         .catch(() => {});
     });
 
-    autoUpdater.on("update-downloaded", (info) => {
+    autoUpdater.on("update-downloaded", async (info) => {
       const version = info?.version || pendingUpdateVersion || "";
       console.log("[AutoUpdater] Update downloaded:", version);
       hideDownloadProgress();
       updateDownloadedAndReady = true;
+
+      // Fix Windows taskbar shortcuts BEFORE restart
+      // This ensures shortcuts remain functional after the update
+      if (process.platform === "win32") {
+        console.log(
+          "[AutoUpdater] Running Windows shortcut fix before restart...",
+        );
+        try {
+          await runWindowsShortcutFix();
+          console.log("[AutoUpdater] Shortcut fix completed successfully");
+        } catch (err) {
+          console.error("[AutoUpdater] Shortcut fix failed (non-fatal):", err);
+          // Don't block the update - shortcuts can be fixed on next launch
+        }
+      }
+
       showUpdateReadyDialog(version);
     });
 

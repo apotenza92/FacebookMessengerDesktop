@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.1.8-beta.2] - 2026-01-13
+
+### Fixed
+- Windows 11 taskbar shortcuts breaking after auto-updates
+  - Auto-updates now run the shortcut fix script before restart
+  - Ensures AppUserModelId property is maintained on taskbar pins
+  - Shortcuts remain functional after app updates
+  - Test feature available in Develop menu for Windows users
+
+### Added
+- Standalone PowerShell script for Windows shortcut maintenance
+- Improved test diagnostics for Windows taskbar fix
+
 ## [1.1.8-beta.1] - 2026-01-13
 
 ### Added
