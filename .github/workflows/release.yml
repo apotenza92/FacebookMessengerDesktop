@@ -7,14 +7,14 @@ permissions:
 on:
   push:
     tags:
-      - 'v*'  # Triggers on version tags like v1.0.0
-  workflow_dispatch:  # Allows manual triggering
+      - "v*" # Triggers on version tags like v1.0.0
+  workflow_dispatch: # Allows manual triggering
 
 jobs:
   # ============================================
   # PHASE 1: Build all platforms
   # ============================================
-  
+
   build-macos:
     name: Build macOS
     runs-on: macos-latest
@@ -25,8 +25,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "20"
+          cache: "npm"
 
       - name: Install dependencies
         run: npm ci
@@ -47,6 +47,9 @@ jobs:
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+
+      - name: Generate channel YML files
+        run: node scripts/generate-channel-yml.js
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -69,8 +72,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "20"
+          cache: "npm"
 
       - name: Install dependencies
         run: npm ci
@@ -86,6 +89,9 @@ jobs:
       - name: Build distributables
         run: npm run dist:win
         timeout-minutes: 30
+
+      - name: Generate channel YML files
+        run: node scripts/generate-channel-yml.js
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -109,8 +115,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "20"
+          cache: "npm"
 
       - name: Install dependencies
         run: npm ci
@@ -134,6 +140,9 @@ jobs:
         run: npm run dist:linux
         timeout-minutes: 60
 
+      - name: Generate channel YML files
+        run: node scripts/generate-channel-yml.js
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -155,13 +164,13 @@ jobs:
   # PHASE 2: Create GitHub Release
   # (Runs after all builds complete)
   # ============================================
-  
+
   release:
     name: Create Release
     needs: [build-macos, build-windows, build-linux]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -170,7 +179,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: artifacts
-          pattern: '*-build'
+          pattern: "*-build"
           merge-multiple: true
 
       - name: List artifacts
@@ -198,7 +207,7 @@ jobs:
             /^## \[v?/ { if (found) exit; if ($0 ~ "\\[v?" ver "\\]") found=1; next }
             found { print }
           ' CHANGELOG.md > "$NOTES" || true
-          
+
           if [ ! -s "$NOTES" ]; then
             echo "ERROR: No changelog entry found for version $VERSION"
             echo "Please add an entry to CHANGELOG.md before releasing"
@@ -227,7 +236,7 @@ jobs:
     needs: release
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v') && !contains(github.ref, 'alpha') && !contains(github.ref, 'beta') && !contains(github.ref, 'rc')
-    
+
     steps:
       - name: Extract version from tag
         id: version
@@ -240,12 +249,12 @@ jobs:
         id: hashes
         run: |
           VERSION="${{ steps.version.outputs.VERSION }}"
-          
+
           # Download and hash ARM64
           curl -sL "https://github.com/apotenza92/facebook-messenger-desktop/releases/download/v${VERSION}/Messenger-macos-arm64.zip" -o arm64.zip
           ARM64_SHA256=$(shasum -a 256 arm64.zip | cut -d' ' -f1)
           echo "ARM64_SHA256=${ARM64_SHA256}" >> $GITHUB_OUTPUT
-          
+
           # Download and hash x64
           curl -sL "https://github.com/apotenza92/facebook-messenger-desktop/releases/download/v${VERSION}/Messenger-macos-x64.zip" -o x64.zip
           X64_SHA256=$(shasum -a 256 x64.zip | cut -d' ' -f1)
@@ -258,11 +267,11 @@ jobs:
           VERSION="${{ steps.version.outputs.VERSION }}"
           ARM64_SHA256="${{ steps.hashes.outputs.ARM64_SHA256 }}"
           X64_SHA256="${{ steps.hashes.outputs.X64_SHA256 }}"
-          
+
           # Clone homebrew-tap repo
           git clone https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/apotenza92/homebrew-tap.git
           cd homebrew-tap
-          
+
           # Update the cask file
           cat > Casks/facebook-messenger-desktop.rb << EOF
           cask "facebook-messenger-desktop" do
@@ -298,7 +307,7 @@ jobs:
             ]
           end
           EOF
-          
+
           # Commit and push
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -310,10 +319,10 @@ jobs:
     name: Update WinGet
     needs: release
     runs-on: windows-latest
-    if: false  # Disabled - no winget package yet
+    if: false # Disabled - no winget package yet
     # Original condition: startsWith(github.ref, 'refs/tags/v') && !contains(github.ref, 'alpha') && !contains(github.ref, 'beta') && !contains(github.ref, 'rc')
-    continue-on-error: true  # Don't fail the workflow if winget update fails
-    
+    continue-on-error: true # Don't fail the workflow if winget update fails
+
     steps:
       - name: Submit to WinGet
         uses: vedantmgoyal2009/winget-releaser@v2
@@ -329,8 +338,8 @@ jobs:
     needs: release
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v') && !contains(github.ref, 'alpha') && !contains(github.ref, 'beta') && !contains(github.ref, 'rc')
-    continue-on-error: true  # Don't fail the workflow if snap promotion fails
-    
+    continue-on-error: true # Don't fail the workflow if snap promotion fails
+
     steps:
       - name: Install Snapcraft
         run: sudo snap install snapcraft --classic
@@ -341,7 +350,7 @@ jobs:
         run: |
           echo "Monitoring Snapcraft builds..."
           echo "Builds page: https://snapcraft.io/facebook-messenger-desktop/builds"
-          
+
           # Function to get revision for a specific arch from edge channel
           # Uses snapcraft status and parses the table format
           get_edge_rev() {
@@ -355,32 +364,32 @@ jobs:
               tr -d ' ' | \
               head -1
           }
-          
+
           # Get initial revisions to detect when new builds complete
           INITIAL_AMD64=$(get_edge_rev "amd64")
           INITIAL_ARM64=$(get_edge_rev "arm64")
           echo "Current edge revisions: amd64=$INITIAL_AMD64, arm64=$INITIAL_ARM64"
-          
+
           # Show full status for debugging
           echo ""
           echo "Full snapcraft status:"
           snapcraft status facebook-messenger-desktop || true
-          
+
           # Poll every 2 minutes for up to 90 minutes (Launchpad builds can be slow)
           MAX_ATTEMPTS=45
           ATTEMPT=0
           NEW_BUILDS_DETECTED=false
-          
+
           echo ""
           echo "Waiting for new builds to appear in edge channel..."
-          
+
           while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
             ATTEMPT=$((ATTEMPT + 1))
             echo "Check $ATTEMPT/$MAX_ATTEMPTS ($(date +%H:%M:%S))"
-            
+
             CURRENT_AMD64=$(get_edge_rev "amd64")
             CURRENT_ARM64=$(get_edge_rev "arm64")
-            
+
             # Check if BOTH revisions changed (both builds completed)
             if [ "$CURRENT_AMD64" != "$INITIAL_AMD64" ] && [ "$CURRENT_ARM64" != "$INITIAL_ARM64" ]; then
               echo ""
@@ -389,7 +398,7 @@ jobs:
               NEW_BUILDS_DETECTED=true
               break
             fi
-            
+
             if [ $ATTEMPT -eq $MAX_ATTEMPTS ]; then
               echo ""
               echo "⏰ Timeout after 90 minutes."
@@ -397,24 +406,24 @@ jobs:
               echo "Visit: https://snapcraft.io/facebook-messenger-desktop/releases"
               break
             fi
-            
+
             sleep 120  # Wait 2 minutes between checks
           done
-          
+
           echo ""
           echo "Current snapcraft status:"
           snapcraft status facebook-messenger-desktop
-          
+
           # Get final revision numbers
           AMD64_REV=$(get_edge_rev "amd64")
           ARM64_REV=$(get_edge_rev "arm64")
-          
+
           echo ""
           echo "Revisions to promote: amd64=$AMD64_REV, arm64=$ARM64_REV"
-          
+
           # Track promotion success
           PROMOTE_SUCCESS=true
-          
+
           # Promote amd64 to stable
           if [ -n "$AMD64_REV" ] && [ "$AMD64_REV" != "-" ]; then
             echo "Promoting amd64 revision $AMD64_REV to stable..."
@@ -428,7 +437,7 @@ jobs:
             echo "⚠️ Warning: No amd64 revision found in edge channel"
             PROMOTE_SUCCESS=false
           fi
-          
+
           # Promote arm64 to stable
           if [ -n "$ARM64_REV" ] && [ "$ARM64_REV" != "-" ]; then
             echo "Promoting arm64 revision $ARM64_REV to stable..."
@@ -442,11 +451,11 @@ jobs:
             echo "⚠️ Warning: No arm64 revision found in edge channel"
             PROMOTE_SUCCESS=false
           fi
-          
+
           echo ""
           echo "Final snapcraft status:"
           snapcraft status facebook-messenger-desktop
-          
+
           if [ "$PROMOTE_SUCCESS" = true ]; then
             echo ""
             echo "✅ Snap promotion complete!"
@@ -461,8 +470,8 @@ jobs:
     needs: release
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v') && !contains(github.ref, 'alpha') && !contains(github.ref, 'beta') && !contains(github.ref, 'rc')
-    continue-on-error: true  # Don't fail the workflow if flatpak update fails
-    
+    continue-on-error: true # Don't fail the workflow if flatpak update fails
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -511,53 +520,53 @@ jobs:
           # Create a temporary directory for the OSTree repo
           mkdir -p flatpak-repo
           REPO_PATH="flatpak-repo"
-          
+
           # Initialize OSTree repo
           echo "Initializing OSTree repository..."
           ostree init --repo="$REPO_PATH" --mode=archive-z2
-          
+
           # List available flatpak files for debugging
           echo "Available flatpak files:"
           find artifacts/linux -name "*.flatpak" -type f || echo "No flatpak files found"
-          
+
           # Import x64 flatpak (electron-builder uses 'x86_64' in flatpak filename)
           X64_FLATPAK=$(find artifacts/linux -name "*x86_64*.flatpak" -type f | head -1)
           if [ -n "$X64_FLATPAK" ]; then
             echo "Importing x64 flatpak: $X64_FLATPAK"
             flatpak build-import-bundle "$REPO_PATH" "$X64_FLATPAK" --gpg-sign="$GPG_KEY_ID"
           fi
-          
+
           # Import ARM64 flatpak (electron-builder uses 'aarch64' in flatpak filename)
           ARM64_FLATPAK=$(find artifacts/linux -name "*aarch64*.flatpak" -type f | head -1)
           if [ -n "$ARM64_FLATPAK" ]; then
             echo "Importing ARM64 flatpak: $ARM64_FLATPAK"
             flatpak build-import-bundle "$REPO_PATH" "$ARM64_FLATPAK" --gpg-sign="$GPG_KEY_ID"
           fi
-          
+
           if [ -z "$X64_FLATPAK" ] && [ -z "$ARM64_FLATPAK" ]; then
             echo "ERROR: No flatpak files found!"
             exit 1
           fi
-          
+
           # Update repository metadata and sign
           echo "Updating repository metadata..."
           flatpak build-update-repo "$REPO_PATH" --gpg-sign="$GPG_KEY_ID" --generate-static-deltas
-          
+
           # Export public GPG key for users
           gpg --armor --export "$GPG_KEY_ID" > flatpak-repo/flatpak-repo.gpg
-          
+
           echo "Repository built successfully"
 
       - name: Deploy to GitHub Pages
         run: |
           # Clone main branch to update the docs folder
           git clone --single-branch --branch main "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" main-deploy
-          
+
           # Copy flatpak repo to docs/flatpak/repo (GitHub Pages serves from docs/ on main)
           mkdir -p main-deploy/docs/flatpak
           rm -rf main-deploy/docs/flatpak/repo
           cp -r flatpak-repo main-deploy/docs/flatpak/repo
-          
+
           # Commit and push
           cd main-deploy
           git config user.name "github-actions[bot]"

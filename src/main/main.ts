@@ -6918,8 +6918,13 @@ const GITHUB_RELEASES_BASE =
 async function fetchChannelVersion(
   channel: "latest" | "beta",
 ): Promise<string | null> {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     const ymlUrl = `${GITHUB_RELEASES_BASE}/latest/download/${channel}.yml`;
+
+    // Timeout after 30 seconds
+    const timeout = setTimeout(() => {
+      reject(new Error(`Timeout fetching ${channel}.yml after 30 seconds`));
+    }, 30000);
 
     https
       .get(ymlUrl, { headers: { "User-Agent": "electron-updater" } }, (res) => {
@@ -6933,6 +6938,7 @@ async function fetchChannelVersion(
                 { headers: { "User-Agent": "electron-updater" } },
                 (redirectRes) => {
                   if (redirectRes.statusCode !== 200) {
+                    clearTimeout(timeout);
                     console.log(
                       `[AutoUpdater] ${channel}.yml not found (${redirectRes.statusCode})`,
                     );
@@ -6944,6 +6950,7 @@ async function fetchChannelVersion(
                     data += chunk;
                   });
                   redirectRes.on("end", () => {
+                    clearTimeout(timeout);
                     // Parse version from yml (format: "version: X.Y.Z" or "version: X.Y.Z-beta.N")
                     const match = data.match(/^version:\s*(.+)$/m);
                     if (match) {
@@ -6952,17 +6959,25 @@ async function fetchChannelVersion(
                       );
                       resolve(match[1].trim());
                     } else {
-                      resolve(null);
+                      reject(new Error(`${channel}.yml missing version field`));
                     }
+                  });
+                  redirectRes.on("error", (err) => {
+                    clearTimeout(timeout);
+                    reject(err);
                   });
                 },
               )
-              .on("error", () => resolve(null));
+              .on("error", (err) => {
+                clearTimeout(timeout);
+                reject(err);
+              });
             return;
           }
         }
 
         if (res.statusCode !== 200) {
+          clearTimeout(timeout);
           console.log(
             `[AutoUpdater] ${channel}.yml not found (${res.statusCode})`,
           );
@@ -6975,6 +6990,7 @@ async function fetchChannelVersion(
           data += chunk;
         });
         res.on("end", () => {
+          clearTimeout(timeout);
           const match = data.match(/^version:\s*(.+)$/m);
           if (match) {
             console.log(
@@ -6982,12 +6998,54 @@ async function fetchChannelVersion(
             );
             resolve(match[1].trim());
           } else {
-            resolve(null);
+            reject(new Error(`${channel}.yml missing version field`));
           }
         });
+        res.on("error", (err) => {
+          clearTimeout(timeout);
+          reject(err);
+        });
       })
-      .on("error", () => resolve(null));
+      .on("error", (err) => {
+        clearTimeout(timeout);
+        reject(err);
+      });
   });
+}
+
+// Fetch version with retry logic and exponential backoff
+async function fetchChannelVersionWithRetry(
+  channel: "latest" | "beta",
+  maxRetries = 3,
+): Promise<string | null> {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(
+        `[AutoUpdater] Fetching ${channel} version (attempt ${attempt}/${maxRetries})`,
+      );
+      const version = await fetchChannelVersion(channel);
+      return version;
+    } catch (err) {
+      console.error(
+        `[AutoUpdater] Fetch failed (attempt ${attempt}/${maxRetries}):`,
+        err instanceof Error ? err.message : String(err),
+      );
+
+      if (attempt === maxRetries) {
+        console.error(
+          `[AutoUpdater] All ${maxRetries} attempts failed for ${channel}`,
+        );
+        throw err; // Throw on final attempt to propagate error
+      }
+
+      // Exponential backoff: 1s, 2s, 4s
+      const backoffMs = Math.pow(2, attempt - 1) * 1000;
+      console.log(`[AutoUpdater] Retrying in ${backoffMs}ms...`);
+      await new Promise((resolve) => setTimeout(resolve, backoffMs));
+    }
+  }
+
+  return null; // Should never reach here, but TypeScript needs it
 }
 
 // Smart update check for beta users - checks both channels and picks the higher version
@@ -7008,13 +7066,18 @@ async function smartCheckForUpdates(): Promise<void> {
 
   try {
     const [stableVersion, betaVersion] = await Promise.all([
-      fetchChannelVersion("latest"),
-      fetchChannelVersion("beta"),
+      fetchChannelVersionWithRetry("latest"),
+      fetchChannelVersionWithRetry("beta"),
     ]);
 
     console.log(
       `[AutoUpdater] Stable version: ${stableVersion || "none"}, Beta version: ${betaVersion || "none"}`,
     );
+
+    // Check if we got at least one version
+    if (!stableVersion && !betaVersion) {
+      throw new Error("Failed to fetch version information from both channels");
+    }
 
     // Determine which channel has the higher version
     let useChannel: "latest" | "beta" = "latest";
@@ -7028,8 +7091,10 @@ async function smartCheckForUpdates(): Promise<void> {
       );
     } else if (betaVersion && !stableVersion) {
       useChannel = "beta";
+      console.log("[AutoUpdater] No stable version found, using beta channel");
     } else {
       useChannel = "latest";
+      console.log("[AutoUpdater] No beta version found, using latest channel");
     }
 
     // Set the channel and check for updates
@@ -7040,13 +7105,20 @@ async function smartCheckForUpdates(): Promise<void> {
     console.log(`[AutoUpdater] Checking ${useChannel} channel for updates`);
     await autoUpdater.checkForUpdates();
   } catch (err) {
-    console.warn(
-      "[AutoUpdater] Smart check failed, falling back to latest channel:",
-      err,
-    );
-    autoUpdater.channel = "latest";
-    autoUpdater.allowPrerelease = false;
-    await autoUpdater.checkForUpdates();
+    console.error("[AutoUpdater] Smart check failed:", err);
+
+    // Show user-friendly error dialog
+    dialog.showMessageBox({
+      type: "warning",
+      title: "Update Check Failed",
+      message: "Unable to check for updates",
+      detail:
+        "Please check your internet connection and try again later.\n\n" +
+        `Error: ${err instanceof Error ? err.message : String(err)}`,
+      buttons: ["OK"],
+    });
+
+    // Don't fall back to checking - let user retry manually
   }
 }
 
