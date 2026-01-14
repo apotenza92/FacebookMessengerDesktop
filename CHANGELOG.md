@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.2.2-beta.2] - 2026-01-14
+
+### Added
+- **Side-by-side installation**: Beta and stable versions can now be installed simultaneously on all platforms
+  - Different app identifiers: `com.facebook.messenger.desktop` (stable) vs `com.facebook.messenger.desktop.beta` (beta)
+  - Separate user data directories: `Messenger` vs `Messenger-Beta`
+  - Separate Homebrew casks: `facebook-messenger-desktop` vs `facebook-messenger-desktop-beta`
+  - Different Linux packages: `facebook-messenger-desktop` vs `facebook-messenger-desktop-beta`
+  - **Orange app icon** for beta to visually distinguish from stable (blue) version
+
 ## [1.2.2-beta.1] - 2026-01-14
 
 ### Fixed

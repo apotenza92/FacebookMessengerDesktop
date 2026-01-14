@@ -2,6 +2,11 @@ const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 
+// Get build configuration from package.json version
+const packageJson = require('../package.json');
+const version = packageJson.version;
+const isBeta = version.includes('-beta') || version.includes('-alpha') || version.includes('-rc');
+
 /**
  * electron-builder afterPack hook
  * - Adds an instructional text file alongside the .app bundle for macOS
@@ -13,19 +18,20 @@ exports.default = async function afterPack(context) {
   }
 
   const appOutDir = context.appOutDir;
+  const appDisplayName = isBeta ? 'Messenger Beta' : 'Messenger';
   
   // Create install instructions
-  const fileName = 'Drag Messenger to Applications folder.txt';
+  const fileName = `Drag ${appDisplayName} to Applications folder.txt`;
   const filePath = path.join(appOutDir, fileName);
 
-  const content = `To install Messenger:
+  const content = `To install ${appDisplayName}:
 
 1. Open your Applications folder (Cmd + Shift + A in Finder)
-2. Drag "Messenger.app" from this folder into Applications
+2. Drag "${appDisplayName}.app" from this folder into Applications
 3. Eject or delete this folder
-4. Launch Messenger from Applications
+4. Launch ${appDisplayName} from Applications
 
-Messenger works best when installed in your Applications folder.
+${appDisplayName} works best when installed in your Applications folder.
 Auto-updates and macOS integration require the app to be in Applications.
 `;
 
@@ -80,6 +86,11 @@ async function compileNotificationHelper(context) {
     
     // Create Info.plist for the mini app bundle
     // This is required for UNUserNotificationCenter to work
+    // Use beta bundle ID if building beta version
+    const helperBundleId = isBeta
+      ? 'com.facebook.messenger.desktop.beta.notification-helper'
+      : 'com.facebook.messenger.desktop.notification-helper';
+    
     const infoPlist = `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -87,7 +98,7 @@ async function compileNotificationHelper(context) {
     <key>CFBundleExecutable</key>
     <string>NotificationHelper</string>
     <key>CFBundleIdentifier</key>
-    <string>com.facebook.messenger.desktop.notification-helper</string>
+    <string>${helperBundleId}</string>
     <key>CFBundleName</key>
     <string>NotificationHelper</string>
     <key>CFBundlePackageType</key>

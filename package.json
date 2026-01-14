@@ -1,6 +1,6 @@
 {
   "name": "facebook-messenger-desktop",
-  "version": "1.2.2-beta.1",
+  "version": "1.2.2-beta.2",
   "description": "An unofficial, self-contained desktop app for Facebook Messenger",
   "main": "dist/main/main.js",
   "scripts": {
@@ -9,17 +9,17 @@
     "start": "npm run build && node scripts/dev.js",
     "start:reset": "node scripts/reset-userdata.js && npm run build && node scripts/dev.js --reset-window",
     "generate-icons": "node scripts/generate-icons.js",
-    "dist": "npm run build && electron-builder --publish=never",
-    "dist:mac": "npm run build && electron-builder --mac --arm64 --x64 --publish=never",
-    "dist:mac:arm": "npm run build && electron-builder --mac --arm64 --publish=never",
-    "dist:mac:x64": "npm run build && electron-builder --mac --x64 --publish=never",
-    "dist:win": "npm run build && electron-builder --win --arm64 --x64 --publish=never",
-    "dist:win:arm": "npm run build && electron-builder --win --arm64 --publish=never",
-    "dist:win:x64": "npm run build && electron-builder --win --x64 --publish=never",
-    "dist:linux": "npm run build && electron-builder --linux --publish=never",
-    "dist:linux:arm": "npm run build && electron-builder --linux --arm64 --publish=never",
-    "dist:linux:x64": "npm run build && electron-builder --linux --x64 --publish=never",
-    "dist:all": "npm run build && electron-builder --mac --win --linux --publish=never"
+    "dist": "npm run build && electron-builder --config electron-builder.config.js --publish=never",
+    "dist:mac": "npm run build && electron-builder --config electron-builder.config.js --mac --arm64 --x64 --publish=never",
+    "dist:mac:arm": "npm run build && electron-builder --config electron-builder.config.js --mac --arm64 --publish=never",
+    "dist:mac:x64": "npm run build && electron-builder --config electron-builder.config.js --mac --x64 --publish=never",
+    "dist:win": "npm run build && electron-builder --config electron-builder.config.js --win --arm64 --x64 --publish=never",
+    "dist:win:arm": "npm run build && electron-builder --config electron-builder.config.js --win --arm64 --publish=never",
+    "dist:win:x64": "npm run build && electron-builder --config electron-builder.config.js --win --x64 --publish=never",
+    "dist:linux": "npm run build && electron-builder --config electron-builder.config.js --linux --publish=never",
+    "dist:linux:arm": "npm run build && electron-builder --config electron-builder.config.js --linux --arm64 --publish=never",
+    "dist:linux:x64": "npm run build && electron-builder --config electron-builder.config.js --linux --x64 --publish=never",
+    "dist:all": "npm run build && electron-builder --config electron-builder.config.js --mac --win --linux --publish=never"
   },
   "keywords": [
     "messenger",
@@ -47,140 +47,5 @@
     "png-to-ico": "^2.1.8",
     "sharp": "0.33.5",
     "typescript": "^5.3.3"
-  },
-  "build": {
-    "appId": "com.facebook.messenger.desktop",
-    "productName": "Messenger",
-    "afterPack": "./scripts/after-pack.js",
-    "publish": [
-      {
-        "provider": "github",
-        "owner": "apotenza92",
-        "repo": "FacebookMessengerDesktop"
-      }
-    ],
-    "directories": {
-      "output": "release"
-    },
-    "files": [
-      "dist/**/*",
-      "assets/icons/**/*",
-      "assets/tray/**/*",
-      "scripts/fix-windows-shortcuts.ps1"
-    ],
-    "asar": true,
-    "compression": "maximum",
-    "asarUnpack": [
-      "assets/icons/linux/**/*"
-    ],
-    "mac": {
-      "category": "public.app-category.social-networking",
-      "target": "zip",
-      "icon": "assets/icons/icon.icns",
-      "entitlements": "entitlements.mac.plist",
-      "entitlementsInherit": "entitlements.mac.plist",
-      "notarize": {
-        "teamId": "27JL2VERNC"
-      },
-      "artifactName": "Messenger-macos-${arch}.${ext}",
-      "extendInfo": {
-        "NSCameraUsageDescription": "Messenger needs access to your camera for video calls.",
-        "NSMicrophoneUsageDescription": "Messenger needs access to your microphone for audio and video calls.",
-        "NSScreenCaptureUsageDescription": "Messenger needs access to screen recording to share your screen during calls."
-      }
-    },
-    "win": {
-      "target": [
-        "nsis"
-      ],
-      "icon": "assets/icons/icon.ico",
-      "artifactName": "Messenger-windows-${arch}-setup.${ext}"
-    },
-    "nsis": {
-      "oneClick": true,
-      "perMachine": false,
-      "differentialPackage": false,
-      "shortcutName": "Messenger",
-      "deleteAppDataOnUninstall": true,
-      "include": "scripts/uninstaller.nsh",
-      "installerIcon": "assets/icons/icon.ico",
-      "uninstallerIcon": "assets/icons/icon.ico"
-    },
-    "linux": {
-      "target": [
-        {
-          "target": "AppImage",
-          "arch": [
-            "x64",
-            "arm64"
-          ]
-        },
-        {
-          "target": "deb",
-          "arch": [
-            "x64",
-            "arm64"
-          ]
-        },
-        {
-          "target": "rpm",
-          "arch": [
-            "x64",
-            "arm64"
-          ]
-        },
-        {
-          "target": "flatpak",
-          "arch": [
-            "x64"
-          ]
-        }
-      ],
-      "category": "Network",
-      "icon": "assets/icons/linux",
-      "executableName": "facebook-messenger-desktop",
-      "desktop": {
-        "Name": "Messenger",
-        "Comment": "Unofficial desktop client for Facebook Messenger",
-        "Categories": "Network;InstantMessaging;Chat;",
-        "StartupWMClass": "Messenger",
-        "Icon": "facebook-messenger-desktop"
-      }
-    },
-    "appImage": {
-      "artifactName": "facebook-messenger-desktop-${arch}.${ext}"
-    },
-    "deb": {
-      "packageName": "facebook-messenger-desktop",
-      "artifactName": "facebook-messenger-desktop-${arch}.${ext}",
-      "afterInstall": "scripts/linux-after-install.sh",
-      "afterRemove": "scripts/linux-after-remove.sh"
-    },
-    "rpm": {
-      "packageName": "facebook-messenger-desktop",
-      "artifactName": "facebook-messenger-desktop-${arch}.${ext}",
-      "afterInstall": "scripts/linux-after-install.sh",
-      "afterRemove": "scripts/linux-after-remove.sh"
-    },
-    "flatpak": {
-      "artifactName": "facebook-messenger-desktop-${arch}.${ext}",
-      "runtimeVersion": "24.08",
-      "runtime": "org.freedesktop.Platform",
-      "sdk": "org.freedesktop.Sdk",
-      "base": "org.electronjs.Electron2.BaseApp",
-      "baseVersion": "24.08",
-      "finishArgs": [
-        "--socket=wayland",
-        "--socket=fallback-x11",
-        "--share=ipc",
-        "--socket=pulseaudio",
-        "--share=network",
-        "--device=dri",
-        "--device=all",
-        "--talk-name=org.freedesktop.Notifications",
-        "--talk-name=org.kde.StatusNotifierWatcher",
-        "--filesystem=xdg-download"
-      ]
-    }
   }
 }

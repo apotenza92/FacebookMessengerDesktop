@@ -73,6 +73,7 @@ try {
 }
 
 const svgPath = path.join(__dirname, '../assets/icons/messenger-icon.svg');
+const betaSvgPath = path.join(__dirname, '../assets/icons/messenger-icon-beta.svg');
 const trayDir = path.join(__dirname, '../assets/tray');
 const dmgDir = path.join(__dirname, '../assets/dmg');
 
@@ -83,8 +84,12 @@ const DMG_WINDOW_HEIGHT = 420;
 const LIGHT_BG_COLOR = 'white';
 const DARK_BG_COLOR = '#2d2d2d'; // Very dark grey - matches dark mode UIs
 
+// Beta icons directories
+const betaIconsDir = path.join(iconsDir, 'beta');
+const betaTrayDir = path.join(__dirname, '../assets/tray/beta');
+
 // Ensure directories exist
-[iconsDir, trayDir, dmgDir].forEach(dir => {
+[iconsDir, trayDir, dmgDir, betaIconsDir, betaTrayDir].forEach(dir => {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
@@ -577,6 +582,164 @@ async function generateIcons() {
       }
     } else {
       console.log('⚠ Dark ICNS generation skipped (requires macOS). Use an online converter if needed.');
+    }
+
+    // ===== BETA ICONS (Orange) =====
+    console.log('\n=== Generating Beta Icons (Orange) ===');
+    
+    // Check if beta SVG exists
+    if (!fs.existsSync(betaSvgPath)) {
+      console.log('⚠ Beta SVG not found, skipping beta icons');
+    } else {
+      const betaSvgBuffer = fs.readFileSync(betaSvgPath);
+      
+      // Beta directories
+      const betaLinuxIconsDir = path.join(betaIconsDir, 'linux');
+      const betaIcoRoundedDir = path.join(betaIconsDir, 'ico-rounded');
+      const betaIconsetDir = path.join(betaIconsDir, 'icon.iconset');
+      const betaDarkIconsDir = path.join(betaIconsDir, 'dark');
+      const betaDarkLinuxIconsDir = path.join(betaDarkIconsDir, 'linux');
+      const betaDarkIcoRoundedDir = path.join(betaDarkIconsDir, 'ico-rounded');
+      const betaDarkIconsetDir = path.join(betaDarkIconsDir, 'icon.iconset');
+      const betaDarkTrayDir = path.join(betaTrayDir, 'dark');
+      
+      [betaIconsDir, betaLinuxIconsDir, betaIcoRoundedDir, betaIconsetDir, 
+       betaDarkIconsDir, betaDarkLinuxIconsDir, betaDarkIcoRoundedDir, betaDarkIconsetDir,
+       betaTrayDir, betaDarkTrayDir].forEach(dir => {
+        if (!fs.existsSync(dir)) {
+          fs.mkdirSync(dir, { recursive: true });
+        }
+      });
+      
+      // Generate beta base PNGs (light mode)
+      console.log('Generating beta PNG icons...');
+      for (const size of generalPngSizes) {
+        await generateIconWithBackground(betaSvgBuffer, size, path.join(betaIconsDir, `icon-${size}.png`), LIGHT_BG_COLOR);
+      }
+      
+      // Generate beta rounded 512px icon
+      console.log('Generating beta rounded icon...');
+      await generateMacOSIcon(betaSvgBuffer, 512, path.join(betaIconsDir, 'icon.png'), macOSBgScale, macOSLogoScale, LIGHT_BG_COLOR);
+      await generateMacOSIcon(betaSvgBuffer, 512, path.join(betaIconsDir, 'icon-rounded.png'), macOSBgScale, macOSLogoScale, LIGHT_BG_COLOR);
+      
+      // Generate beta Linux icons
+      console.log('Generating beta Linux icons...');
+      for (const size of linuxIconSizes) {
+        await generateLinuxIcon(betaSvgBuffer, size, path.join(betaLinuxIconsDir, `${size}x${size}.png`), linuxBgScale, linuxLogoScale, LIGHT_BG_COLOR);
+      }
+      
+      // Generate beta rounded PNGs for Windows ICO
+      console.log('Generating beta rounded PNGs for Windows ICO...');
+      for (const size of icoFrameSizes) {
+        await generateIconWithRoundedBackground(betaSvgBuffer, size, path.join(betaIcoRoundedDir, `icon-${size}.png`), 0.8, LIGHT_BG_COLOR);
+      }
+      
+      // Generate beta Windows ICO
+      console.log('Generating beta Windows ICO...');
+      const betaIcoPngPaths = icoFrameSizes.map(size => path.join(betaIcoRoundedDir, `icon-${size}.png`));
+      const betaIcoBuffer = await pngToIco(betaIcoPngPaths);
+      await fs.promises.writeFile(path.join(betaIconsDir, 'icon.ico'), betaIcoBuffer);
+      
+      // Generate beta tray icons
+      console.log('Generating beta tray icons...');
+      await generateIconWithBackground(betaSvgBuffer, 22, path.join(betaTrayDir, 'icon.png'), LIGHT_BG_COLOR);
+      await generateIconWithRoundedBackground(betaSvgBuffer, 22, path.join(betaTrayDir, 'icon-rounded.png'), 0.85, LIGHT_BG_COLOR);
+      await generateIconWithBackground(betaSvgBuffer, 22, path.join(betaTrayDir, 'iconTemplate.png'), LIGHT_BG_COLOR);
+      
+      // Beta Windows tray ICO
+      console.log('Generating beta Windows tray ICO...');
+      const betaTrayIcoPngs = [];
+      for (const size of trayIcoSizes) {
+        const pngPath = path.join(betaTrayDir, `icon-${size}.png`);
+        await generateIconWithRoundedBackground(betaSvgBuffer, size, pngPath, 0.8, LIGHT_BG_COLOR);
+        betaTrayIcoPngs.push(pngPath);
+      }
+      const betaTrayIcoBuffer = await pngToIco(betaTrayIcoPngs);
+      await fs.promises.writeFile(path.join(betaTrayDir, 'icon.ico'), betaTrayIcoBuffer);
+      for (const pngPath of betaTrayIcoPngs) {
+        fs.unlinkSync(pngPath);
+      }
+      
+      // Generate beta macOS iconset
+      console.log('Generating beta macOS iconset...');
+      for (const { name, size } of iconsetSizes) {
+        await generateMacOSIcon(betaSvgBuffer, size, path.join(betaIconsetDir, name), macOSBgScale, macOSLogoScale, LIGHT_BG_COLOR);
+      }
+      
+      // Generate beta ICNS file
+      if (process.platform === 'darwin') {
+        console.log('Generating beta ICNS file...');
+        try {
+          execSync(`iconutil -c icns "${betaIconsetDir}" -o "${path.join(betaIconsDir, 'icon.icns')}"`, {
+            stdio: 'inherit'
+          });
+          console.log('✓ Beta ICNS file generated successfully!');
+        } catch (error) {
+          console.warn('⚠ Could not generate beta ICNS file.');
+        }
+      }
+      
+      // ===== BETA DARK MODE ICONS =====
+      console.log('\nGenerating beta dark mode icons...');
+      
+      // Generate beta dark base PNGs
+      for (const size of generalPngSizes) {
+        await generateIconWithBackground(betaSvgBuffer, size, path.join(betaDarkIconsDir, `icon-${size}.png`), DARK_BG_COLOR);
+      }
+      
+      // Generate beta dark rounded icon
+      await generateMacOSIcon(betaSvgBuffer, 512, path.join(betaDarkIconsDir, 'icon.png'), macOSBgScale, macOSLogoScale, DARK_BG_COLOR);
+      await generateMacOSIcon(betaSvgBuffer, 512, path.join(betaDarkIconsDir, 'icon-rounded.png'), macOSBgScale, macOSLogoScale, DARK_BG_COLOR);
+      
+      // Generate beta dark Linux icons
+      for (const size of linuxIconSizes) {
+        await generateLinuxIcon(betaSvgBuffer, size, path.join(betaDarkLinuxIconsDir, `${size}x${size}.png`), linuxBgScale, linuxLogoScale, DARK_BG_COLOR);
+      }
+      
+      // Generate beta dark Windows ICO
+      for (const size of icoFrameSizes) {
+        await generateIconWithRoundedBackground(betaSvgBuffer, size, path.join(betaDarkIcoRoundedDir, `icon-${size}.png`), 0.8, DARK_BG_COLOR);
+      }
+      const betaDarkIcoPngPaths = icoFrameSizes.map(size => path.join(betaDarkIcoRoundedDir, `icon-${size}.png`));
+      const betaDarkIcoBuffer = await pngToIco(betaDarkIcoPngPaths);
+      await fs.promises.writeFile(path.join(betaDarkIconsDir, 'icon.ico'), betaDarkIcoBuffer);
+      
+      // Generate beta dark tray icons
+      await generateIconWithBackground(betaSvgBuffer, 22, path.join(betaDarkTrayDir, 'icon.png'), DARK_BG_COLOR);
+      await generateIconWithRoundedBackground(betaSvgBuffer, 22, path.join(betaDarkTrayDir, 'icon-rounded.png'), 0.85, DARK_BG_COLOR);
+      
+      // Beta dark Windows tray ICO
+      const betaDarkTrayIcoPngs = [];
+      for (const size of trayIcoSizes) {
+        const pngPath = path.join(betaDarkTrayDir, `icon-${size}.png`);
+        await generateIconWithRoundedBackground(betaSvgBuffer, size, pngPath, 0.8, DARK_BG_COLOR);
+        betaDarkTrayIcoPngs.push(pngPath);
+      }
+      const betaDarkTrayIcoBuffer = await pngToIco(betaDarkTrayIcoPngs);
+      await fs.promises.writeFile(path.join(betaDarkTrayDir, 'icon.ico'), betaDarkTrayIcoBuffer);
+      for (const pngPath of betaDarkTrayIcoPngs) {
+        fs.unlinkSync(pngPath);
+      }
+      
+      // Generate beta dark macOS iconset
+      for (const { name, size } of iconsetSizes) {
+        await generateMacOSIcon(betaSvgBuffer, size, path.join(betaDarkIconsetDir, name), macOSBgScale, macOSLogoScale, DARK_BG_COLOR);
+      }
+      
+      // Generate beta dark ICNS file
+      if (process.platform === 'darwin') {
+        console.log('Generating beta dark ICNS file...');
+        try {
+          execSync(`iconutil -c icns "${betaDarkIconsetDir}" -o "${path.join(betaDarkIconsDir, 'icon.icns')}"`, {
+            stdio: 'inherit'
+          });
+          console.log('✓ Beta dark ICNS file generated successfully!');
+        } catch (error) {
+          console.warn('⚠ Could not generate beta dark ICNS file.');
+        }
+      }
+      
+      console.log('✓ Beta icons generated successfully!');
     }
 
     console.log('\n✓ All icons generated successfully!');

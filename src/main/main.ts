@@ -183,9 +183,13 @@ const isBetaVersion =
   appVersion.includes("-rc");
 
 // Set app name early and explicitly pin userData/log paths so they don't default to the package name
-// Use separate folder for dev mode so it doesn't interfere with production installs
-// Beta versions show "Messenger Beta" in dock/taskbar/about
-const APP_DIR_NAME = isDev ? "Messenger-Dev" : "Messenger";
+// Use separate folder for dev mode and beta so they don't interfere with each other
+// This allows stable and beta versions to be installed side-by-side
+const APP_DIR_NAME = isDev
+  ? "Messenger-Dev"
+  : isBetaVersion
+    ? "Messenger-Beta"
+    : "Messenger";
 const APP_DISPLAY_NAME = isDev
   ? "Messenger Dev"
   : isBetaVersion
@@ -194,8 +198,12 @@ const APP_DISPLAY_NAME = isDev
 app.setName(APP_DISPLAY_NAME);
 
 // Set AppUserModelId for Windows taskbar icon and grouping (must be set before app is ready)
+// Use different ID for beta to allow side-by-side installation
 if (process.platform === "win32") {
-  app.setAppUserModelId("com.facebook.messenger.desktop");
+  const appModelId = isBetaVersion
+    ? "com.facebook.messenger.desktop.beta"
+    : "com.facebook.messenger.desktop";
+  app.setAppUserModelId(appModelId);
 }
 
 const userDataPath = path.join(app.getPath("appData"), APP_DIR_NAME);
@@ -1609,8 +1617,17 @@ function shouldUseDarkIcon(): boolean {
 }
 
 function getIconSubdir(): string {
-  // Returns 'dark' or '' (empty for light/default icons)
-  return shouldUseDarkIcon() ? "dark" : "";
+  // Returns the appropriate icon subdirectory based on:
+  // 1. Beta version (uses orange icons from 'beta/' subdirectory)
+  // 2. Dark mode preference (uses icons from 'dark/' subdirectory)
+  // Combines to: '', 'dark', 'beta', or 'beta/dark'
+  const betaPrefix = isBetaVersion ? "beta" : "";
+  const darkSuffix = shouldUseDarkIcon() ? "dark" : "";
+
+  if (betaPrefix && darkSuffix) {
+    return path.join(betaPrefix, darkSuffix);
+  }
+  return betaPrefix || darkSuffix;
 }
 
 function applyCurrentIconTheme(): void {
@@ -3771,7 +3788,10 @@ function getWindowIcon(): Electron.NativeImage | undefined {
 function getTrayIconPath(): string | undefined {
   const trayDir = path.join(app.getAppPath(), "assets", "tray");
   const devTrayDir = path.join(process.cwd(), "assets", "tray");
-  const subdir = getIconSubdir();
+
+  // Beta uses orange icons from 'beta/' subdirectory
+  const betaPrefix = isBetaVersion ? "beta" : "";
+  const darkSuffix = shouldUseDarkIcon() ? "dark" : "";
 
   // macOS uses template icons (always same), Windows/Linux use themed icons
   const platformIcon =
@@ -3783,13 +3803,36 @@ function getTrayIconPath(): string | undefined {
 
   const possiblePaths: string[] = [];
 
-  // For Windows/Linux, try dark icons first if in dark mode
-  // macOS uses template icons which don't need theming
-  if (subdir && process.platform !== "darwin") {
-    possiblePaths.push(
-      path.join(trayDir, subdir, platformIcon),
-      path.join(devTrayDir, subdir, platformIcon),
-    );
+  // For Windows/Linux, try themed icons first
+  // macOS uses template icons which don't need dark mode theming, but still need beta icons
+  if (process.platform === "darwin") {
+    // macOS: try beta tray icons first if beta
+    if (betaPrefix) {
+      possiblePaths.push(
+        path.join(trayDir, betaPrefix, platformIcon),
+        path.join(devTrayDir, betaPrefix, platformIcon),
+      );
+    }
+  } else {
+    // Windows/Linux: try beta/dark, beta, dark, then default
+    if (betaPrefix && darkSuffix) {
+      possiblePaths.push(
+        path.join(trayDir, betaPrefix, darkSuffix, platformIcon),
+        path.join(devTrayDir, betaPrefix, darkSuffix, platformIcon),
+      );
+    }
+    if (betaPrefix) {
+      possiblePaths.push(
+        path.join(trayDir, betaPrefix, platformIcon),
+        path.join(devTrayDir, betaPrefix, platformIcon),
+      );
+    }
+    if (darkSuffix) {
+      possiblePaths.push(
+        path.join(trayDir, darkSuffix, platformIcon),
+        path.join(devTrayDir, darkSuffix, platformIcon),
+      );
+    }
   }
 
   // Fallback to light/default icons
