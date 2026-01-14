@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.2.2-beta.5] - 2026-01-14
+
+### Fixed
+- **Update dialog**: Traffic light close button was oversized (inheriting generic button padding)
+- **Update dialog**: Markdown `**bold**` syntax now renders correctly in release notes
+
 ## [1.2.2-beta.4] - 2026-01-14
 
 ### Fixed
