@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.2.1-beta.2] - 2026-01-14
+
+### Fixed
+- Beta users not receiving beta updates (issue #34)
+  - Worked around electron-updater GitHub provider bug where allowPrerelease doesn't work
+  - Now queries GitHub API directly to find the correct release based on beta opt-in
+  - Beta users will now properly receive prerelease versions
+- Simplified Snap Store promotion in CI
+  - Uses `snapcraft promote` command instead of 90-minute polling loop
+  - Much faster and more reliable
+
 ## [1.2.1-beta.1] - 2026-01-14
 
 ### Improved

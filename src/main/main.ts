@@ -6743,19 +6743,144 @@ async function getChangelogForUpdate(
 const GITHUB_REPO_URL =
   "https://github.com/apotenza92/facebook-messenger-desktop";
 
-// Simple update check that respects beta opt-in using electron-updater's native prerelease support
+// GitHub API to find the right release based on beta opt-in
+// electron-updater's GitHub provider has a bug where allowPrerelease doesn't work
+// So we manually find the right release and set the feed URL
+async function findTargetRelease(
+  includePrereleases: boolean,
+): Promise<{ version: string; tagName: string } | null> {
+  return new Promise((resolve) => {
+    const options = {
+      hostname: "api.github.com",
+      path: "/repos/apotenza92/facebook-messenger-desktop/releases?per_page=20",
+      headers: {
+        "User-Agent": "electron-updater",
+        Accept: "application/vnd.github.v3+json",
+      },
+    };
+
+    https
+      .get(options, (res) => {
+        let data = "";
+        res.on("data", (chunk) => {
+          data += chunk;
+        });
+        res.on("end", () => {
+          try {
+            const releases = JSON.parse(data) as Array<{
+              tag_name: string;
+              prerelease: boolean;
+              draft: boolean;
+            }>;
+
+            // Filter out drafts
+            const published = releases.filter((r) => !r.draft);
+
+            // Find the best release based on user preference
+            let targetRelease = null;
+
+            if (includePrereleases) {
+              // Beta users: get the latest release (including prereleases)
+              // Compare versions to find highest
+              targetRelease = published.reduce(
+                (best, current) => {
+                  if (!best) return current;
+                  const bestVersion = best.tag_name.replace(/^v/, "");
+                  const currentVersion = current.tag_name.replace(/^v/, "");
+                  return compareVersions(currentVersion, bestVersion) > 0
+                    ? current
+                    : best;
+                },
+                null as (typeof published)[0] | null,
+              );
+            } else {
+              // Stable users: only consider non-prerelease
+              const stableReleases = published.filter((r) => !r.prerelease);
+              targetRelease = stableReleases.reduce(
+                (best, current) => {
+                  if (!best) return current;
+                  const bestVersion = best.tag_name.replace(/^v/, "");
+                  const currentVersion = current.tag_name.replace(/^v/, "");
+                  return compareVersions(currentVersion, bestVersion) > 0
+                    ? current
+                    : best;
+                },
+                null as (typeof stableReleases)[0] | null,
+              );
+            }
+
+            if (targetRelease) {
+              const version = targetRelease.tag_name.replace(/^v/, "");
+              console.log(
+                `[AutoUpdater] Found target release: ${targetRelease.tag_name} (prerelease: ${targetRelease.prerelease})`,
+              );
+              resolve({ version, tagName: targetRelease.tag_name });
+            } else {
+              console.log("[AutoUpdater] No suitable release found");
+              resolve(null);
+            }
+          } catch (e) {
+            console.error("[AutoUpdater] Failed to parse releases:", e);
+            resolve(null);
+          }
+        });
+        res.on("error", (err) => {
+          console.error("[AutoUpdater] Failed to fetch releases:", err);
+          resolve(null);
+        });
+      })
+      .on("error", (err) => {
+        console.error("[AutoUpdater] Request failed:", err);
+        resolve(null);
+      });
+  });
+}
+
+// Check for updates with proper beta channel support
+// Works around electron-updater's GitHub provider bug with allowPrerelease
 async function checkForUpdates(): Promise<void> {
   const isBeta = isBetaOptedIn();
-
-  // electron-updater's GitHub provider uses allowPrerelease to determine which releases to consider:
-  // - allowPrerelease = false: only non-prerelease GitHub releases
-  // - allowPrerelease = true: both prerelease and non-prerelease releases (picks highest version)
-  autoUpdater.allowPrerelease = isBeta;
-  autoUpdater.channel = "latest";
+  const currentVersion = app.getVersion();
 
   console.log(
-    `[AutoUpdater] Checking for updates (betaOptIn=${isBeta}, allowPrerelease=${autoUpdater.allowPrerelease})`,
+    `[AutoUpdater] Checking for updates (current: ${currentVersion}, betaOptIn: ${isBeta})`,
   );
+
+  // Find the target release based on beta preference
+  const targetRelease = await findTargetRelease(isBeta);
+
+  if (!targetRelease) {
+    console.log("[AutoUpdater] No releases found, skipping update check");
+    return;
+  }
+
+  // Check if target is newer than current
+  const comparison = compareVersions(targetRelease.version, currentVersion);
+  if (comparison <= 0) {
+    console.log(
+      `[AutoUpdater] Current version ${currentVersion} is up to date (latest: ${targetRelease.version})`,
+    );
+    // Still call checkForUpdates to trigger "update-not-available" event for manual checks
+    autoUpdater.allowPrerelease = isBeta;
+    await autoUpdater.checkForUpdates();
+    return;
+  }
+
+  console.log(
+    `[AutoUpdater] Update available: ${currentVersion} -> ${targetRelease.version}`,
+  );
+
+  // Set up autoUpdater to look at the specific release
+  // Use setFeedURL to point to a specific release URL pattern
+  autoUpdater.setFeedURL({
+    provider: "github",
+    owner: "apotenza92",
+    repo: "facebook-messenger-desktop",
+    // This tells electron-updater to consider this specific release
+  });
+
+  // Force allowPrerelease based on whether target is a prerelease
+  autoUpdater.allowPrerelease = targetRelease.version.includes("-");
 
   await autoUpdater.checkForUpdates();
 }
