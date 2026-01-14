@@ -7,6 +7,10 @@
   - Beta channel now receives stable releases through beta-branded installers
   - Preserves taskbar shortcuts, app ID, and user data when updating from beta to stable
   - Applies to Windows, macOS, and Linux (deb/rpm)
+- **Windows**: Uninstaller no longer affects the other app variant
+  - Beta uninstall won't kill stable process or remove stable shortcuts (and vice versa)
+  - Only removes shortcuts that point to the specific installation being uninstalled
+  - Correctly cleans up app data folder (Messenger-Beta vs Messenger)
 
 ## [1.2.2] - 2026-01-14
 

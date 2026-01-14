@@ -3,16 +3,16 @@
 ; Supports both stable (Messenger) and beta (Messenger Beta) builds
 
 ; Pre-init macro - runs BEFORE the app close check
-; This prevents the confusing "Messenger Beta cannot be closed" message when stable is running
-; (NSIS uses substring matching, so "Messenger" matches "Messenger Beta" installer)
+; Only kill the process for the app variant we're installing, not the other
+; This prevents beta install/uninstall from affecting stable and vice versa
 !macro preInit
-  ; Silently kill both stable and beta processes to prevent the confusing close dialog
-  ; The dialog shows the installer's product name, not the actual running process name
-  nsExec::ExecToStack 'taskkill /F /IM "Messenger.exe" /T'
+  ; electron-builder sets PRODUCT_NAME to "Messenger Beta" or "Messenger"
+  ; We use taskkill with the exact process name to avoid killing the wrong app
+  ; Note: "Messenger.exe" won't match "Messenger Beta.exe" with exact /IM matching
+  nsExec::ExecToStack 'taskkill /F /IM "${PRODUCT_NAME}.exe" /T'
   Pop $0
-  nsExec::ExecToStack 'taskkill /F /IM "Messenger Beta.exe" /T'
-  Pop $0
-  ; Give processes time to fully exit
+  
+  ; Give process time to fully exit
   Sleep 1000
 !macroend
 
@@ -200,44 +200,48 @@
 !macroend
 
 !macro customUnInstall
-  ; Determine if this is a beta or stable uninstall based on install directory
-  ; Beta installs to "Messenger Beta", stable to "Messenger"
-  StrCpy $1 $INSTDIR "" -4  ; Get last 4 chars
-  StrCmp $1 "Beta" 0 +3
-    StrCpy $2 "Messenger Beta.exe"  ; Beta exe name
-    Goto +2
-    StrCpy $2 "Messenger.exe"  ; Stable exe name
-  
-  ; Kill the appropriate Messenger process
-  nsExec::ExecToStack 'taskkill /F /IM "$2" /T'
+  ; Kill only the process for the app we're uninstalling
+  ; electron-builder sets PRODUCT_NAME appropriately
+  nsExec::ExecToStack 'taskkill /F /IM "${PRODUCT_NAME}.exe" /T'
   Pop $0
   Sleep 2000
   
-  ; Remove taskbar shortcuts - be more careful to only remove the right ones
-  ; Check if beta uninstall (INSTDIR ends with "Messenger Beta")
-  StrCmp $1 "Beta" 0 +3
-    nsExec::ExecToStack 'cmd.exe /c del /q "%APPDATA%\Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar\*Messenger Beta*.lnk" 2>nul'
-    Goto +2
-    nsExec::ExecToStack 'cmd.exe /c for %f in ("%APPDATA%\Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar\*Messenger*.lnk") do @echo %f | findstr /V /I "Beta" >nul && del /q "%f"'
+  ; Use PowerShell to remove only shortcuts that point to this specific installation
+  ; This prevents beta uninstall from removing stable shortcuts and vice versa
+  nsExec::ExecToStack 'powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "\
+    $$instDir = ''$INSTDIR''; \
+    $$locations = @( \
+      $$env:APPDATA + ''\Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar'', \
+      $$env:APPDATA + ''\Microsoft\Internet Explorer\Quick Launch\User Pinned\StartMenu'', \
+      $$env:APPDATA + ''\Microsoft\Windows\Start Menu\Programs'', \
+      $$env:USERPROFILE + ''\Desktop'' \
+    ); \
+    $$shell = New-Object -ComObject WScript.Shell; \
+    foreach ($$loc in $$locations) { \
+      if (Test-Path $$loc) { \
+        Get-ChildItem $$loc -Filter ''*.lnk'' -ErrorAction SilentlyContinue | ForEach-Object { \
+          try { \
+            $$target = $$shell.CreateShortcut($$_.FullName).TargetPath; \
+            if ($$target -like ($$instDir + ''*'')) { \
+              Remove-Item $$_.FullName -Force -ErrorAction SilentlyContinue \
+            } \
+          } catch {} \
+        } \
+      } \
+    }"'
   Pop $0
   
-  ; Remove Start Menu pins - same logic
-  StrCmp $1 "Beta" 0 +3
-    nsExec::ExecToStack 'cmd.exe /c del /q "%APPDATA%\Microsoft\Internet Explorer\Quick Launch\User Pinned\StartMenu\*Messenger Beta*.lnk" 2>nul'
-    Goto +2
-    nsExec::ExecToStack 'cmd.exe /c for %f in ("%APPDATA%\Microsoft\Internet Explorer\Quick Launch\User Pinned\StartMenu\*Messenger*.lnk") do @echo %f | findstr /V /I "Beta" >nul && del /q "%f"'
+  ; Clean up app data - the folder name uses hyphen for beta, not space
+  ; PRODUCT_NAME is "Messenger Beta" but the folder is "Messenger-Beta"
+  ; For stable, both are just "Messenger"
+  ; Use PowerShell to handle this correctly
+  nsExec::ExecToStack 'powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "\
+    $$productName = ''${PRODUCT_NAME}''; \
+    $$folderName = $$productName -replace '' '', ''-''; \
+    $$appDataPath = Join-Path $$env:LOCALAPPDATA $$folderName; \
+    $$tempPath = Join-Path $$env:TEMP $$productName; \
+    if (Test-Path $$appDataPath) { Remove-Item $$appDataPath -Recurse -Force -ErrorAction SilentlyContinue }; \
+    if (Test-Path $$tempPath) { Remove-Item $$tempPath -Recurse -Force -ErrorAction SilentlyContinue }"'
   Pop $0
-  
-  ; Clean up LOCALAPPDATA - use correct folder
-  StrCmp $1 "Beta" 0 +3
-    RMDir /r "$LOCALAPPDATA\Messenger-Beta"
-    Goto +2
-    RMDir /r "$LOCALAPPDATA\Messenger"
-  
-  ; Clean up temp files
-  StrCmp $1 "Beta" 0 +3
-    RMDir /r "$TEMP\Messenger Beta"
-    Goto +2
-    RMDir /r "$TEMP\Messenger"
 !macroend
 
