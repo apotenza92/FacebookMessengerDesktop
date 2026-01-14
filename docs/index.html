@@ -1826,17 +1826,20 @@
                      formatNote.innerHTML = `<div style="margin-bottom: 0.6rem;">${formatData.note}</div><button id="switch-to-stable-btn" style="display: inline-flex; align-items: center; gap: 0.5rem; background: #0084ff; color: white; padding: 0.5rem 1rem; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; font-size: 0.8rem; transition: all 0.2s ease;" onmouseover="this.style.background='#0073e6'" onmouseout="this.style.background='#0084ff'">Switch to Stable</button>`;
                      // Add event listener for the switch button
                      const switchBtn = document.getElementById("switch-to-stable-btn");
-                     if (switchBtn) {
-                         switchBtn.addEventListener("click", () => {
-                             currentChannel = "stable";
-                             updateChannelDisplay();
-                             // Re-select platform to refresh with stable builds
-                             if (currentPlatform) {
-                                 selectPlatform(currentPlatform);
-                             }
-                             setTimeout(updateConnectors, 0);
-                         });
-                     }
+                      if (switchBtn) {
+                          switchBtn.addEventListener("click", () => {
+                              // Save current Linux format before switching
+                              const savedFormat = currentLinuxFormat;
+                              currentChannel = "stable";
+                              updateChannelDisplay();
+                              // Re-select platform to refresh with stable builds
+                              if (currentPlatform) {
+                                  selectPlatform(currentPlatform);
+                              }
+                              // Restore the previously selected format (flatpak in this case)
+                              setLinuxFormat(savedFormat);
+                          });
+                      }
                 } else {
                     formatNote.style.display = "none";
                     commandSection.style.display = "block";
