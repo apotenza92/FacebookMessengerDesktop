@@ -5267,7 +5267,7 @@ function createApplicationMenu(): void {
                 type: "info",
                 title: "No Updates Available",
                 message: "You're up to date!",
-                detail: "Messenger is running the latest version.",
+                detail: `${APP_DISPLAY_NAME} is running the latest version.`,
                 buttons: ["OK"],
               })
               .catch(() => {});
@@ -7569,10 +7569,10 @@ async function showCustomUpdateDialog(
   
   <div class="container">
     <div class="icon">
-      ${iconBase64 ? `<img src="${iconBase64}" alt="Messenger">` : ""}
+      ${iconBase64 ? `<img src="${iconBase64}" alt="${APP_DISPLAY_NAME}">` : ""}
     </div>
     
-    <div class="title">Update Available</div>
+    <div class="title">${APP_DISPLAY_NAME} Update</div>
     <div class="version">Version ${version} is available</div>
     
     <div class="changelog-container">
@@ -7974,9 +7974,9 @@ async function showUpdateAvailableDialog(version: string): Promise<void> {
 async function showUpdateReadyDialog(version: string): Promise<void> {
   const result = await dialog.showMessageBox({
     type: "info",
-    title: "Update Ready",
+    title: `${APP_DISPLAY_NAME} Update Ready`,
     message: "Update downloaded successfully",
-    detail: `Version ${version} has been downloaded. Restart now to apply the update.`,
+    detail: `${APP_DISPLAY_NAME} version ${version} has been downloaded. Restart now to apply the update.`,
     buttons: ["Restart Now", "Later"],
     defaultId: 0,
     cancelId: 1,
@@ -8081,7 +8081,7 @@ function setupAutoUpdater(): void {
           type: "info",
           title: "No Updates Available",
           message: "You're up to date!",
-          detail: "Messenger is running the latest version.",
+          detail: `${APP_DISPLAY_NAME} is running the latest version.`,
           buttons: ["OK"],
         })
         .catch(() => {});
