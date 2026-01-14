@@ -13,9 +13,11 @@ export interface NotificationData {
 export class NotificationHandler {
   private activeNotifications: Map<string, Notification> = new Map();
   private getMainWindow: () => BrowserWindow | null;
+  private appDisplayName: string;
 
-  constructor(getMainWindow: () => BrowserWindow | null) {
+  constructor(getMainWindow: () => BrowserWindow | null, appDisplayName: string = 'Messenger') {
     this.getMainWindow = getMainWindow;
+    this.appDisplayName = appDisplayName;
   }
 
   showNotification(data: NotificationData): void {
@@ -130,8 +132,8 @@ export class NotificationHandler {
     }
 
     const notification = new Notification({
-      title: 'Messenger',
-      body: 'Messenger is running in the background. Click the tray icon to open.',
+      title: this.appDisplayName,
+      body: `${this.appDisplayName} is running in the background. Click the tray icon to open.`,
       silent: true,
     });
 

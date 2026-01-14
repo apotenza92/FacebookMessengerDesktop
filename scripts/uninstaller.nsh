@@ -2,17 +2,26 @@
 ; This runs during install/update and uninstall
 ; Supports both stable (Messenger) and beta (Messenger Beta) builds
 
-; Custom install macro - runs after installation/update
-; Fixes the "Can't open this item" taskbar issue after updates on Windows 11
-; Key fix: Sets System.AppUserModel.ID property on shortcuts using Windows Shell API
-!macro customInstall
-  ; Wait for any existing Messenger process to fully exit
-  ; Kill both stable and beta processes to avoid conflicts
-  Sleep 1000
+; Pre-init macro - runs BEFORE the app close check
+; This prevents the confusing "Messenger Beta cannot be closed" message when stable is running
+; (NSIS uses substring matching, so "Messenger" matches "Messenger Beta" installer)
+!macro preInit
+  ; Silently kill both stable and beta processes to prevent the confusing close dialog
+  ; The dialog shows the installer's product name, not the actual running process name
   nsExec::ExecToStack 'taskkill /F /IM "Messenger.exe" /T'
   Pop $0
   nsExec::ExecToStack 'taskkill /F /IM "Messenger Beta.exe" /T'
   Pop $0
+  ; Give processes time to fully exit
+  Sleep 1000
+!macroend
+
+; Custom install macro - runs after installation/update
+; Fixes the "Can't open this item" taskbar issue after updates on Windows 11
+; Key fix: Sets System.AppUserModel.ID property on shortcuts using Windows Shell API
+!macro customInstall
+  ; Note: Process killing is now done in preInit to prevent confusing close dialog
+  ; Just wait a moment for any processes to fully exit
   Sleep 500
   
   ; Save the shortcut fix script to a temp file
@@ -191,23 +200,44 @@
 !macroend
 
 !macro customUnInstall
-  ; Kill Messenger if running
-  nsExec::ExecToStack 'taskkill /F /IM "Messenger.exe" /T'
+  ; Determine if this is a beta or stable uninstall based on install directory
+  ; Beta installs to "Messenger Beta", stable to "Messenger"
+  StrCpy $1 $INSTDIR "" -4  ; Get last 4 chars
+  StrCmp $1 "Beta" 0 +3
+    StrCpy $2 "Messenger Beta.exe"  ; Beta exe name
+    Goto +2
+    StrCpy $2 "Messenger.exe"  ; Stable exe name
+  
+  ; Kill the appropriate Messenger process
+  nsExec::ExecToStack 'taskkill /F /IM "$2" /T'
   Pop $0
   Sleep 2000
   
-  ; Remove taskbar shortcuts
-  nsExec::ExecToStack 'cmd.exe /c del /q "%APPDATA%\Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar\*Messenger*.lnk" 2>nul'
+  ; Remove taskbar shortcuts - be more careful to only remove the right ones
+  ; Check if beta uninstall (INSTDIR ends with "Messenger Beta")
+  StrCmp $1 "Beta" 0 +3
+    nsExec::ExecToStack 'cmd.exe /c del /q "%APPDATA%\Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar\*Messenger Beta*.lnk" 2>nul'
+    Goto +2
+    nsExec::ExecToStack 'cmd.exe /c for %f in ("%APPDATA%\Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar\*Messenger*.lnk") do @echo %f | findstr /V /I "Beta" >nul && del /q "%f"'
   Pop $0
   
-  ; Remove Start Menu pins
-  nsExec::ExecToStack 'cmd.exe /c del /q "%APPDATA%\Microsoft\Internet Explorer\Quick Launch\User Pinned\StartMenu\*Messenger*.lnk" 2>nul'
+  ; Remove Start Menu pins - same logic
+  StrCmp $1 "Beta" 0 +3
+    nsExec::ExecToStack 'cmd.exe /c del /q "%APPDATA%\Microsoft\Internet Explorer\Quick Launch\User Pinned\StartMenu\*Messenger Beta*.lnk" 2>nul'
+    Goto +2
+    nsExec::ExecToStack 'cmd.exe /c for %f in ("%APPDATA%\Microsoft\Internet Explorer\Quick Launch\User Pinned\StartMenu\*Messenger*.lnk") do @echo %f | findstr /V /I "Beta" >nul && del /q "%f"'
   Pop $0
   
-  ; Clean up LOCALAPPDATA
-  RMDir /r "$LOCALAPPDATA\Messenger"
+  ; Clean up LOCALAPPDATA - use correct folder
+  StrCmp $1 "Beta" 0 +3
+    RMDir /r "$LOCALAPPDATA\Messenger-Beta"
+    Goto +2
+    RMDir /r "$LOCALAPPDATA\Messenger"
   
   ; Clean up temp files
-  RMDir /r "$TEMP\Messenger"
+  StrCmp $1 "Beta" 0 +3
+    RMDir /r "$TEMP\Messenger Beta"
+    Goto +2
+    RMDir /r "$TEMP\Messenger"
 !macroend
 

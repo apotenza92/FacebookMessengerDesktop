@@ -1,5 +1,29 @@
 # Changelog
 
+## [1.2.2] - 2026-01-14
+
+### Added
+- **Side-by-side installation**: Beta and stable versions can now be installed simultaneously on all platforms
+- **Menu bar**: Default mode changed to "always visible" for new users
+
+### Fixed
+- **Windows**: Taskbar shortcut breaking after auto-update ("shortcut has been moved" error)
+- **Windows**: Beta installer no longer tries to close stable "Messenger.exe" (and vice versa)
+- **Windows/Linux**: Menu bar hover detection and F10 toggle behavior
+- **macOS**: Code signing failing due to Linux icon files being included
+- **Linux Snap**: Version stuck on 1.1.8
+- **Update dialog**: Traffic light close button sizing and markdown rendering
+
+### Improved
+- **Update notifications/dialogs**: "Messenger Beta" branding for beta users
+- **Snap promotion**: Runs every 6 hours via dedicated workflow
+- **Build config**: Platform-specific files only included for relevant builds
+- **Download page**: Various UI improvements including animated connectors
+
+### Changed
+- Renamed "Reset & Logout" menu item to "Logout and Reset App"
+- Consolidated release documentation into AGENTS.md
+
 ## [1.2.2-beta.6] - 2026-01-14
 
 ### Improved

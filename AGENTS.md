@@ -40,6 +40,8 @@ Tags trigger production releases to all users via GitHub Actions. Always ask and
 
 **Before any release**: Always ensure CHANGELOG.md is up to date with all changes for the version being released. Review recent commits and verify every user-facing change is documented.
 
+**Never delete released beta changelogs**: When creating a stable release, add a new stable entry summarizing the changes but keep all the individual beta version entries below it. Beta changelogs that have been published to users must be preserved for historical reference.
+
 ## Release Process
 
 ### How to Release

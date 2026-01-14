@@ -110,22 +110,27 @@ if (isDev) {
   try {
     const { execSync } = require("child_process");
     if (process.platform === "win32") {
-      // Kill production Messenger.exe (but not this Electron dev process)
-      // Look for Messenger.exe in Program Files or LocalAppData (installed locations)
+      // Kill both production Messenger.exe and Messenger Beta.exe (but not this Electron dev process)
       execSync(
         'taskkill /F /IM "Messenger.exe" /FI "WINDOWTITLE ne electron*"',
         { stdio: "ignore" },
       );
+      execSync(
+        'taskkill /F /IM "Messenger Beta.exe" /FI "WINDOWTITLE ne electron*"',
+        { stdio: "ignore" },
+      );
     } else if (process.platform === "darwin") {
-      // Kill production Messenger.app (but not this dev process)
-      // pkill with -f matches the full path, so we target /Applications/Messenger.app
+      // Kill both production Messenger.app and Messenger Beta.app (but not this dev process)
       execSync('pkill -f "/Applications/Messenger.app" || true', {
         stdio: "ignore",
       });
+      execSync('pkill -f "/Applications/Messenger Beta.app" || true', {
+        stdio: "ignore",
+      });
     } else {
-      // Linux: kill any Messenger process from installed location
+      // Linux: kill any Messenger process from installed location (both stable and beta)
       execSync(
-        'pkill -f "/opt/Messenger" || pkill -f "messenger-desktop" || true',
+        'pkill -f "/opt/Messenger" || pkill -f "messenger-desktop" || pkill -f "messenger-desktop-beta" || true',
         { stdio: "ignore" },
       );
     }
@@ -152,10 +157,11 @@ let isCreatingWindow = false; // Guard against race conditions during window cre
 let lastShowWindowTime = 0; // Debounce for showMainWindow to prevent double window on Linux
 let appReady = false; // Flag to indicate app is fully initialized (window created)
 let pendingShowWindow = false; // Queue second-instance events that arrive before app is ready
-let menuBarPermanentlyVisible = false; // Track if menu bar was toggled to be permanently visible
-let menuBarHoverTimeout: NodeJS.Timeout | null = null; // Timeout for hiding menu bar after mouse leaves
+type MenuBarMode = "always" | "hover" | "never";
+let menuBarMode: MenuBarMode = "always"; // Track menu bar visibility mode
+let menuBarHoverInterval: NodeJS.Timeout | null = null; // Interval for checking cursor position
 const overlayHeight = 32;
-const MENU_BAR_HOVER_ZONE = 10; // Pixels from top of content area to trigger menu bar show
+const MENU_BAR_HOVER_ZONE = 30; // Pixels from top of window to trigger menu bar show
 
 // Login flow state tracking - prevents redirect loops during authentication
 // Once user starts login, we don't redirect back to custom login page until they explicitly log out
@@ -224,6 +230,10 @@ const snapHelpShownFile = path.join(
   "snap-help-shown.json",
 );
 const iconThemeFile = path.join(app.getPath("userData"), "icon-theme.json");
+const menuBarHoverFile = path.join(
+  app.getPath("userData"),
+  "menu-bar-hover.json",
+);
 const xwaylandPreferenceFile = path.join(
   app.getPath("userData"),
   "xwayland-preference.json",
@@ -231,6 +241,10 @@ const xwaylandPreferenceFile = path.join(
 const lastVersionFile = path.join(
   app.getPath("userData"),
   "last-version.json",
+);
+const shortcutFixTestFile = path.join(
+  app.getPath("userData"),
+  "shortcut-fix-test.json",
 );
 // XWayland preference for Linux Wayland users (for screen sharing compatibility)
 let useXWayland = false;
@@ -1467,8 +1481,12 @@ function scheduleWindowsUninstaller(): void {
   if (process.platform !== "win32" || isDev) return;
 
   // NSIS uninstaller is in the app installation directory
+  // Use correct name based on whether this is beta or stable
   const installDir = path.dirname(app.getPath("exe"));
-  const uninstallerPath = path.join(installDir, "Uninstall Messenger.exe");
+  const uninstallerName = isBetaVersion
+    ? "Uninstall Messenger Beta.exe"
+    : "Uninstall Messenger.exe";
+  const uninstallerPath = path.join(installDir, uninstallerName);
 
   if (!fs.existsSync(uninstallerPath)) {
     console.log("[Uninstall] Uninstaller not found:", uninstallerPath);
@@ -1521,7 +1539,9 @@ function removeFromDockAndTaskbar(): void {
       "com.apple.dock.plist",
     );
 
-    // Use a shell script that finds and removes Messenger from the dock
+    // Use a shell script that finds and removes Messenger (or Messenger Beta) from the dock
+    // Match the current app's display name
+    const appLabel = APP_DISPLAY_NAME;
     const script = `
       PLIST="${dockPlist}"
       if [ -f "$PLIST" ]; then
@@ -1531,7 +1551,7 @@ function removeFromDockAndTaskbar(): void {
         # Search backwards to safely remove entries (indices shift when removing)
         for ((i=COUNT-1; i>=0; i--)); do
           LABEL=$(/usr/libexec/PlistBuddy -c "Print persistent-apps:$i:tile-data:file-label" "$PLIST" 2>/dev/null || echo "")
-          if [ "$LABEL" = "Messenger" ]; then
+          if [ "$LABEL" = "${appLabel}" ]; then
             /usr/libexec/PlistBuddy -c "Delete persistent-apps:$i" "$PLIST" 2>/dev/null
           fi
         done
@@ -1557,11 +1577,20 @@ function removeFromDockAndTaskbar(): void {
       "TaskBar",
     );
 
-    // Delete any Messenger shortcuts from the taskbar
-    const cmd = `
+    // Delete only this app's shortcuts from the taskbar (not the other variant)
+    // For beta: match "Messenger Beta", for stable: match "Messenger" but not "Messenger Beta"
+    const shortcutPattern = isBetaVersion ? "*Messenger Beta*" : "*Messenger*";
+    const cmd = isBetaVersion
+      ? `
       $taskbarPath = "${taskbarPath.replace(/\\/g, "\\\\")}"
       if (Test-Path $taskbarPath) {
-        Get-ChildItem -Path $taskbarPath -Filter "*Messenger*" | Remove-Item -Force -ErrorAction SilentlyContinue
+        Get-ChildItem -Path $taskbarPath -Filter "${shortcutPattern}" | Remove-Item -Force -ErrorAction SilentlyContinue
+      }
+    `
+      : `
+      $taskbarPath = "${taskbarPath.replace(/\\/g, "\\\\")}"
+      if (Test-Path $taskbarPath) {
+        Get-ChildItem -Path $taskbarPath -Filter "*Messenger*" | Where-Object { $_.Name -notlike "*Messenger Beta*" } | Remove-Item -Force -ErrorAction SilentlyContinue
       }
     `;
 
@@ -1611,6 +1640,72 @@ function saveIconTheme(theme: IconTheme): void {
   } catch (e) {
     console.warn("[Icon Theme] Failed to save theme:", e);
   }
+}
+
+// ===== Menu Bar Mode Functions =====
+
+function loadMenuBarModeSetting(): MenuBarMode {
+  try {
+    if (fs.existsSync(menuBarHoverFile)) {
+      const raw = fs.readFileSync(menuBarHoverFile, "utf8");
+      const parsed = JSON.parse(raw);
+      // Support new 'mode' format
+      if (parsed.mode === "always" || parsed.mode === "hover" || parsed.mode === "never") {
+        console.log("[Menu Bar] Loaded mode setting:", parsed.mode);
+        return parsed.mode;
+      }
+      // Migrate from old boolean 'enabled' format
+      if (typeof parsed.enabled === "boolean") {
+        const migratedMode = parsed.enabled ? "hover" : "never";
+        console.log("[Menu Bar] Migrated old hover setting to mode:", migratedMode);
+        return migratedMode;
+      }
+    }
+  } catch (e) {
+    console.warn("[Menu Bar] Failed to load mode setting, using default:", e);
+  }
+  console.log("[Menu Bar] Using default mode setting: always");
+  return "always"; // Default to always visible
+}
+
+function saveMenuBarModeSetting(mode: MenuBarMode): void {
+  try {
+    fs.writeFileSync(menuBarHoverFile, JSON.stringify({ mode }));
+    console.log("[Menu Bar] Saved mode setting:", mode);
+  } catch (e) {
+    console.warn("[Menu Bar] Failed to save mode setting:", e);
+  }
+}
+
+function setMenuBarMode(mode: MenuBarMode): void {
+  if (process.platform === "darwin" || !mainWindow || mainWindow.isDestroyed()) return;
+
+  menuBarMode = mode;
+  saveMenuBarModeSetting(mode);
+
+  // Stop any existing hover detection
+  stopMenuBarHoverDetection();
+
+  switch (mode) {
+    case "always":
+      mainWindow.setAutoHideMenuBar(false);
+      mainWindow.setMenuBarVisibility(true);
+      break;
+    case "hover":
+      mainWindow.setAutoHideMenuBar(true);
+      mainWindow.setMenuBarVisibility(false);
+      startMenuBarHoverDetection();
+      break;
+    case "never":
+      mainWindow.setAutoHideMenuBar(true);
+      mainWindow.setMenuBarVisibility(false);
+      break;
+  }
+
+  console.log(`[Menu Bar] Mode set to: ${mode}`);
+
+  // Rebuild menu to update the radio buttons
+  createApplicationMenu();
 }
 
 function shouldUseDarkIcon(): boolean {
@@ -1940,9 +2035,11 @@ function createWindow(source: string = "unknown"): void {
           backgroundColor: colors.background,
         }
       : {
-          // Windows/Linux: use standard frame, we manage menu bar visibility ourselves
+          // Windows/Linux: use standard frame with native auto-hide menu bar
+          // Menu bar is hidden by default, press Alt to show, click away or Esc to hide
+          // F10 can permanently toggle visibility
           frame: true,
-          autoHideMenuBar: false, // We handle visibility manually to support permanent toggle via F10
+          autoHideMenuBar: true,
         }),
     webPreferences: {
       // On macOS, main window doesn't load web content (we use BrowserView)
@@ -2320,7 +2417,7 @@ function createWindow(source: string = "unknown"): void {
               height: 600,
               minWidth: 400,
               minHeight: 300,
-              title: "Messenger Call",
+              title: `${APP_DISPLAY_NAME} Call`,
               icon: isDev ? undefined : getIconPath(),
               webPreferences: {
                 preload: path.join(__dirname, "../preload/preload.js"),
@@ -3098,7 +3195,7 @@ function createWindow(source: string = "unknown"): void {
               height: 600,
               minWidth: 400,
               minHeight: 300,
-              title: "Messenger Call",
+              title: `${APP_DISPLAY_NAME} Call`,
               icon: isDev ? undefined : getIconPath(),
               webPreferences: {
                 preload: path.join(__dirname, "../preload/preload.js"),
@@ -3684,15 +3781,27 @@ function createWindow(source: string = "unknown"): void {
     });
   }
 
-  // On Windows/Linux, set up menu bar hover behavior
-  // Menu bar is hidden by default, shows on hover near top, F10 permanently toggles visibility
+  // On Windows/Linux, menu bar uses configurable visibility mode
+  // Hover near top or press Alt to show, F10 cycles through modes
   if (!isMac && mainWindow) {
-    // Initialize menu bar as hidden
-    mainWindow.setMenuBarVisibility(false);
-    menuBarPermanentlyVisible = false;
-
+    menuBarMode = loadMenuBarModeSetting();
+    switch (menuBarMode) {
+      case "always":
+        mainWindow.setAutoHideMenuBar(false);
+        mainWindow.setMenuBarVisibility(true);
+        break;
+      case "hover":
+        mainWindow.setAutoHideMenuBar(true);
+        mainWindow.setMenuBarVisibility(false);
+        startMenuBarHoverDetection();
+        break;
+      case "never":
+        mainWindow.setAutoHideMenuBar(true);
+        mainWindow.setMenuBarVisibility(false);
+        break;
+    }
     console.log(
-      "[Menu Bar] Menu bar hidden by default (hover near top or F10 to toggle permanently)",
+      `[Menu Bar] Mode: ${menuBarMode} (Alt to show temporarily, F10 to cycle modes)`,
     );
   }
 
@@ -3934,11 +4043,11 @@ function createTray(): void {
     }
 
     tray = new Tray(trayIcon);
-    tray.setToolTip("Messenger");
+    tray.setToolTip(APP_DISPLAY_NAME);
 
     const contextMenu = Menu.buildFromTemplate([
       {
-        label: "Show Messenger",
+        label: `Show ${APP_DISPLAY_NAME}`,
         click: () => showMainWindow(),
       },
       { type: "separator" },
@@ -3968,11 +4077,22 @@ function createTray(): void {
 }
 
 // Package manager constants
-const HOMEBREW_CASK = "apotenza92/tap/facebook-messenger-desktop";
-const WINGET_ID = "apotenza92.FacebookMessengerDesktop";
-const LINUX_PACKAGE_NAME = "facebook-messenger-desktop";
-const SNAP_PACKAGE_NAME = "facebook-messenger-desktop";
-const FLATPAK_APP_ID = "io.github.apotenza92.messenger";
+// Package manager identifiers - use different names for beta to allow side-by-side installation
+const HOMEBREW_CASK = isBetaVersion
+  ? "apotenza92/tap/facebook-messenger-desktop-beta"
+  : "apotenza92/tap/facebook-messenger-desktop";
+const WINGET_ID = isBetaVersion
+  ? "apotenza92.FacebookMessengerDesktopBeta"
+  : "apotenza92.FacebookMessengerDesktop";
+const LINUX_PACKAGE_NAME = isBetaVersion
+  ? "facebook-messenger-desktop-beta"
+  : "facebook-messenger-desktop";
+const SNAP_PACKAGE_NAME = isBetaVersion
+  ? "facebook-messenger-desktop-beta"
+  : "facebook-messenger-desktop";
+const FLATPAK_APP_ID = isBetaVersion
+  ? "io.github.apotenza92.messenger.beta"
+  : "io.github.apotenza92.messenger";
 
 type PackageManagerInfo = {
   name: string;
@@ -4892,10 +5012,9 @@ async function handleUninstallRequest(): Promise<void> {
     buttons: ["Uninstall", "Cancel"],
     defaultId: 0,
     cancelId: 1,
-    title: "Uninstall Messenger",
-    message: "Uninstall Messenger from this device?",
-    detail:
-      "This will quit Messenger and remove all app data (settings, cache, and logs).",
+    title: `Uninstall ${APP_DISPLAY_NAME}`,
+    message: `Uninstall ${APP_DISPLAY_NAME} from this device?`,
+    detail: `This will quit ${APP_DISPLAY_NAME} and remove all app data (settings, cache, and logs).`,
   });
   const confirmed = response === 0;
 
@@ -4932,8 +5051,8 @@ async function handleUninstallRequest(): Promise<void> {
 
     const result = await dialog.showMessageBox({
       type: "question",
-      title: "Uninstall Messenger",
-      message: "Are you sure you want to uninstall Messenger?",
+      title: `Uninstall ${APP_DISPLAY_NAME}`,
+      message: `Are you sure you want to uninstall ${APP_DISPLAY_NAME}?`,
       detail:
         "This will remove the application. Your data in ~/.var/app can be removed manually if desired.",
       buttons: ["Uninstall", "Cancel"],
@@ -4963,7 +5082,7 @@ async function handleUninstallRequest(): Promise<void> {
       // Fallback to manual instructions
       await dialog.showMessageBox({
         type: "info",
-        title: "Uninstall Messenger",
+        title: `Uninstall ${APP_DISPLAY_NAME}`,
         message:
           "To complete uninstallation, run this command in your terminal:",
         detail: `flatpak uninstall --user ${flatpakAppId}`,
@@ -5095,7 +5214,7 @@ async function handleResetAndLogout(): Promise<void> {
         .showMessageBox({
           type: "error",
           title: "Reset Failed",
-          message: "Failed to reset the app. Please try restarting Messenger.",
+          message: `Failed to reset the app. Please try restarting ${APP_DISPLAY_NAME}.`,
           buttons: ["OK"],
         })
         .catch(() => {});
@@ -5103,8 +5222,9 @@ async function handleResetAndLogout(): Promise<void> {
   }
 }
 
-// Toggle menu bar visibility (Windows/Linux only)
-function toggleMenuBarVisibility(): void {
+// Toggle menu bar visibility mode (Windows/Linux only)
+// From "hover": goes to "always". Then toggles between "always" and "never".
+function toggleMenuBarMode(): void {
   if (
     process.platform === "darwin" ||
     !mainWindow ||
@@ -5113,66 +5233,80 @@ function toggleMenuBarVisibility(): void {
     return;
   }
 
-  const isVisible = mainWindow.isMenuBarVisible();
-  const newVisibility = !isVisible;
-  mainWindow.setMenuBarVisibility(newVisibility);
-  menuBarPermanentlyVisible = newVisibility;
-  console.log(`[Menu Bar] Toggled menu bar visibility to: ${newVisibility}`);
+  // From hover, go to always. Otherwise toggle between always and never.
+  const nextMode: MenuBarMode =
+    menuBarMode === "hover" ? "always" :
+    menuBarMode === "always" ? "never" : "always";
 
-  // Clear any hover timeout since user explicitly toggled
-  if (menuBarHoverTimeout) {
-    clearTimeout(menuBarHoverTimeout);
-    menuBarHoverTimeout = null;
-  }
-
-  // Rebuild menu to update the label
-  createApplicationMenu();
+  setMenuBarMode(nextMode);
 }
 
-// Show menu bar temporarily on hover (Windows/Linux only)
-function showMenuBarOnHover(): void {
-  if (
-    process.platform === "darwin" ||
-    !mainWindow ||
-    mainWindow.isDestroyed()
-  ) {
-    return;
-  }
+// Start polling cursor position to show menu bar on hover (Windows/Linux only)
+function startMenuBarHoverDetection(): void {
+  if (process.platform === "darwin" || menuBarHoverInterval || menuBarMode !== "hover") return;
 
-  // Only show if menu bar is not permanently visible
-  if (!menuBarPermanentlyVisible) {
-    mainWindow.setMenuBarVisibility(true);
+  let lastInHoverZone = false;
 
-    // Clear any existing timeout
-    if (menuBarHoverTimeout) {
-      clearTimeout(menuBarHoverTimeout);
+  menuBarHoverInterval = setInterval(() => {
+    if (!mainWindow || mainWindow.isDestroyed() || menuBarMode !== "hover") {
+      return;
     }
-  }
+
+    // Only check when window is focused
+    if (!mainWindow.isFocused()) {
+      return;
+    }
+
+    try {
+      const cursorPos = screen.getCursorScreenPoint();
+      const windowBounds = mainWindow.getBounds();
+
+      // Check if cursor is within window bounds horizontally
+      const inWindowX =
+        cursorPos.x >= windowBounds.x &&
+        cursorPos.x <= windowBounds.x + windowBounds.width;
+
+      // Check if cursor is in the top hover zone of the window
+      const distanceFromTop = cursorPos.y - windowBounds.y;
+      const inHoverZone = inWindowX && distanceFromTop >= 0 && distanceFromTop <= MENU_BAR_HOVER_ZONE;
+
+      if (inHoverZone && !lastInHoverZone) {
+        // Entered hover zone - show menu bar immediately
+        mainWindow.setMenuBarVisibility(true);
+        lastInHoverZone = true;
+      } else if (!inHoverZone && lastInHoverZone) {
+        // Left hover zone - hide menu bar quickly
+        // Tiny delay to allow clicking menu items
+        setTimeout(() => {
+          if (mainWindow && !mainWindow.isDestroyed() && menuBarMode === "hover") {
+            // Check if still outside hover zone
+            const newCursorPos = screen.getCursorScreenPoint();
+            const newBounds = mainWindow.getBounds();
+            const newDistFromTop = newCursorPos.y - newBounds.y;
+            const stillInZone =
+              newCursorPos.x >= newBounds.x &&
+              newCursorPos.x <= newBounds.x + newBounds.width &&
+              newDistFromTop >= 0 &&
+              newDistFromTop <= MENU_BAR_HOVER_ZONE + 25; // Extended zone for menu
+
+            if (!stillInZone) {
+              mainWindow.setMenuBarVisibility(false);
+            }
+          }
+        }, 50); // 50ms delay - just enough for menu clicks
+        lastInHoverZone = false;
+      }
+    } catch {
+      // Ignore errors (window might be destroyed)
+    }
+  }, 16); // ~60fps polling for instant response
 }
 
-// Hide menu bar after mouse leaves hover zone (Windows/Linux only)
-function hideMenuBarAfterHover(): void {
-  if (
-    process.platform === "darwin" ||
-    !mainWindow ||
-    mainWindow.isDestroyed()
-  ) {
-    return;
-  }
-
-  // Only hide if menu bar is not permanently visible
-  if (!menuBarPermanentlyVisible) {
-    // Add a small delay before hiding to prevent flickering
-    menuBarHoverTimeout = setTimeout(() => {
-      if (
-        mainWindow &&
-        !mainWindow.isDestroyed() &&
-        !menuBarPermanentlyVisible
-      ) {
-        mainWindow.setMenuBarVisibility(false);
-      }
-      menuBarHoverTimeout = null;
-    }, 300); // 300ms delay before hiding
+// Stop menu bar hover detection
+function stopMenuBarHoverDetection(): void {
+  if (menuBarHoverInterval) {
+    clearInterval(menuBarHoverInterval);
+    menuBarHoverInterval = null;
   }
 }
 
@@ -5186,7 +5320,7 @@ function createApplicationMenu(): void {
   };
 
   const uninstallMenuItem: Electron.MenuItemConstructorOptions = {
-    label: "Uninstall Messenger…",
+    label: `Uninstall ${APP_DISPLAY_NAME}…`,
     click: () => {
       void handleUninstallRequest();
     },
@@ -5451,6 +5585,11 @@ function createApplicationMenu(): void {
               lastVersionFile,
               JSON.stringify({ version: "0.0.0-test" }),
             );
+            // Write marker file so we know to show results after restart
+            fs.writeFileSync(
+              shortcutFixTestFile,
+              JSON.stringify({ pending: true, startedAt: new Date().toISOString() }),
+            );
             console.log("[Test] Wrote fake previous version to trigger shortcut fix on restart");
           } catch (err) {
             console.error("[Test] Failed to write version file:", err);
@@ -5467,12 +5606,7 @@ function createApplicationMenu(): void {
               "Click 'Restart Now' to restart the app.",
               "",
               "On restart, the app will detect a version change and run",
-              "the shortcut fix automatically. Watch the console logs!",
-              "",
-              "After restart, test your pinned taskbar icon:",
-              "1. Quit the app",
-              "2. Click the pinned taskbar icon",
-              "3. Verify it launches correctly (no 'shortcut moved' error)",
+              "the shortcut fix automatically. Results will be shown after.",
             ].join("\n"),
             buttons: ["Restart Now", "Cancel"],
             defaultId: 0,
@@ -5483,54 +5617,6 @@ function createApplicationMenu(): void {
             console.log("[Test] Restarting app to simulate post-update launch...");
             app.relaunch();
             app.quit();
-          }
-        },
-      },
-      {
-        label: "Run Shortcut Fix Now",
-        visible: process.platform === "win32",
-        click: async () => {
-          const confirmResult = await dialog.showMessageBox({
-            type: "info",
-            title: "Run Shortcut Fix",
-            message: "Run Windows Shortcut Fix",
-            detail: [
-              "This will immediately run the shortcut fix script:",
-              "",
-              "- Find all Messenger shortcuts (taskbar, Start Menu, Desktop)",
-              "- Update target paths to current executable",
-              "- Set AppUserModelId property",
-              "- Clear Windows icon cache",
-              "",
-              `Current executable: ${process.execPath}`,
-            ].join("\n"),
-            buttons: ["Run", "Cancel"],
-            defaultId: 0,
-            cancelId: 1,
-          });
-
-          if (confirmResult.response !== 0) return;
-
-          try {
-            console.log("[Test] Running Windows shortcut fix...");
-            await runWindowsShortcutFix();
-
-            await dialog.showMessageBox({
-              type: "info",
-              title: "Complete",
-              message: "Shortcut fix completed",
-              detail: "Check the console logs for detailed results.",
-              buttons: ["OK"],
-            });
-          } catch (err) {
-            console.error("[Test] Shortcut fix failed:", err);
-            await dialog.showMessageBox({
-              type: "error",
-              title: "Error",
-              message: "Shortcut fix failed",
-              detail: err instanceof Error ? err.message : String(err),
-              buttons: ["OK"],
-            });
           }
         },
       },
@@ -5677,14 +5763,36 @@ function createApplicationMenu(): void {
             target?.toggleDevTools();
           },
         },
-        // Menu bar toggle (Windows/Linux only - macOS uses global menu bar)
+        // Menu bar mode (Windows/Linux only - macOS uses global menu bar)
         { type: "separator" as const },
         {
-          label: "Toggle Menu Bar",
-          accelerator: "F10",
-          click: () => {
-            toggleMenuBarVisibility();
-          },
+          label: "Menu Bar",
+          submenu: [
+            {
+              label: "Always Visible",
+              type: "radio" as const,
+              checked: menuBarMode === "always",
+              click: () => setMenuBarMode("always"),
+            },
+            {
+              label: "Show on Hover",
+              type: "radio" as const,
+              checked: menuBarMode === "hover",
+              click: () => setMenuBarMode("hover"),
+            },
+            {
+              label: "Hidden (Alt to show temporarily)",
+              type: "radio" as const,
+              checked: menuBarMode === "never",
+              click: () => setMenuBarMode("never"),
+            },
+            { type: "separator" as const },
+            {
+              label: "Toggle Always/Hidden",
+              accelerator: "F10",
+              click: () => toggleMenuBarMode(),
+            },
+          ],
         },
         { type: "separator" },
         { role: "resetZoom" as const },
@@ -5730,7 +5838,7 @@ function setupIpcHandlers(): void {
         "[Main Process] Notification handler not ready, queuing notification",
       );
       // Initialize handler if not ready
-      notificationHandler = new NotificationHandler(() => mainWindow);
+      notificationHandler = new NotificationHandler(() => mainWindow, APP_DISPLAY_NAME);
       notificationHandler.showNotification(data);
     }
   });
@@ -5772,20 +5880,8 @@ function setupIpcHandlers(): void {
     }
   });
 
-  // Handle mouse position updates for menu bar hover (Windows/Linux only)
-  if (process.platform !== "darwin") {
-    ipcMain.on("mouse-position", (event, y: number) => {
-      if (!mainWindow || mainWindow.isDestroyed()) return;
-
-      const inHoverZone = y <= MENU_BAR_HOVER_ZONE;
-
-      if (inHoverZone) {
-        showMenuBarOnHover();
-      } else {
-        hideMenuBarAfterHover();
-      }
-    });
-  }
+  // Note: Menu bar hover is now handled natively via autoHideMenuBar
+  // Press Alt to show menu bar, click away or Esc to hide
 
   // Handle notification click (emitted by notification handler)
   // This is handled directly in the notification handler's click event
@@ -5902,9 +5998,8 @@ async function promptMoveToApplications(): Promise<void> {
     defaultId: 0,
     cancelId: 1,
     title: "Move to Applications?",
-    message: "Move Messenger to your Applications folder?",
-    detail:
-      "Messenger works best when installed in your Applications folder. This enables auto-updates and better macOS integration.",
+    message: `Move ${APP_DISPLAY_NAME} to your Applications folder?`,
+    detail: `${APP_DISPLAY_NAME} works best when installed in your Applications folder. This enables auto-updates and better macOS integration.`,
   });
 
   // Remember that we prompted (regardless of choice)
@@ -5922,7 +6017,7 @@ async function promptMoveToApplications(): Promise<void> {
       defaultId: 1,
       cancelId: 1,
       title: "Replace existing app?",
-      message: "Messenger already exists in Applications.",
+      message: `${APP_DISPLAY_NAME} already exists in Applications.`,
       detail: "Do you want to replace it with this version?",
     });
 
@@ -5938,7 +6033,7 @@ async function promptMoveToApplications(): Promise<void> {
         type: "error",
         buttons: ["OK"],
         title: "Could not replace app",
-        message: "Failed to remove existing Messenger from Applications.",
+        message: `Failed to remove existing ${APP_DISPLAY_NAME} from Applications.`,
         detail: "Please manually move the app to Applications.",
       });
       return;
@@ -5955,7 +6050,7 @@ async function promptMoveToApplications(): Promise<void> {
       buttons: ["Relaunch"],
       defaultId: 0,
       title: "Move successful",
-      message: "Messenger has been moved to Applications.",
+      message: `${APP_DISPLAY_NAME} has been moved to Applications.`,
       detail: "The app will now relaunch from its new location.",
     });
 
@@ -5973,8 +6068,8 @@ async function promptMoveToApplications(): Promise<void> {
       type: "error",
       buttons: ["OK"],
       title: "Move failed",
-      message: "Could not move Messenger to Applications.",
-      detail: "Please manually drag Messenger.app to your Applications folder.",
+      message: `Could not move ${APP_DISPLAY_NAME} to Applications.`,
+      detail: `Please manually drag ${APP_DISPLAY_NAME}.app to your Applications folder.`,
     });
   }
 }
@@ -6231,7 +6326,7 @@ async function requestNotificationPermission(): Promise<void> {
         const result = await dialog.showMessageBox({
           type: "info",
           title: "Notifications Disabled",
-          message: "Messenger notifications are turned off",
+          message: `${APP_DISPLAY_NAME} notifications are turned off`,
           detail:
             "You won't receive notifications for new messages. Would you like to enable them in System Settings?",
           buttons: ["Open Settings", "Not Now"],
@@ -6409,7 +6504,7 @@ function showSnapDesktopIntegrationHelp(): void {
 
 // Auto-updater state
 let pendingUpdateVersion: string | null = null;
-let originalWindowTitle: string = "Messenger";
+let originalWindowTitle: string = APP_DISPLAY_NAME;
 let isDownloading = false;
 
 function showDownloadProgress(): void {
@@ -6417,7 +6512,7 @@ function showDownloadProgress(): void {
 
   // Store original title to restore later
   if (mainWindow && !mainWindow.isDestroyed()) {
-    originalWindowTitle = mainWindow.getTitle() || "Messenger";
+    originalWindowTitle = mainWindow.getTitle() || APP_DISPLAY_NAME;
   }
 
   // Show native notification that download is starting
@@ -6497,7 +6592,7 @@ function hideDownloadProgress(): void {
 
   // Restore tray tooltip
   if (tray) {
-    tray.setToolTip("Messenger");
+    tray.setToolTip(APP_DISPLAY_NAME);
   }
 
   // Note: No notification here - the "Update Ready" dialog will be shown by the auto-updater
@@ -6950,6 +7045,19 @@ async function checkAndFixShortcutsAfterUpdate(): Promise<void> {
     return;
   }
 
+  // Check if this is a test run (from Develop menu)
+  let isTestRun = false;
+  try {
+    if (fs.existsSync(shortcutFixTestFile)) {
+      const testData = JSON.parse(fs.readFileSync(shortcutFixTestFile, "utf8"));
+      isTestRun = testData.pending === true;
+      // Clean up the test file immediately
+      fs.unlinkSync(shortcutFixTestFile);
+    }
+  } catch (err) {
+    console.error("[Shortcut Fix] Error reading test file:", err);
+  }
+
   try {
     let lastVersion = "";
     if (fs.existsSync(lastVersionFile)) {
@@ -6970,8 +7078,32 @@ async function checkAndFixShortcutsAfterUpdate(): Promise<void> {
       console.log(
         `[Shortcut Fix] Version changed from ${lastVersion} to ${currentVersion}, running shortcut fix...`,
       );
-      await runWindowsShortcutFix();
+      const result = await runWindowsShortcutFix();
       console.log("[Shortcut Fix] Post-update shortcut fix completed");
+
+      // Show results dialog if this was a test run
+      if (isTestRun) {
+        const statusIcon = result.success ? "✓" : "✗";
+        const statusText = result.success ? "Success" : "Failed";
+        
+        await dialog.showMessageBox({
+          type: result.success ? "info" : "error",
+          title: "Shortcut Fix Test Results",
+          message: `${statusIcon} ${statusText}`,
+          detail: [
+            `Previous version: ${lastVersion}`,
+            `Current version: ${currentVersion}`,
+            "",
+            `Shortcuts found: ${result.found}`,
+            `Shortcuts updated: ${result.updated}`,
+            "",
+            "Script output:",
+            result.output || "(no output)",
+            ...(result.error ? ["", `Error: ${result.error}`] : []),
+          ].join("\n"),
+          buttons: ["OK"],
+        });
+      }
     } else if (!lastVersion) {
       console.log("[Shortcut Fix] First run, saving version");
     }
@@ -6980,13 +7112,21 @@ async function checkAndFixShortcutsAfterUpdate(): Promise<void> {
   }
 }
 
+interface ShortcutFixResult {
+  success: boolean;
+  updated: number;
+  found: number;
+  output: string;
+  error?: string;
+}
+
 // Run Windows shortcut fix - updates taskbar/Start Menu shortcuts after app update
-async function runWindowsShortcutFix(): Promise<void> {
+async function runWindowsShortcutFix(): Promise<ShortcutFixResult> {
   if (process.platform !== "win32") {
-    return;
+    return { success: true, updated: 0, found: 0, output: "Not Windows" };
   }
 
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     // Get the PowerShell script path from resources
     const scriptPath = path.join(
       process.resourcesPath,
@@ -7001,7 +7141,7 @@ async function runWindowsShortcutFix(): Promise<void> {
       console.warn(
         "[Shortcut Fix] Script not found, skipping (may not be included in build)",
       );
-      resolve(); // Not a fatal error
+      resolve({ success: true, updated: 0, found: 0, output: "Script not found (dev mode)" });
       return;
     }
 
@@ -7010,15 +7150,26 @@ async function runWindowsShortcutFix(): Promise<void> {
     console.log(`[Shortcut Fix] Executing: ${command}`);
 
     exec(command, { timeout: 60000 }, (error, stdout, stderr) => {
+      const output = stdout || "";
+      
       if (error) {
         console.error("[Shortcut Fix] Execution error:", error);
-        reject(error);
+        resolve({ 
+          success: false, 
+          updated: 0, 
+          found: 0, 
+          output, 
+          error: error.message 
+        });
         return;
       }
 
       if (stderr) {
         console.warn("[Shortcut Fix] stderr:", stderr);
       }
+
+      let updated = 0;
+      let found = 0;
 
       if (stdout) {
         console.log("[Shortcut Fix] stdout:", stdout);
@@ -7030,9 +7181,11 @@ async function runWindowsShortcutFix(): Promise<void> {
           if (jsonLine) {
             const result = JSON.parse(jsonLine);
             console.log("[Shortcut Fix] Result:", result);
-            if (result.updated > 0) {
+            updated = result.updated || 0;
+            found = result.found || 0;
+            if (updated > 0) {
               console.log(
-                `[Shortcut Fix] Successfully updated ${result.updated} shortcut(s)`,
+                `[Shortcut Fix] Successfully updated ${updated} shortcut(s)`,
               );
             }
           }
@@ -7042,7 +7195,7 @@ async function runWindowsShortcutFix(): Promise<void> {
         }
       }
 
-      resolve();
+      resolve({ success: true, updated, found, output });
     });
   });
 }
@@ -7751,7 +7904,7 @@ async function showUpdateAvailableDialog(version: string): Promise<void> {
                 type: "info",
                 title: "Update Installed",
                 message: "Update installed successfully",
-                detail: "Messenger will now restart to apply the update.",
+                detail: `${APP_DISPLAY_NAME} will now restart to apply the update.`,
                 buttons: ["OK"],
               });
 
@@ -8143,7 +8296,7 @@ app.whenReady().then(async () => {
   // Include GitHub link in credits
   const year = new Date().getFullYear();
   app.setAboutPanelOptions({
-    applicationName: "Messenger",
+    applicationName: APP_DISPLAY_NAME,
     applicationVersion: app.getVersion(),
     copyright: `© ${year} Alex Potenza`,
     credits: `An unofficial, third-party desktop app for Facebook Messenger\n\nNot affiliated with Facebook, Inc. or Meta Platforms, Inc.\n\nGitHub: ${GITHUB_REPO_URL}`,
@@ -8185,7 +8338,7 @@ app.whenReady().then(async () => {
   await promptMoveToApplications();
 
   // Initialize managers
-  notificationHandler = new NotificationHandler(() => mainWindow);
+  notificationHandler = new NotificationHandler(() => mainWindow, APP_DISPLAY_NAME);
   badgeManager = new BadgeManager();
   badgeManager.setWindowGetter(() => mainWindow);
   backgroundService = new BackgroundService();
@@ -8253,7 +8406,7 @@ app.whenReady().then(async () => {
 function setupTitleOverlay(
   window: BrowserWindow,
   overlayHeight: number,
-  title: string = "Messenger",
+  title: string = APP_DISPLAY_NAME,
 ): void {
   if (titleOverlay) {
     window.removeBrowserView(titleOverlay);
@@ -8370,6 +8523,9 @@ app.on("window-all-closed", () => {
 
 app.on("before-quit", () => {
   isQuitting = true;
+
+  // Stop menu bar hover detection
+  stopMenuBarHoverDetection();
 
   // Close download progress window if open
   hideDownloadProgress();

@@ -71,6 +71,9 @@ const baseConfig = {
 };
 
 // macOS configuration
+// App display name for permission descriptions
+const appDisplayName = isBeta ? 'Messenger Beta' : 'Messenger';
+
 const macConfig = {
   category: 'public.app-category.social-networking',
   target: 'zip',
@@ -81,9 +84,9 @@ const macConfig = {
     teamId: '27JL2VERNC',
   },
   extendInfo: {
-    NSCameraUsageDescription: 'Messenger needs access to your camera for video calls.',
-    NSMicrophoneUsageDescription: 'Messenger needs access to your microphone for audio and video calls.',
-    NSScreenCaptureUsageDescription: 'Messenger needs access to screen recording to share your screen during calls.',
+    NSCameraUsageDescription: `${appDisplayName} needs access to your camera for video calls.`,
+    NSMicrophoneUsageDescription: `${appDisplayName} needs access to your microphone for audio and video calls.`,
+    NSScreenCaptureUsageDescription: `${appDisplayName} needs access to screen recording to share your screen during calls.`,
   },
 };
 
