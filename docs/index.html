@@ -594,10 +594,12 @@
                 cursor: pointer;
                 padding: 0;
                 color: white;
-                transition: opacity 0.2s ease;
+                transition: all 0.2s ease;
                 display: flex;
                 align-items: center;
+                gap: 0.6rem;
                 border-radius: 0;
+                flex-shrink: 0;
             }
 
             .copy-btn:hover {
@@ -607,14 +609,23 @@
             .copy-btn svg {
                 width: 16px;
                 height: 16px;
+                flex-shrink: 0;
+                color: white;
             }
 
             .copy-btn span {
                 font-size: 0.8rem;
                 font-weight: 500;
+                white-space: nowrap;
+                color: white;
             }
 
             .copy-btn.copied {
+                color: #22c55e;
+            }
+
+            .copy-btn.copied svg,
+            .copy-btn.copied span {
                 color: #22c55e;
             }
 
