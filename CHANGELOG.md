@@ -11,6 +11,7 @@
   - More reliable promotion even if Launchpad builds take longer than expected
   - Handles both beta and stable channel promotion automatically
 - **Download page**: Auto-detects OS on page refresh instead of persisting previous selection
+- **Update dialogs**: "No updates available" now shows current version (e.g., "Messenger v1.2.2-beta.4 is the latest version")
 
 ### Changed
 - Consolidated release documentation into AGENTS.md (removed RELEASE_PROCESS.md)

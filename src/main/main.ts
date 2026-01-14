@@ -5267,7 +5267,7 @@ function createApplicationMenu(): void {
                 type: "info",
                 title: "No Updates Available",
                 message: "You're up to date!",
-                detail: `${APP_DISPLAY_NAME} is running the latest version.`,
+                detail: `${APP_DISPLAY_NAME} v${appVersion} is the latest version.`,
                 buttons: ["OK"],
               })
               .catch(() => {});
@@ -8081,7 +8081,7 @@ function setupAutoUpdater(): void {
           type: "info",
           title: "No Updates Available",
           message: "You're up to date!",
-          detail: `${APP_DISPLAY_NAME} is running the latest version.`,
+          detail: `${APP_DISPLAY_NAME} v${appVersion} is the latest version.`,
           buttons: ["OK"],
         })
         .catch(() => {});

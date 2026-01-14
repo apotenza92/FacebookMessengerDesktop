@@ -54,7 +54,6 @@ const baseConfig = {
   ],
   asar: true,
   compression: 'maximum',
-  asarUnpack: ['assets/icons/linux/**/*', 'assets/icons/beta/linux/**/*'],
   mac: {
     category: 'public.app-category.social-networking',
     target: 'zip',
@@ -92,6 +91,7 @@ const baseConfig = {
     ],
     category: 'Network',
     icon: icons.linux,
+    asarUnpack: ['assets/icons/linux/**/*', 'assets/icons/beta/linux/**/*'],
   },
   flatpak: {
     runtimeVersion: '24.08',
