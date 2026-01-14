@@ -56,8 +56,9 @@
                 background: var(--bg-gradient);
                 min-height: 100vh;
                 display: flex;
-                align-items: center;
+                align-items: flex-start;
                 justify-content: center;
+                padding-top: 3rem;
                 color: var(--text);
             }
 
@@ -107,7 +108,7 @@
                 display: flex;
                 flex-direction: column;
                 align-items: center;
-                justify-content: center;
+                justify-content: flex-start;
                 gap: 2rem;
             }
 
@@ -131,6 +132,7 @@
 
             .connector-path {
                 fill: none;
+                stroke: #0084ff;
                 stroke-width: 2;
                 stroke-linecap: round;
                 stroke-linejoin: round;
@@ -138,12 +140,8 @@
                 animation: flowDash 1s linear infinite;
             }
 
-            .connector-path {
-                stroke: url(#connector-gradient-blue);
-            }
-
             body.beta-mode .connector-path {
-                stroke: url(#connector-gradient-orange);
+                stroke: #ff6b00;
             }
 
             @keyframes flowDash {
@@ -232,8 +230,7 @@
                 border: 1px solid rgba(255, 107, 0, 0.3);
                 border-radius: 8px;
                 padding: 0.6rem 1rem;
-                margin-top: 0;
-                margin-bottom: 0.8rem;
+                margin-top: 2rem;
                 font-size: 0.75rem;
                 color: var(--text-muted);
                 max-width: 400px;
@@ -412,6 +409,7 @@
                 display: flex;
                 flex-direction: column;
                 align-items: center;
+                justify-content: flex-start;
                 gap: 2rem;
             }
 
@@ -482,10 +480,10 @@
             .linux-command-section .command-label,
             .mac-homebrew-section .command-label {
                 color: white;
-                padding: 0.6rem 1.25rem;
+                padding: 0.5rem 1rem 0.25rem 1rem;
                 text-align: center;
                 margin: 0;
-                font-size: 0.9rem;
+                font-size: 0.85rem;
                 font-weight: 500;
             }
 
@@ -493,10 +491,10 @@
             .mac-homebrew-section .format-command {
                 border-radius: 0;
                 background: transparent;
-                padding: 0.75rem 1.25rem;
+                padding: 0.4rem 1rem 0.5rem 1rem;
                 margin: 0;
                 max-width: none;
-                gap: 0.6rem;
+                gap: 0.5rem;
             }
 
             body.beta-mode .command-box {
@@ -734,6 +732,10 @@
 
             /* Mobile Responsiveness */
             @media (max-width: 640px) {
+                body {
+                    padding-top: 1.5rem;
+                }
+
                 .connector-svg {
                     display: block;
                 }
@@ -843,6 +845,10 @@
             }
 
             @media (max-width: 480px) {
+                body {
+                    padding-top: 1rem;
+                }
+
                 .container {
                     padding: 1rem 0.75rem;
                 }
@@ -896,6 +902,10 @@
             }
 
             @media (max-width: 360px) {
+                body {
+                    padding-top: 0.75rem;
+                }
+
                 .container {
                     padding: 0.75rem 0.5rem;
                 }
@@ -1058,9 +1068,6 @@
                              </div>
                          </div>
                      </div>
-                    <div class="beta-notice" id="beta-notice-main">
-                       <strong>Beta Version:</strong> You are downloading a pre-release version. Beta builds may contain bugs or incomplete features.
-                    </div>
                     </div>
 
                 <div class="linux-formats" id="linux-formats">
@@ -1146,11 +1153,12 @@
                             id="linux-format-note"
                             style="display: none"
                         ></div>
-                        <div class="beta-notice" id="beta-notice-linux">
-                            <strong>Beta Version:</strong> You are downloading a pre-release version. Beta builds may contain bugs or incomplete features.
-                        </div>
                     </div>
                 </div>
+            </div>
+
+            <div class="beta-notice" id="beta-notice">
+                <strong>Beta Version:</strong> You are downloading a pre-release version. Beta builds may contain bugs or incomplete features.
             </div>
 
             <p
@@ -1173,12 +1181,15 @@
         </div>
 
         <script>
-            // Generate a smooth S-curve between two points
-            function createCurvedPath(x1, y1, x2, y2) {
+            // Generate a smooth S-curve between two points with gap before endpoints
+            function createCurvedPath(x1, y1, x2, y2, gap = 3) {
+                // Add gap at start and end
+                const adjustedY1 = y1 + gap;
+                const adjustedY2 = y2 - gap;
                 // Always use smooth S-curve with cubic bezier
-                const ctrl1Y = y1 + (y2 - y1) * 0.49;
-                const ctrl2Y = y1 + (y2 - y1) * 0.51;
-                return `M ${x1} ${y1} C ${x1} ${ctrl1Y} ${x2} ${ctrl2Y} ${x2} ${y2}`;
+                const ctrl1Y = adjustedY1 + (adjustedY2 - adjustedY1) * 0.49;
+                const ctrl2Y = adjustedY1 + (adjustedY2 - adjustedY1) * 0.51;
+                return `M ${x1} ${adjustedY1} C ${x1} ${ctrl1Y} ${x2} ${ctrl2Y} ${x2} ${adjustedY2}`;
             }
 
             function updateConnectors() {
@@ -1188,69 +1199,6 @@
 
                  const flowRect = flow.getBoundingClientRect();
                  svg.innerHTML = "";
-
-                 // Create gradient definitions for fade-out effect
-                 const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
-                 
-                 // Blue gradient (stable mode)
-                 const blueGradient = document.createElementNS("http://www.w3.org/2000/svg", "linearGradient");
-                 blueGradient.setAttribute("id", "connector-gradient-blue");
-                 blueGradient.setAttribute("x1", "0%");
-                 blueGradient.setAttribute("y1", "0%");
-                 blueGradient.setAttribute("x2", "100%");
-                 blueGradient.setAttribute("y2", "100%");
-                 const blueStop1 = document.createElementNS("http://www.w3.org/2000/svg", "stop");
-                 blueStop1.setAttribute("offset", "0%");
-                 blueStop1.setAttribute("stop-color", "#0084ff");
-                 blueStop1.setAttribute("stop-opacity", "0");
-                 const blueStop2 = document.createElementNS("http://www.w3.org/2000/svg", "stop");
-                 blueStop2.setAttribute("offset", "15%");
-                 blueStop2.setAttribute("stop-color", "#0084ff");
-                 blueStop2.setAttribute("stop-opacity", "1");
-                 const blueStop3 = document.createElementNS("http://www.w3.org/2000/svg", "stop");
-                 blueStop3.setAttribute("offset", "85%");
-                 blueStop3.setAttribute("stop-color", "#0084ff");
-                 blueStop3.setAttribute("stop-opacity", "1");
-                 const blueStop4 = document.createElementNS("http://www.w3.org/2000/svg", "stop");
-                 blueStop4.setAttribute("offset", "100%");
-                 blueStop4.setAttribute("stop-color", "#0084ff");
-                 blueStop4.setAttribute("stop-opacity", "0");
-                 blueGradient.appendChild(blueStop1);
-                 blueGradient.appendChild(blueStop2);
-                 blueGradient.appendChild(blueStop3);
-                 blueGradient.appendChild(blueStop4);
-                 defs.appendChild(blueGradient);
-
-                 // Orange gradient (beta mode)
-                 const orangeGradient = document.createElementNS("http://www.w3.org/2000/svg", "linearGradient");
-                 orangeGradient.setAttribute("id", "connector-gradient-orange");
-                 orangeGradient.setAttribute("x1", "0%");
-                 orangeGradient.setAttribute("y1", "0%");
-                 orangeGradient.setAttribute("x2", "100%");
-                 orangeGradient.setAttribute("y2", "100%");
-                 const orangeStop1 = document.createElementNS("http://www.w3.org/2000/svg", "stop");
-                 orangeStop1.setAttribute("offset", "0%");
-                 orangeStop1.setAttribute("stop-color", "#ff6b00");
-                 orangeStop1.setAttribute("stop-opacity", "0");
-                 const orangeStop2 = document.createElementNS("http://www.w3.org/2000/svg", "stop");
-                 orangeStop2.setAttribute("offset", "15%");
-                 orangeStop2.setAttribute("stop-color", "#ff6b00");
-                 orangeStop2.setAttribute("stop-opacity", "1");
-                 const orangeStop3 = document.createElementNS("http://www.w3.org/2000/svg", "stop");
-                 orangeStop3.setAttribute("offset", "85%");
-                 orangeStop3.setAttribute("stop-color", "#ff6b00");
-                 orangeStop3.setAttribute("stop-opacity", "1");
-                 const orangeStop4 = document.createElementNS("http://www.w3.org/2000/svg", "stop");
-                 orangeStop4.setAttribute("offset", "100%");
-                 orangeStop4.setAttribute("stop-color", "#ff6b00");
-                 orangeStop4.setAttribute("stop-opacity", "0");
-                 orangeGradient.appendChild(orangeStop1);
-                 orangeGradient.appendChild(orangeStop2);
-                 orangeGradient.appendChild(orangeStop3);
-                 orangeGradient.appendChild(orangeStop4);
-                 defs.appendChild(orangeGradient);
-
-                 svg.appendChild(defs);
 
                 // Get active channel button (if visible)
                 const channelToggle = document.getElementById("channel-toggle");
@@ -1494,7 +1442,8 @@
 
                             // Draw path from download button to homebrew command box if visible
                              const homebrewBox = document.getElementById("mac-homebrew-box");
-                             if (homebrewBox && homebrewBox.offsetParent !== null) {
+                             const homebrewSection = document.getElementById("mac-homebrew-section");
+                             if (homebrewBox && homebrewSection && homebrewSection.style.display !== "none") {
                                  const brewRect = homebrewBox.getBoundingClientRect();
                                  const brewCenterX = brewRect.left + brewRect.width / 2 - flowRect.left;
                                  const brewTopY = brewRect.top - flowRect.top;
@@ -1831,16 +1780,12 @@
                      const switchBtn = document.getElementById("switch-to-stable-btn");
                       if (switchBtn) {
                           switchBtn.addEventListener("click", () => {
-                              // Save current Linux format before switching
-                              const savedFormat = currentLinuxFormat;
+                              // Switch to stable channel, preserving all other selections
                               currentChannel = "stable";
                               updateChannelDisplay();
-                              // Re-select platform to refresh with stable builds
-                              if (currentPlatform) {
-                                  selectPlatform(currentPlatform);
-                              }
-                              // Restore the previously selected format (flatpak in this case)
-                              setLinuxFormat(savedFormat);
+                              // Just refresh the current format display (arch and format already set)
+                              updateLinuxFormatDisplay();
+                              setTimeout(updateConnectors, 0);
                           });
                       }
                 } else if (formatData.disabled) {
@@ -2022,9 +1967,24 @@
                 if (channel === "beta" && !cachedReleases.beta) return;
                 currentChannel = channel;
                 updateChannelDisplay();
-                // Re-select platform to refresh download buttons
-                if (currentPlatform) {
-                    selectPlatform(currentPlatform);
+                // Refresh current platform display without resetting selections
+                if (currentPlatform === "linux" || currentPlatform === "linux-arm") {
+                    // For Linux, just refresh the format display
+                    updateLinuxFormatDisplay();
+                } else if (currentPlatform === "mac-arm" || currentPlatform === "mac-intel") {
+                    // For Mac, refresh arch display
+                    const activeArch = document.querySelector(".mac-arch-toggle .arch-btn.active");
+                    if (activeArch) {
+                        const arch = activeArch.id === "mac-arch-intel" ? "intel" : "arm";
+                        setMacArch(arch);
+                    }
+                } else if (currentPlatform === "windows" || currentPlatform === "windows-arm") {
+                    // For Windows, refresh arch display
+                    const activeArch = document.querySelector(".windows-arch-toggle .arch-btn.active");
+                    if (activeArch) {
+                        const arch = activeArch.id === "windows-arch-arm64" ? "arm64" : "x64";
+                        setWindowsArch(arch);
+                    }
                 }
                 setTimeout(updateConnectors, 0);
             }
@@ -2123,10 +2083,6 @@
                     homebrewLabel.textContent = "Or install via Homebrew (Beta):";
                 }
 
-                // Re-initialize the current selection to update the UI
-                if (currentPlatform) {
-                    selectPlatform(currentPlatform);
-                }
             }
 
             function resetDownloadUrlsToStable() {
