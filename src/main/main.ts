@@ -181,12 +181,38 @@ const defaultWindowState: WindowState = {
   height: 750,
 };
 
-// Detect if this is a beta version based on version string
+// Detect if this is a beta app installation
+// Check multiple signals: version string, app path, executable name
+// This ensures beta detection works even when a stable version is installed via beta channel
 const appVersion = app.getVersion();
-const isBetaVersion =
+const versionIndicatesBeta =
   appVersion.includes("-beta") ||
   appVersion.includes("-alpha") ||
   appVersion.includes("-rc");
+
+// Check if the app path/executable indicates beta installation
+function detectBetaFromInstallation(): boolean {
+  const execPath = process.execPath.toLowerCase();
+  const appPath = app.getAppPath().toLowerCase();
+  
+  if (process.platform === "darwin") {
+    // macOS: Check if running from "Messenger Beta.app" bundle
+    return execPath.includes("messenger beta.app") || appPath.includes("messenger beta.app");
+  } else if (process.platform === "win32") {
+    // Windows: Check if running from beta install location or executable name
+    return execPath.includes("messenger-beta") || execPath.includes("messenger beta");
+  } else {
+    // Linux: Check executable name
+    return execPath.includes("messenger-desktop-beta") || execPath.includes("messenger-beta");
+  }
+}
+
+const installationIndicatesBeta = detectBetaFromInstallation();
+const isBetaVersion = versionIndicatesBeta || installationIndicatesBeta;
+
+if (installationIndicatesBeta && !versionIndicatesBeta) {
+  console.log(`[Beta] Detected beta installation with stable version ${appVersion}`);
+}
 
 // Set app name early and explicitly pin userData/log paths so they don't default to the package name
 // Use separate folder for dev mode and beta so they don't interfere with each other
