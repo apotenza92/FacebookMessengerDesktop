@@ -1217,59 +1217,83 @@
                             svg.appendChild(path2);
 
                             if (
-                                downloadBtn &&
-                                downloadBtn.offsetParent !== null
-                            ) {
-                                const dlRect =
-                                    downloadBtn.getBoundingClientRect();
-                                const dlCenterX =
-                                    dlRect.left +
-                                    dlRect.width / 2 -
-                                    flowRect.left;
-                                const dlTopY = dlRect.top - flowRect.top;
-                                const dlBottomY = dlRect.bottom - flowRect.top;
+                                 downloadBtn &&
+                                 downloadBtn.offsetParent !== null
+                             ) {
+                                 const dlRect =
+                                     downloadBtn.getBoundingClientRect();
+                                 const dlCenterX =
+                                     dlRect.left +
+                                     dlRect.width / 2 -
+                                     flowRect.left;
+                                 const dlTopY = dlRect.top - flowRect.top;
+                                 const dlBottomY = dlRect.bottom - flowRect.top;
 
-                                // Draw path from format to download
-                                const path3 = document.createElementNS(
-                                    "http://www.w3.org/2000/svg",
-                                    "path",
-                                );
-                                path3.setAttribute(
-                                    "d",
-                                    createCurvedPath(
-                                        formatCenterX,
-                                        formatBottomY,
-                                        dlCenterX,
-                                        dlTopY,
-                                    ),
-                                );
-                                path3.setAttribute("class", "connector-path");
-                                svg.appendChild(path3);
+                                 // Draw path from format to download
+                                 const path3 = document.createElementNS(
+                                     "http://www.w3.org/2000/svg",
+                                     "path",
+                                 );
+                                 path3.setAttribute(
+                                     "d",
+                                     createCurvedPath(
+                                         formatCenterX,
+                                         formatBottomY,
+                                         dlCenterX,
+                                         dlTopY,
+                                     ),
+                                 );
+                                 path3.setAttribute("class", "connector-path");
+                                 svg.appendChild(path3);
 
-                                // Draw path from download button to linux command section if visible
-                                const commandSection = document.querySelector(".linux-command-section");
-                                if (commandSection && commandSection.style.display !== "none") {
-                                    const cmdRect = commandSection.getBoundingClientRect();
-                                    const cmdCenterX = cmdRect.left + cmdRect.width / 2 - flowRect.left;
-                                    const cmdTopY = cmdRect.top - flowRect.top;
+                                 // Draw path from download button to linux command section if visible
+                                 const commandSection = document.querySelector(".linux-command-section");
+                                 if (commandSection && commandSection.style.display !== "none") {
+                                     const cmdRect = commandSection.getBoundingClientRect();
+                                     const cmdCenterX = cmdRect.left + cmdRect.width / 2 - flowRect.left;
+                                     const cmdTopY = cmdRect.top - flowRect.top;
 
-                                    const pathCmd = document.createElementNS(
-                                        "http://www.w3.org/2000/svg",
-                                        "path",
-                                    );
-                                    pathCmd.setAttribute(
-                                        "d",
-                                        createCurvedPath(
-                                            dlCenterX,
-                                            dlBottomY,
-                                            cmdCenterX,
-                                            cmdTopY,
-                                        ),
-                                    );
-                                    pathCmd.setAttribute("class", "connector-path");
-                                    svg.appendChild(pathCmd);
-                                }
-                            }
+                                     const pathCmd = document.createElementNS(
+                                         "http://www.w3.org/2000/svg",
+                                         "path",
+                                     );
+                                     pathCmd.setAttribute(
+                                         "d",
+                                         createCurvedPath(
+                                             dlCenterX,
+                                             dlBottomY,
+                                             cmdCenterX,
+                                             cmdTopY,
+                                         ),
+                                     );
+                                     pathCmd.setAttribute("class", "connector-path");
+                                     svg.appendChild(pathCmd);
+                                 }
+                             } else {
+                                 // No download button (e.g., Flatpak) - draw from format directly to command section
+                                 const commandSection = document.querySelector(".linux-command-section");
+                                 if (commandSection && commandSection.style.display !== "none") {
+                                     const cmdRect = commandSection.getBoundingClientRect();
+                                     const cmdCenterX = cmdRect.left + cmdRect.width / 2 - flowRect.left;
+                                     const cmdTopY = cmdRect.top - flowRect.top;
+
+                                     const pathCmd = document.createElementNS(
+                                         "http://www.w3.org/2000/svg",
+                                         "path",
+                                     );
+                                     pathCmd.setAttribute(
+                                         "d",
+                                         createCurvedPath(
+                                             formatCenterX,
+                                             formatBottomY,
+                                             cmdCenterX,
+                                             cmdTopY,
+                                         ),
+                                     );
+                                     pathCmd.setAttribute("class", "connector-path");
+                                     svg.appendChild(pathCmd);
+                                 }
+                             }
                         }
                     }
                 } else {
@@ -1906,18 +1930,28 @@
                 });
 
                 // Update Snap to use beta channel
-                if (linuxFormats.x64 && linuxFormats.x64.snap) {
-                    linuxFormats.x64.snap.command =
-                        "sudo snap install facebook-messenger-desktop --beta";
-                    linuxFormats.x64.snap.label = "Or install Snap via terminal (Beta):";
-                }
-                if (linuxFormats.arm64 && linuxFormats.arm64.snap) {
-                    linuxFormats.arm64.snap.command =
-                        "sudo snap install facebook-messenger-desktop --beta";
-                    linuxFormats.arm64.snap.label = "Or install Snap via terminal (Beta):";
-                }
+                 if (linuxFormats.x64 && linuxFormats.x64.snap) {
+                     linuxFormats.x64.snap.command =
+                         "sudo snap install facebook-messenger-desktop --beta";
+                     linuxFormats.x64.snap.label = "Or install Snap via terminal (Beta):";
+                 }
+                 if (linuxFormats.arm64 && linuxFormats.arm64.snap) {
+                     linuxFormats.arm64.snap.command =
+                         "sudo snap install facebook-messenger-desktop --beta";
+                     linuxFormats.arm64.snap.label = "Or install Snap via terminal (Beta):";
+                 }
 
-                // Update macOS Homebrew command and label for beta
+                 // Mark Flatpak as disabled for beta (no beta flatpak repo available)
+                 if (linuxFormats.x64 && linuxFormats.x64.flatpak) {
+                     linuxFormats.x64.flatpak.disabled = true;
+                     linuxFormats.x64.flatpak.note = "Flatpak beta builds coming soon. Use stable version or another format.";
+                 }
+                 if (linuxFormats.arm64 && linuxFormats.arm64.flatpak) {
+                     linuxFormats.arm64.flatpak.disabled = true;
+                     linuxFormats.arm64.flatpak.note = "Flatpak beta builds coming soon. Use stable version or another format.";
+                 }
+
+                 // Update macOS Homebrew command and label for beta
                 const homebrewCode = document.getElementById("mac-homebrew-code");
                 const homebrewLabel = document.getElementById("mac-homebrew-label");
                 if (homebrewCode) {
