@@ -155,7 +155,7 @@ let pendingShowWindow = false; // Queue second-instance events that arrive befor
 let menuBarPermanentlyVisible = false; // Track if menu bar was toggled to be permanently visible
 let menuBarHoverTimeout: NodeJS.Timeout | null = null; // Timeout for hiding menu bar after mouse leaves
 const overlayHeight = 32;
-const MENU_BAR_HOVER_ZONE = 3; // Pixels from top of window to trigger menu bar show (conventional: 2-5px)
+const MENU_BAR_HOVER_ZONE = 10; // Pixels from top of content area to trigger menu bar show
 
 // Login flow state tracking - prevents redirect loops during authentication
 // Once user starts login, we don't redirect back to custom login page until they explicitly log out
@@ -1919,9 +1919,9 @@ function createWindow(source: string = "unknown"): void {
           backgroundColor: colors.background,
         }
       : {
-          // Windows/Linux: use standard frame with auto-hide menu bar (Alt temporarily shows, F10 toggles, hover shows)
+          // Windows/Linux: use standard frame, we manage menu bar visibility ourselves
           frame: true,
-          autoHideMenuBar: true,
+          autoHideMenuBar: false, // We handle visibility manually to support permanent toggle via F10
         }),
     webPreferences: {
       // On macOS, main window doesn't load web content (we use BrowserView)
@@ -3664,14 +3664,14 @@ function createWindow(source: string = "unknown"): void {
   }
 
   // On Windows/Linux, set up menu bar hover behavior
-  // Menu bar is hidden by default, shows on hover near top, Alt temporarily shows, F10 toggles
+  // Menu bar is hidden by default, shows on hover near top, F10 permanently toggles visibility
   if (!isMac && mainWindow) {
-    // Initialize menu bar as hidden (autoHideMenuBar: true handles this, but ensure it's hidden)
+    // Initialize menu bar as hidden
     mainWindow.setMenuBarVisibility(false);
     menuBarPermanentlyVisible = false;
 
     console.log(
-      "[Menu Bar] Menu bar hidden by default (hover near top, Alt, or F10 to show)",
+      "[Menu Bar] Menu bar hidden by default (hover near top or F10 to toggle permanently)",
     );
   }
 
@@ -5132,7 +5132,7 @@ function hideMenuBarAfterHover(): void {
 // IPC Handlers
 function createApplicationMenu(): void {
   const resetAndLogoutMenuItem: Electron.MenuItemConstructorOptions = {
-    label: "Reset & Logout…",
+  label: "Logout and Reset App…",
     click: () => {
       void handleResetAndLogout();
     },
@@ -5633,12 +5633,7 @@ function createApplicationMenu(): void {
         // Menu bar toggle (Windows/Linux only - macOS uses global menu bar)
         { type: "separator" as const },
         {
-          label:
-            mainWindow &&
-            !mainWindow.isDestroyed() &&
-            mainWindow.isMenuBarVisible()
-              ? "Hide Menu Bar"
-              : "Show Menu Bar",
+          label: "Toggle Menu Bar",
           accelerator: "F10",
           click: () => {
             toggleMenuBarVisibility();

@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.2-beta.1] - 2026-01-14
+
+### Fixed
+- **Windows/Linux**: Menu bar hover detection not working properly
+- **Windows/Linux**: F10 now permanently toggles menu bar visibility (previously would hide again when clicking in the app)
+- **Windows/Linux**: "Hide Menu Bar" / "Show Menu Bar" label was misleading when menu was temporarily shown via Alt key - renamed to "Toggle Menu Bar"
+
 ## [1.2.1] - 2026-01-14
 
 ### Fixed

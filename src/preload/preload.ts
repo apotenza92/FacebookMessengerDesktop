@@ -163,20 +163,23 @@ contextBridge.exposeInMainWorld('electronAPI', {
 })();
 
 // Track mouse position for menu bar hover (Windows/Linux only)
+// We use screenY and window.screenY to calculate position relative to window top
+// This is more reliable than clientY which starts at the web content area
 if (process.platform !== 'darwin') {
-  let lastSentY = -1;
-  const HOVER_ZONE = 3; // Pixels from top (conventional: 2-5px)
+  let lastInHoverZone = false;
+  const HOVER_ZONE = 10; // Pixels from top of window content area
   
   function setupMouseTracking() {
     document.addEventListener('mousemove', (event: MouseEvent) => {
+      // Use clientY - position within the viewport/web content
       const y = event.clientY;
       
-      // Only send if mouse is in hover zone or just left it (to avoid spam)
+      // Detect if mouse is near the top of the content area
       const inHoverZone = y <= HOVER_ZONE;
-      const wasInHoverZone = lastSentY <= HOVER_ZONE;
       
-      if (inHoverZone !== wasInHoverZone || (inHoverZone && y !== lastSentY)) {
-        lastSentY = y;
+      // Only send updates when state changes (to avoid spam)
+      if (inHoverZone !== lastInHoverZone) {
+        lastInHoverZone = inHoverZone;
         if (window.electronAPI && window.electronAPI.sendMousePosition) {
           window.electronAPI.sendMousePosition(y);
         }
