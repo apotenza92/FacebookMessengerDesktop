@@ -8,7 +8,11 @@ $ErrorActionPreference = 'SilentlyContinue'
 # When run from auto-update, use the running app's location
 $exePath = [System.Diagnostics.Process]::GetCurrentProcess().MainModule.FileName
 $instDir = Split-Path -Parent $exePath
-$appUserModelId = 'com.facebook.messenger.desktop'
+
+# Detect if this is a beta version based on executable name or path
+$isBeta = $exePath -like '*Messenger Beta*' -or $instDir -like '*Messenger Beta*'
+$appUserModelId = if ($isBeta) { 'com.facebook.messenger.desktop.beta' } else { 'com.facebook.messenger.desktop' }
+$appNamePattern = if ($isBeta) { '*Messenger Beta*' } else { '*Messenger*' }
 
 Write-Host "[Shortcut Fix] Executable: $exePath"
 Write-Host "[Shortcut Fix] Install Dir: $instDir"
@@ -144,14 +148,24 @@ $updated = 0
 $failed = 0
 $shortcuts = @()
 
-Write-Host "[Shortcut Fix] Scanning for Messenger shortcuts..."
+Write-Host "[Shortcut Fix] Scanning for Messenger shortcuts (isBeta: $isBeta)..."
 
 foreach ($loc in $locations) {
     if (Test-Path $loc) {
         Write-Host "[Shortcut Fix] Checking: $loc"
         Get-ChildItem $loc -Filter '*.lnk' -Recurse -ErrorAction SilentlyContinue | ForEach-Object {
             $target = [ShortcutHelper]::GetShortcutTarget($_.FullName)
-            if ($target -like '*Messenger*' -or $target -like '*messenger*') {
+            # Match shortcuts based on whether we're beta or stable
+            # For beta: only update "Messenger Beta" shortcuts
+            # For stable: update "Messenger" shortcuts but NOT "Messenger Beta"
+            $shouldUpdate = $false
+            if ($isBeta) {
+                $shouldUpdate = $target -like '*Messenger Beta*'
+            } else {
+                $shouldUpdate = ($target -like '*Messenger*') -and ($target -notlike '*Messenger Beta*')
+            }
+            
+            if ($shouldUpdate) {
                 Write-Host "[Shortcut Fix] Found: $($_.Name) -> $target"
                 $shortcuts += @{
                     Path = $_.FullName

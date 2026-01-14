@@ -1,13 +1,17 @@
 ; Custom NSIS script for Facebook Messenger Desktop
 ; This runs during install/update and uninstall
+; Supports both stable (Messenger) and beta (Messenger Beta) builds
 
 ; Custom install macro - runs after installation/update
 ; Fixes the "Can't open this item" taskbar issue after updates on Windows 11
 ; Key fix: Sets System.AppUserModel.ID property on shortcuts using Windows Shell API
 !macro customInstall
   ; Wait for any existing Messenger process to fully exit
+  ; Kill both stable and beta processes to avoid conflicts
   Sleep 1000
   nsExec::ExecToStack 'taskkill /F /IM "Messenger.exe" /T'
+  Pop $0
+  nsExec::ExecToStack 'taskkill /F /IM "Messenger Beta.exe" /T'
   Pop $0
   Sleep 500
   
@@ -16,10 +20,13 @@
   FileOpen $0 "$TEMP\messenger-shortcut-fix.ps1" w
   
   ; PowerShell script that uses Windows Shell API to set AppUserModelId
+  ; Dynamically detects beta vs stable based on install directory
   FileWrite $0 "$$ErrorActionPreference = 'SilentlyContinue'$\r$\n"
   FileWrite $0 "$$instDir = '$INSTDIR'$\r$\n"
-  FileWrite $0 "$$exePath = Join-Path $$instDir 'Messenger.exe'$\r$\n"
-  FileWrite $0 "$$appUserModelId = 'com.facebook.messenger.desktop'$\r$\n"
+  FileWrite $0 "$$isBeta = $$instDir -like '*Messenger Beta*'$\r$\n"
+  FileWrite $0 "$$exeName = if ($$isBeta) { 'Messenger Beta.exe' } else { 'Messenger.exe' }$\r$\n"
+  FileWrite $0 "$$exePath = Join-Path $$instDir $$exeName$\r$\n"
+  FileWrite $0 "$$appUserModelId = if ($$isBeta) { 'com.facebook.messenger.desktop.beta' } else { 'com.facebook.messenger.desktop' }$\r$\n"
   FileWrite $0 "$\r$\n"
   FileWrite $0 "# Define COM interfaces for Shell Link and Property Store$\r$\n"
   FileWrite $0 "$$typeDefinition = @'$\r$\n"
@@ -146,7 +153,10 @@
   FileWrite $0 "    if (Test-Path $$loc) {$\r$\n"
   FileWrite $0 "        Get-ChildItem $$loc -Filter '*.lnk' -Recurse -ErrorAction SilentlyContinue | ForEach-Object {$\r$\n"
   FileWrite $0 "            $$target = [ShortcutHelper]::GetShortcutTarget($$_.FullName)$\r$\n"
-  FileWrite $0 "            if ($$target -like '*Messenger*' -or $$target -like '*messenger*') {$\r$\n"
+  FileWrite $0 "            $$shouldUpdate = $$false$\r$\n"
+  FileWrite $0 "            if ($$isBeta) { $$shouldUpdate = $$target -like '*Messenger Beta*' }$\r$\n"
+  FileWrite $0 "            else { $$shouldUpdate = ($$target -like '*Messenger*') -and ($$target -notlike '*Messenger Beta*') }$\r$\n"
+  FileWrite $0 "            if ($$shouldUpdate) {$\r$\n"
   FileWrite $0 "                if ([ShortcutHelper]::UpdateShortcut($$_.FullName, $$exePath, $$instDir, $$appUserModelId)) {$\r$\n"
   FileWrite $0 "                    $$updated++$\r$\n"
   FileWrite $0 "                }$\r$\n"

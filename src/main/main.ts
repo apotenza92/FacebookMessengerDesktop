@@ -228,6 +228,10 @@ const xwaylandPreferenceFile = path.join(
   app.getPath("userData"),
   "xwayland-preference.json",
 );
+const lastVersionFile = path.join(
+  app.getPath("userData"),
+  "last-version.json",
+);
 // XWayland preference for Linux Wayland users (for screen sharing compatibility)
 let useXWayland = false;
 
@@ -6938,6 +6942,42 @@ async function downloadWindowsUpdate(version: string): Promise<void> {
   });
 }
 
+// Check if we just updated and run shortcut fix if needed (Windows only)
+async function checkAndFixShortcutsAfterUpdate(): Promise<void> {
+  if (process.platform !== "win32") {
+    return;
+  }
+
+  try {
+    let lastVersion = "";
+    if (fs.existsSync(lastVersionFile)) {
+      const data = JSON.parse(fs.readFileSync(lastVersionFile, "utf8"));
+      lastVersion = data.version || "";
+    }
+
+    const currentVersion = app.getVersion();
+
+    // Save current version for next time
+    fs.writeFileSync(
+      lastVersionFile,
+      JSON.stringify({ version: currentVersion }),
+    );
+
+    // If version changed, run shortcut fix
+    if (lastVersion && lastVersion !== currentVersion) {
+      console.log(
+        `[Shortcut Fix] Version changed from ${lastVersion} to ${currentVersion}, running shortcut fix...`,
+      );
+      await runWindowsShortcutFix();
+      console.log("[Shortcut Fix] Post-update shortcut fix completed");
+    } else if (!lastVersion) {
+      console.log("[Shortcut Fix] First run, saving version");
+    }
+  } catch (err) {
+    console.error("[Shortcut Fix] Error checking/fixing shortcuts:", err);
+  }
+}
+
 // Run Windows shortcut fix - updates taskbar/Start Menu shortcuts after app update
 async function runWindowsShortcutFix(): Promise<void> {
   if (process.platform !== "win32") {
@@ -8053,20 +8093,9 @@ function setupAutoUpdater(): void {
       hideDownloadProgress();
       updateDownloadedAndReady = true;
 
-      // Fix Windows taskbar shortcuts BEFORE restart
-      // This ensures shortcuts remain functional after the update
-      if (process.platform === "win32") {
-        console.log(
-          "[AutoUpdater] Running Windows shortcut fix before restart...",
-        );
-        try {
-          await runWindowsShortcutFix();
-          console.log("[AutoUpdater] Shortcut fix completed successfully");
-        } catch (err) {
-          console.error("[AutoUpdater] Shortcut fix failed (non-fatal):", err);
-          // Don't block the update - shortcuts can be fixed on next launch
-        }
-      }
+      // Note: Shortcut fix now runs on app startup AFTER the update is installed
+      // (see checkAndFixShortcutsAfterUpdate), not before restart.
+      // This ensures the shortcut points to the NEW executable location.
 
       showUpdateReadyDialog(version);
     });
@@ -8118,6 +8147,10 @@ app.whenReady().then(async () => {
   // Detect and cache install source in background (so uninstall is instant later)
   // This runs async and doesn't block startup
   void detectAndCacheInstallSource();
+
+  // Windows: Check if we just updated and fix shortcuts if needed
+  // This runs AFTER the app starts from the new location (post-update)
+  void checkAndFixShortcutsAfterUpdate();
 
   // Note: On macOS, the dock icon comes from the app bundle's .icns file
   // We don't call app.dock.setIcon() because that would override the properly-sized
