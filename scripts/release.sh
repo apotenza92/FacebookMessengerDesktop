@@ -73,7 +73,25 @@ if [ "$(uname)" == "Darwin" ]; then
   echo "Detected macOS - will build locally for faster signing/notarization"
   echo ""
   
-  # Check for required environment variables
+  # Check for required environment variables, try 1Password if missing
+  if [ -z "${CSC_LINK:-}" ] || [ -z "${APPLE_ID:-}" ] || [ -z "${APPLE_APP_SPECIFIC_PASSWORD:-}" ]; then
+    echo "Signing credentials not in environment, checking 1Password..."
+    
+    if command -v op &> /dev/null; then
+      # Try to load from 1Password
+      if op item get "facebook-messenger-desktop macos-signing-env" --fields notesPlain &> /dev/null; then
+        echo "Loading signing credentials from 1Password..."
+        eval "$(op item get 'facebook-messenger-desktop macos-signing-env' --fields notesPlain | tr -d '"' | sed 's/^/export /')"
+        echo "✓ Loaded credentials from 1Password"
+      else
+        echo "Warning: 1Password item 'facebook-messenger-desktop macos-signing-env' not found"
+      fi
+    else
+      echo "Warning: 1Password CLI (op) not installed"
+    fi
+  fi
+  
+  # Final check for required variables
   MISSING_VARS=()
   [ -z "${CSC_LINK:-}" ] && MISSING_VARS+=("CSC_LINK")
   [ -z "${APPLE_ID:-}" ] && MISSING_VARS+=("APPLE_ID")
