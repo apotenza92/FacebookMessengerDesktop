@@ -7300,9 +7300,12 @@ async function showCustomUpdateDialog(
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;");
 
-    // Bold section headers (e.g., "Fixed:", "Added:", "Changed:")
+    // Convert **bold** markdown to <strong>
+    html = html.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+
+    // Bold section headers (e.g., "Fixed:", "Added:", "Changed:", "Improved:")
     html = html.replace(
-      /^(Fixed|Added|Changed|Removed|Security|Deprecated|Breaking):/gim,
+      /^(Fixed|Added|Changed|Removed|Security|Deprecated|Breaking|Improved):/gim,
       "<strong>$1:</strong>",
     );
 
@@ -7411,9 +7414,15 @@ async function showCustomUpdateDialog(
     .traffic-light {
       width: 12px;
       height: 12px;
+      min-width: 12px;
+      min-height: 12px;
+      max-width: 12px;
+      max-height: 12px;
+      padding: 0;
       border-radius: 50%;
       border: none;
       cursor: pointer;
+      font-size: 0;
     }
     
     .traffic-light.close {
