@@ -219,15 +219,35 @@
                 color: #ff6b00;
             }
 
+            .version-display {
+                font-size: 0.8rem;
+                font-weight: 500;
+                margin-top: 0.5rem;
+                display: none;
+            }
+
+            .version-display.visible {
+                display: block;
+            }
+
+            .version-display.stable {
+                color: #0084ff;
+            }
+
+            .version-display.beta {
+                color: #ff6b00;
+            }
+
             .platform-link.hidden {
                 display: none;
             }
 
             .header-meta {
                 display: flex;
+                flex-direction: column;
                 align-items: center;
                 justify-content: center;
-                gap: 1rem;
+                gap: 0.25rem;
                 margin-bottom: 1.5rem;
             }
 
@@ -752,6 +772,7 @@
                     </button>
                     <button class="channel-btn" id="channel-beta">Beta</button>
                 </div>
+                <div class="version-display" id="version-display"></div>
             </div>
 
             <div class="beta-notice" id="beta-notice">
@@ -1587,6 +1608,7 @@
 
                 // Update toggle button states, body class, and icon for beta styling
                 const appIcon = document.querySelector(".icon");
+                const versionDisplay = document.getElementById("version-display");
                 if (currentChannel === "beta") {
                     stableBtn.classList.remove("active");
                     betaBtn.classList.add("active", "beta-active");
@@ -1601,6 +1623,14 @@
                     if (appIcon) {
                         appIcon.src = "https://raw.githubusercontent.com/apotenza92/facebook-messenger-desktop/main/assets/icons/icon-rounded.png";
                     }
+                }
+
+                // Update version display
+                if (versionDisplay && release) {
+                    versionDisplay.textContent = release.tag_name;
+                    versionDisplay.classList.add("visible");
+                    versionDisplay.classList.remove("stable", "beta");
+                    versionDisplay.classList.add(currentChannel === "beta" ? "beta" : "stable");
                 }
 
                 // Update download URLs based on selected channel's release
