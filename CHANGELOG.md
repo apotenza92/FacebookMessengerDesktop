@@ -1,35 +1,23 @@
 # Changelog
 
-## [1.2.2-beta.5] - 2026-01-14
+## [1.2.2-beta.4] - 2026-01-14
 
 ### Fixed
 - **macOS**: Code signing failing due to Linux icon files being included in macOS builds
   - `asarUnpack` now only applies to Linux builds
 
 ### Improved
-- **Build config**: Platform-specific files only included for relevant builds
-  - Windows PowerShell shortcut fix script only bundled in Windows builds
-  - NSIS installer/uninstaller icons now correctly use beta icons for beta builds
-
-### Changed
-- Simplified release process: `./scripts/release.sh` now just validates and pushes tag
-- Removed local macOS build option (CI handles all platforms)
-
-## [1.2.2-beta.4] - 2026-01-14
-
-### Improved
-- **Release process**: macOS builds now run locally when releasing from a Mac (faster signing/notarization)
-  - New `./scripts/release.sh` handles everything automatically
-  - Detects if on macOS and builds locally, otherwise CI builds all platforms
-  - CI skips macOS build if artifacts were already uploaded locally
 - **Snap promotion**: Now runs every 6 hours via dedicated workflow instead of during release
   - More reliable promotion even if Launchpad builds take longer than expected
   - Handles both beta and stable channel promotion automatically
+- **Build config**: Platform-specific files only included for relevant builds
+  - Windows PowerShell shortcut fix script only bundled in Windows builds
+  - NSIS installer/uninstaller icons now correctly use beta icons for beta builds
 - **Download page**: Auto-detects OS on page refresh instead of persisting previous selection
-- **Update dialogs**: "No updates available" now shows current version (e.g., "Messenger v1.2.2-beta.4 is the latest version")
 
 ### Changed
 - Consolidated release documentation into AGENTS.md (removed RELEASE_PROCESS.md)
+- New `./scripts/release.sh` for streamlined releases
 
 ## [1.2.2-beta.3] - 2026-01-14
 
