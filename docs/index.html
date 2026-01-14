@@ -1589,15 +1589,14 @@
                         (r) => r.prerelease && !r.draft,
                     );
 
-                    // Show the channel toggle only if beta is newer than stable
-                    if (cachedReleases.beta && cachedReleases.stable) {
-                        const betaDate = new Date(cachedReleases.beta.published_at);
-                        const stableDate = new Date(cachedReleases.stable.published_at);
-                        if (betaDate > stableDate) {
-                            document.getElementById(
-                                "channel-toggle",
-                            ).style.display = "flex";
-                        }
+                    // Always show the channel toggle so users can access beta channel
+                    // Even if no beta release exists yet, they may want to know about it
+                    document.getElementById("channel-toggle").style.display = "flex";
+                    
+                    // If no beta release exists, use stable release info for beta channel
+                    // This lets users see what they'd get if they chose beta
+                    if (!cachedReleases.beta) {
+                        cachedReleases.beta = cachedReleases.stable;
                     }
 
                     // Update display for current channel
@@ -1644,11 +1643,19 @@
                             day: "numeric",
                             year: "numeric",
                         });
+                        
+                        // Check if beta and stable are the same version
+                        const betaEqualsStable = cachedReleases.beta && cachedReleases.stable && 
+                            cachedReleases.beta.tag_name === cachedReleases.stable.tag_name;
+                        const sameVersionNote = (currentChannel === "beta" && betaEqualsStable) 
+                            ? '<span style="opacity: 0.7; font-size: 0.75rem;"> (same as stable)</span>' 
+                            : '';
+                        
                         releaseDateEl.innerHTML = `
             <svg viewBox="0 0 24 24" fill="currentColor">
               <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM9 10H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2z"/>
             </svg>
-            ${formatted}
+            ${formatted}${sameVersionNote}
           `;
                     }
                 }
