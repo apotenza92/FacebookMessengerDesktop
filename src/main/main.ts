@@ -7220,7 +7220,12 @@ async function downloadLinuxPackage(
   } else {
     archName = process.arch === "arm64" ? "arm64" : "amd64";
   }
-  const fileName = `facebook-messenger-desktop-${archName}.${packageType}`;
+  // Use the correct package name based on whether we're running the beta app
+  // This ensures beta users update through the beta package (same app installation)
+  const packageName = isBetaVersion
+    ? "facebook-messenger-desktop-beta"
+    : "facebook-messenger-desktop";
+  const fileName = `${packageName}-${archName}.${packageType}`;
   const downloadUrl = `https://github.com/apotenza92/FacebookMessengerDesktop/releases/download/v${version}/${fileName}`;
 
   // Get user's Downloads folder
@@ -8046,9 +8051,10 @@ async function showUpdateAvailableDialog(version: string): Promise<void> {
       try {
         await downloadWindowsUpdate(version);
 
-        // Get the downloaded file path
+        // Get the downloaded file path (must match downloadWindowsUpdate)
         const arch = process.arch === "arm64" ? "arm64" : "x64";
-        const fileName = `Messenger-windows-${arch}-setup.exe`;
+        const appPrefix = isBetaVersion ? "Messenger-Beta" : "Messenger";
+        const fileName = `${appPrefix}-windows-${arch}-setup.exe`;
         const downloadsPath = app.getPath("downloads");
         const filePath = path.join(downloadsPath, fileName);
 
