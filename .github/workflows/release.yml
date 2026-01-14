@@ -48,9 +48,6 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
 
-      - name: Generate channel YML files
-        run: node scripts/generate-channel-yml.js
-
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -89,9 +86,6 @@ jobs:
       - name: Build distributables
         run: npm run dist:win
         timeout-minutes: 30
-
-      - name: Generate channel YML files
-        run: node scripts/generate-channel-yml.js
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -141,9 +135,6 @@ jobs:
       - name: Build distributables
         run: npm run dist:linux
         timeout-minutes: 60
-
-      - name: Generate channel YML files
-        run: node scripts/generate-channel-yml.js
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4

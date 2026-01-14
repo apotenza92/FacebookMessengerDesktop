@@ -1,6 +1,6 @@
 {
   "name": "facebook-messenger-desktop",
-  "version": "1.1.9",
+  "version": "1.2.0",
   "description": "An unofficial, self-contained desktop app for Facebook Messenger",
   "main": "dist/main/main.js",
   "scripts": {
@@ -52,7 +52,6 @@
     "appId": "com.facebook.messenger.desktop",
     "productName": "Messenger",
     "afterPack": "./scripts/after-pack.js",
-    "generateUpdatesFilesForAllChannels": true,
     "publish": [
       {
         "provider": "github",

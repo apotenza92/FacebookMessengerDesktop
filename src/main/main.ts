@@ -5188,24 +5188,29 @@ function createApplicationMenu(): void {
         return;
       }
       manualUpdateCheckInProgress = true;
-      // Use smartCheckForUpdates() to properly handle beta users seeing stable updates
-      smartCheckForUpdates()
+      checkForUpdates()
         .catch((err: unknown) => {
           console.warn("[AutoUpdater] manual check failed", err);
 
-          // Check if this is a "no versions found" error, which means we're on the latest
-          // This can happen when on a beta version with no newer releases available
-          const errMsg =
-            err instanceof Error
-              ? err.message.toLowerCase()
-              : String(err).toLowerCase();
+          const errMsg = err instanceof Error ? err.message : String(err);
+          const errCode = (err as any)?.code;
+
+          // Check for network-related errors
+          const isNetworkError =
+            errCode === "ENOTFOUND" ||
+            errCode === "ETIMEDOUT" ||
+            errCode === "ECONNREFUSED" ||
+            errCode === "ECONNRESET" ||
+            errMsg.includes("getaddrinfo") ||
+            errMsg.includes("network");
+
+          // Check if this is a "no versions found" error (means we're up to date)
           const isNoVersionsError =
-            errMsg.includes("no published versions") ||
-            errMsg.includes("cannot find latest") ||
-            errMsg.includes("cannot find channel");
+            errMsg.toLowerCase().includes("no published versions") ||
+            errMsg.toLowerCase().includes("cannot find latest") ||
+            errMsg.toLowerCase().includes("cannot find channel");
 
           if (isNoVersionsError) {
-            // Treat as "up to date" rather than an error
             dialog
               .showMessageBox({
                 type: "info",
@@ -5215,12 +5220,23 @@ function createApplicationMenu(): void {
                 buttons: ["OK"],
               })
               .catch(() => {});
+          } else if (isNetworkError) {
+            dialog
+              .showMessageBox({
+                type: "warning",
+                title: "Network Error",
+                message: "Could not connect to update server.",
+                detail: "Please check your internet connection and try again.",
+                buttons: ["OK"],
+              })
+              .catch(() => {});
           } else {
             dialog
               .showMessageBox({
                 type: "warning",
-                title: "Update check failed",
-                message: "Could not check for updates. Please try again later.",
+                title: "Update Check Failed",
+                message: "Could not check for updates.",
+                detail: `Error: ${errMsg}`,
                 buttons: ["OK"],
               })
               .catch(() => {});
@@ -5328,8 +5344,8 @@ function createApplicationMenu(): void {
               buttons: ["OK"],
             })
             .catch(() => {});
-          // Automatically check for updates after joining (uses smart check that picks highest version)
-          smartCheckForUpdates().catch((err: unknown) => {
+          // Automatically check for updates after joining
+          checkForUpdates().catch((err: unknown) => {
             console.warn("[AutoUpdater] Beta update check failed:", err);
           });
         }
@@ -6727,216 +6743,21 @@ async function getChangelogForUpdate(
 const GITHUB_REPO_URL =
   "https://github.com/apotenza92/facebook-messenger-desktop";
 
-// GitHub releases URL for fetching update channel yml files
-const GITHUB_RELEASES_BASE =
-  "https://github.com/apotenza92/FacebookMessengerDesktop/releases";
-
-// Fetch version from a channel's yml file
-async function fetchChannelVersion(
-  channel: "latest" | "beta",
-): Promise<string | null> {
-  return new Promise((resolve, reject) => {
-    const ymlUrl = `${GITHUB_RELEASES_BASE}/latest/download/${channel}.yml`;
-
-    // Timeout after 30 seconds
-    const timeout = setTimeout(() => {
-      reject(new Error(`Timeout fetching ${channel}.yml after 30 seconds`));
-    }, 30000);
-
-    https
-      .get(ymlUrl, { headers: { "User-Agent": "electron-updater" } }, (res) => {
-        // Handle redirects
-        if (res.statusCode === 302 || res.statusCode === 301) {
-          const redirectUrl = res.headers.location;
-          if (redirectUrl) {
-            https
-              .get(
-                redirectUrl,
-                { headers: { "User-Agent": "electron-updater" } },
-                (redirectRes) => {
-                  if (redirectRes.statusCode !== 200) {
-                    clearTimeout(timeout);
-                    console.log(
-                      `[AutoUpdater] ${channel}.yml not found (${redirectRes.statusCode})`,
-                    );
-                    resolve(null);
-                    return;
-                  }
-                  let data = "";
-                  redirectRes.on("data", (chunk) => {
-                    data += chunk;
-                  });
-                  redirectRes.on("end", () => {
-                    clearTimeout(timeout);
-                    // Parse version from yml (format: "version: X.Y.Z" or "version: X.Y.Z-beta.N")
-                    const match = data.match(/^version:\s*(.+)$/m);
-                    if (match) {
-                      console.log(
-                        `[AutoUpdater] ${channel} channel version: ${match[1]}`,
-                      );
-                      resolve(match[1].trim());
-                    } else {
-                      reject(new Error(`${channel}.yml missing version field`));
-                    }
-                  });
-                  redirectRes.on("error", (err) => {
-                    clearTimeout(timeout);
-                    reject(err);
-                  });
-                },
-              )
-              .on("error", (err) => {
-                clearTimeout(timeout);
-                reject(err);
-              });
-            return;
-          }
-        }
-
-        if (res.statusCode !== 200) {
-          clearTimeout(timeout);
-          console.log(
-            `[AutoUpdater] ${channel}.yml not found (${res.statusCode})`,
-          );
-          resolve(null);
-          return;
-        }
-
-        let data = "";
-        res.on("data", (chunk) => {
-          data += chunk;
-        });
-        res.on("end", () => {
-          clearTimeout(timeout);
-          const match = data.match(/^version:\s*(.+)$/m);
-          if (match) {
-            console.log(
-              `[AutoUpdater] ${channel} channel version: ${match[1]}`,
-            );
-            resolve(match[1].trim());
-          } else {
-            reject(new Error(`${channel}.yml missing version field`));
-          }
-        });
-        res.on("error", (err) => {
-          clearTimeout(timeout);
-          reject(err);
-        });
-      })
-      .on("error", (err) => {
-        clearTimeout(timeout);
-        reject(err);
-      });
-  });
-}
-
-// Fetch version with retry logic and exponential backoff
-async function fetchChannelVersionWithRetry(
-  channel: "latest" | "beta",
-  maxRetries = 3,
-): Promise<string | null> {
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      console.log(
-        `[AutoUpdater] Fetching ${channel} version (attempt ${attempt}/${maxRetries})`,
-      );
-      const version = await fetchChannelVersion(channel);
-      return version;
-    } catch (err) {
-      console.error(
-        `[AutoUpdater] Fetch failed (attempt ${attempt}/${maxRetries}):`,
-        err instanceof Error ? err.message : String(err),
-      );
-
-      if (attempt === maxRetries) {
-        console.error(
-          `[AutoUpdater] All ${maxRetries} attempts failed for ${channel}`,
-        );
-        return null; // Return null on final attempt so Promise.all doesn't reject
-      }
-
-      // Exponential backoff: 1s, 2s, 4s
-      const backoffMs = Math.pow(2, attempt - 1) * 1000;
-      console.log(`[AutoUpdater] Retrying in ${backoffMs}ms...`);
-      await new Promise((resolve) => setTimeout(resolve, backoffMs));
-    }
-  }
-
-  return null; // Should never reach here, but TypeScript needs it
-}
-
-// Smart update check for beta users - checks both channels and picks the higher version
-async function smartCheckForUpdates(): Promise<void> {
+// Simple update check that respects beta opt-in using electron-updater's native prerelease support
+async function checkForUpdates(): Promise<void> {
   const isBeta = isBetaOptedIn();
 
-  if (!isBeta) {
-    // Stable users: just check latest channel
-    console.log("[AutoUpdater] Stable user, checking latest channel only");
-    autoUpdater.channel = "latest";
-    autoUpdater.allowPrerelease = false;
-    await autoUpdater.checkForUpdates();
-    return;
-  }
+  // electron-updater's GitHub provider uses allowPrerelease to determine which releases to consider:
+  // - allowPrerelease = false: only non-prerelease GitHub releases
+  // - allowPrerelease = true: both prerelease and non-prerelease releases (picks highest version)
+  autoUpdater.allowPrerelease = isBeta;
+  autoUpdater.channel = "latest";
 
-  // Beta users: check both channels and pick the higher version
-  console.log("[AutoUpdater] Beta user, checking both channels...");
+  console.log(
+    `[AutoUpdater] Checking for updates (betaOptIn=${isBeta}, allowPrerelease=${autoUpdater.allowPrerelease})`,
+  );
 
-  try {
-    const [stableVersion, betaVersion] = await Promise.all([
-      fetchChannelVersionWithRetry("latest"),
-      fetchChannelVersionWithRetry("beta"),
-    ]);
-
-    console.log(
-      `[AutoUpdater] Stable version: ${stableVersion || "none"}, Beta version: ${betaVersion || "none"}`,
-    );
-
-    // Check if we got at least one version
-    if (!stableVersion && !betaVersion) {
-      throw new Error("Failed to fetch version information from both channels");
-    }
-
-    // Determine which channel has the higher version
-    let useChannel: "latest" | "beta" = "latest";
-
-    if (stableVersion && betaVersion) {
-      // Both channels have versions - compare them
-      const comparison = compareVersions(betaVersion, stableVersion);
-      useChannel = comparison > 0 ? "beta" : "latest";
-      console.log(
-        `[AutoUpdater] Beta ${comparison > 0 ? ">" : comparison < 0 ? "<" : "="} Stable, using ${useChannel} channel`,
-      );
-    } else if (betaVersion && !stableVersion) {
-      useChannel = "beta";
-      console.log("[AutoUpdater] No stable version found, using beta channel");
-    } else {
-      useChannel = "latest";
-      console.log("[AutoUpdater] No beta version found, using latest channel");
-    }
-
-    // Set the channel and check for updates
-    // Important: Set allowPrerelease = false so electron-updater respects our channel choice
-    autoUpdater.channel = useChannel;
-    autoUpdater.allowPrerelease = false;
-
-    console.log(`[AutoUpdater] Checking ${useChannel} channel for updates`);
-    await autoUpdater.checkForUpdates();
-  } catch (err) {
-    console.error("[AutoUpdater] Smart check failed:", err);
-
-    // Show user-friendly error dialog
-    dialog.showMessageBox({
-      type: "warning",
-      title: "Update Check Failed",
-      message: "Unable to check for updates",
-      detail:
-        "Please check your internet connection and try again later.\n\n" +
-        `Error: ${err instanceof Error ? err.message : String(err)}`,
-      buttons: ["OK"],
-    });
-
-    // Don't fall back to checking - let user retry manually
-  }
+  await autoUpdater.checkForUpdates();
 }
 
 function openGitHubPage(): void {
@@ -7793,9 +7614,7 @@ function setupAutoUpdater(): void {
       hideDownloadProgress();
     });
 
-    // Use smart check that handles beta channel properly
-    // (checks both latest and beta channels for beta users, picks the higher version)
-    smartCheckForUpdates().catch((err: unknown) => {
+    checkForUpdates().catch((err: unknown) => {
       console.warn("[AutoUpdater] check failed", err);
     });
   } catch (e) {

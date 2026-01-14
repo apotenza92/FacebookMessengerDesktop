@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.2.0] - 2026-01-14
+
+### Fixed
+- Beta channel users not receiving updates (issue #34)
+  - Rewrote auto-update system to use electron-updater's native prerelease support
+  - Removed custom YML fetching logic that was causing "internet connection" errors
+  - Beta users now properly receive beta updates via GitHub's prerelease flag
+  - Stable users only receive stable releases
+- Misleading "internet connection" error messages during update checks
+  - Now shows accurate error messages based on actual failure type
+  - Network errors clearly indicate connection issues
+  - Other errors show the actual error message
+
+### Changed
+- Simplified update channel architecture
+  - Removed generate-channel-yml.js build step
+  - Updates now use GitHub Releases prerelease flag instead of separate YML files
+
 ## [1.1.9] - 2026-01-13
 
 ### Added
