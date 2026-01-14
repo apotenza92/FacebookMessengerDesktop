@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Release script for Facebook Messenger Desktop
-# Automatically builds macOS locally if on a Mac (faster), otherwise CI handles it
+# Creates a version tag and pushes it to trigger CI builds
 
 VERSION="${1:-}"
 
@@ -68,96 +68,15 @@ fi
 echo "✓ Pre-flight checks passed"
 echo ""
 
-# Detect if we're on macOS
-if [ "$(uname)" == "Darwin" ]; then
-  echo "Detected macOS - will build locally for faster signing/notarization"
-  echo ""
-  
-  # Check for required environment variables, try 1Password if missing
-  if [ -z "${CSC_LINK:-}" ] || [ -z "${APPLE_ID:-}" ] || [ -z "${APPLE_APP_SPECIFIC_PASSWORD:-}" ]; then
-    echo "Signing credentials not in environment, checking 1Password..."
-    
-    if command -v op &> /dev/null; then
-      # Try to load from 1Password
-      if op item get "facebook-messenger-desktop macos-signing-env" --fields notesPlain &> /dev/null; then
-        echo "Loading signing credentials from 1Password..."
-        eval "$(op item get 'facebook-messenger-desktop macos-signing-env' --fields notesPlain | tr -d '"' | sed 's/^/export /')"
-        echo "✓ Loaded credentials from 1Password"
-      else
-        echo "Warning: 1Password item 'facebook-messenger-desktop macos-signing-env' not found"
-      fi
-    else
-      echo "Warning: 1Password CLI (op) not installed"
-    fi
-  fi
-  
-  # Final check for required variables
-  MISSING_VARS=()
-  [ -z "${CSC_LINK:-}" ] && MISSING_VARS+=("CSC_LINK")
-  [ -z "${APPLE_ID:-}" ] && MISSING_VARS+=("APPLE_ID")
-  [ -z "${APPLE_APP_SPECIFIC_PASSWORD:-}" ] && MISSING_VARS+=("APPLE_APP_SPECIFIC_PASSWORD")
-  
-  if [ ${#MISSING_VARS[@]} -gt 0 ]; then
-    echo "Warning: Missing signing environment variables: ${MISSING_VARS[*]}"
-    echo "The build will not be signed/notarized."
-    read -p "Continue with unsigned build? (y/N) " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-      exit 1
-    fi
-  fi
-  
-  echo "Building macOS app..."
-  npm ci
-  npm run generate-icons
-  npm run build
-  npm run dist:mac
-  
-  echo ""
-  echo "✓ macOS build complete"
-  echo ""
-  
-  # Create the tag and push
-  echo "Creating tag $TAG..."
-  git tag "$TAG"
-  git push origin "$TAG"
-  
-  echo ""
-  echo "Waiting for GitHub release to be created..."
-  sleep 10
-  
-  # Upload macOS artifacts to release
-  echo "Uploading macOS artifacts to release..."
-  
-  # Find and upload the artifacts
-  for file in release/*.zip release/*.yml release/*.blockmap; do
-    if [ -f "$file" ]; then
-      echo "  Uploading: $file"
-      gh release upload "$TAG" "$file" --clobber || true
-    fi
-  done
-  
-  echo ""
-  echo "✓ macOS artifacts uploaded"
-  echo ""
-  echo "CI is now building Windows and Linux..."
-  echo "Monitor at: https://github.com/apotenza92/facebook-messenger-desktop/actions"
-  
-else
-  echo "Not on macOS - CI will build all platforms"
-  echo ""
-  
-  # Create the tag and push
-  echo "Creating tag $TAG..."
-  git tag "$TAG"
-  git push origin "$TAG"
-  
-  echo ""
-  echo "CI is now building all platforms..."
-  echo "Monitor at: https://github.com/apotenza92/facebook-messenger-desktop/actions"
-fi
+# Create the tag and push
+echo "Creating tag $TAG..."
+git tag "$TAG"
+git push origin "$TAG"
 
 echo ""
 echo "========================================"
 echo "Release $TAG initiated!"
 echo "========================================"
+echo ""
+echo "CI is now building all platforms..."
+echo "Monitor at: https://github.com/apotenza92/facebook-messenger-desktop/actions"
