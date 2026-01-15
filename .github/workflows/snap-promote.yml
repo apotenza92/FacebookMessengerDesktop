@@ -30,10 +30,12 @@ jobs:
           echo "Current Snap store status:"
           snapcraft status facebook-messenger-desktop || exit 1
           
-          # Get edge version (first arch row under edge)
-          EDGE_VERSION=$(snapcraft status facebook-messenger-desktop 2>/dev/null | grep -A1 "edge" | tail -1 | awk '{print $1}')
-          BETA_VERSION=$(snapcraft status facebook-messenger-desktop 2>/dev/null | grep -A1 "beta" | tail -1 | awk '{print $1}')
-          STABLE_VERSION=$(snapcraft status facebook-messenger-desktop 2>/dev/null | grep -A1 "stable" | tail -1 | awk '{print $1}')
+          # Parse versions from snapcraft status output
+          # Format: Track  Arch  Channel  Version  Revision  Progress
+          # We look for lines containing the channel name and extract the version (4th column)
+          EDGE_VERSION=$(snapcraft status facebook-messenger-desktop 2>/dev/null | awk '$3 == "edge" {print $4; exit}')
+          BETA_VERSION=$(snapcraft status facebook-messenger-desktop 2>/dev/null | awk '$3 == "beta" {print $4; exit}')
+          STABLE_VERSION=$(snapcraft status facebook-messenger-desktop 2>/dev/null | awk '$3 == "stable" {print $4; exit}')
           
           echo "edge_version=$EDGE_VERSION" >> $GITHUB_OUTPUT
           echo "beta_version=$BETA_VERSION" >> $GITHUB_OUTPUT
