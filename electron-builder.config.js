@@ -113,6 +113,7 @@ const nsisConfig = {
   include: 'scripts/uninstaller.nsh',
   installerIcon: icons.ico,
   uninstallerIcon: icons.ico,
+
 };
 
 // Linux configuration
@@ -203,6 +204,12 @@ const betaConfig = {
   ...baseConfig,
   appId: 'com.facebook.messenger.desktop.beta',
   productName: 'Messenger Beta',
+  // Override package.json name so Windows installs to a different directory
+  // This ensures beta installs to %LOCALAPPDATA%\Programs\facebook-messenger-desktop-beta\
+  // instead of the same directory as stable
+  extraMetadata: {
+    name: 'facebook-messenger-desktop-beta',
+  },
   // Only include asarUnpack for Linux builds (needed for icon post-install scripts)
   ...(isLinuxBuild && { asarUnpack: ['assets/icons/beta/linux/**/*'] }),
   mac: {
