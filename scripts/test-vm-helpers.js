@@ -1,28 +1,75 @@
 const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+const readline = require('readline');
 
 /**
  * VM Configuration
- * Update hostnames/IPs and usernames as needed for your Parallels VMs
+ * Passwords are loaded from .vm-credentials.json at runtime
+ * Create .vm-credentials.json with: {"windows": "pass", "ubuntu": "pass", "fedora": "pass"}
  */
 const VM_CONFIG = {
   windows: {
-    host: 'windows-vm.local',  // Windows VM IP (will update when available)
-    user: 'parallels',          // Windows username
-    password: 'YOUR_VM_PASSWORD'
+    host: 'windows-vm.local',
+    user: 'parallels',
+    password: null
   },
   ubuntu: {
-    host: '10.211.55.12',       // Ubuntu VM IP
-    user: 'parallels',          // Ubuntu username
-    password: 'YOUR_VM_PASSWORD'
+    host: '10.211.55.12',
+    user: 'parallels',
+    password: null
   },
   fedora: {
-    host: '10.211.55.13',       // Fedora VM IP
-    user: 'parallels',          // Fedora username
-    password: 'YOUR_VM_PASSWORD'
+    host: '10.211.55.13',
+    user: 'parallels',
+    password: null
   }
 };
+
+const CREDS_FILE = path.join(__dirname, '../.vm-credentials.json');
+
+function loadCredentials() {
+  if (fs.existsSync(CREDS_FILE)) {
+    try {
+      const creds = JSON.parse(fs.readFileSync(CREDS_FILE, 'utf8'));
+      if (creds.windows) VM_CONFIG.windows.password = creds.windows;
+      if (creds.ubuntu) VM_CONFIG.ubuntu.password = creds.ubuntu;
+      if (creds.fedora) VM_CONFIG.fedora.password = creds.fedora;
+      return true;
+    } catch (e) {
+      console.error('Error reading .vm-credentials.json:', e.message);
+    }
+  }
+  return false;
+}
+
+async function promptPassword(vm) {
+  return new Promise((resolve) => {
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout
+    });
+    rl.question(`Enter password for ${vm} VM: `, (answer) => {
+      rl.close();
+      resolve(answer.trim());
+    });
+  });
+}
+
+async function ensureCredentials(vm) {
+  if (!VM_CONFIG[vm].password) {
+    loadCredentials();
+  }
+  if (!VM_CONFIG[vm].password) {
+    VM_CONFIG[vm].password = await promptPassword(vm);
+  }
+  if (!VM_CONFIG[vm].password) {
+    throw new Error(`No password available for ${vm} VM. Create .vm-credentials.json or enter at prompt.`);
+  }
+}
+
+// Initialize credentials on module load
+loadCredentials();
 
 /**
  * Execute command in VM via SSH with password authentication
@@ -160,5 +207,8 @@ module.exports = {
   screenshotVM,
   testVMConnection,
   getVMIP,
-  sleep
+  sleep,
+  loadCredentials,
+  ensureCredentials,
+  promptPassword
 };
