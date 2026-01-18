@@ -166,6 +166,11 @@ ipcRenderer.on("power-state", (_event, data: { state: string; timestamp: number 
         // Handle incoming call detection from page context
         console.log('[Preload Bridge] Incoming call detected - signaling main process');
         ipcRenderer.send('incoming-call');
+      } else if (event.data.type === 'electron-recount-badge') {
+        // Handle badge recount request from injected script (issue #38)
+        console.log('[Preload Bridge] Badge recount requested - triggering DOM count');
+        // Dispatch custom event that the badge monitor will catch
+        document.dispatchEvent(new CustomEvent('electron-badge-recount-request', { detail: {} }));
       }
     }
   });
@@ -761,6 +766,13 @@ if (process.platform !== 'darwin') {
     // Listen for user interaction events that indicate they're reading/responding
     document.addEventListener('click', handleUserActivity, { passive: true });
     document.addEventListener('keydown', handleUserActivity, { passive: true });
+
+    // Issue #38: Handle badge recount requests from the injected notifications script
+    // When messages are marked as read in the active chat, trigger an immediate recount
+    document.addEventListener('electron-badge-recount-request', () => {
+      console.log('[BadgeMonitor] Recount requested from notifications script');
+      debouncedCountUnread();
+    }, { passive: true });
 
     // Issue #27: Periodic recheck to catch cross-device read status changes
     // When messages are read on another device, the local DOM doesn't update automatically

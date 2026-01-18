@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.2.5-beta.2] - 2026-01-18
+
+### Fixed
+- **Badge**: Badge now clears immediately when reading messages in the active chat ([#38](https://github.com/apotenza92/facebook-messenger-desktop/issues/38))
+  - Detects when Enter key is pressed (message sent) and triggers badge recount
+  - Monitors sidebar for unread status changes in real-time
+  - No longer requires switching chats to refresh the badge count
+
 ## [1.2.5-beta.1] - 2026-01-17
 
 ### Fixed

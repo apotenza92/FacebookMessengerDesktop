@@ -839,6 +839,82 @@
   });
 
   // ============================================================================
+  // CHAT READ DETECTION
+  // ============================================================================
+  // Detect when messages are read in the currently active chat
+  // and trigger a badge/unread count recount
+  
+  // Debounce badge recount requests to avoid excessive updates
+  let badgeRecountTimeout: number | null = null;
+  const requestBadgeRecount = () => {
+    if (badgeRecountTimeout !== null) {
+      clearTimeout(badgeRecountTimeout);
+    }
+    badgeRecountTimeout = window.setTimeout(() => {
+      log('Requesting badge recount due to chat activity');
+      window.postMessage({ type: 'electron-recount-badge' }, '*');
+      badgeRecountTimeout = null;
+    }, 300); // Wait 300ms to batch multiple changes
+  };
+
+  // Listen for Enter key to detect message sending (which marks messages as read)
+  document.addEventListener('keydown', (e: KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
+      // Enter key pressed (likely sending a message)
+      // Wait for the UI to update, then request badge recount
+      setTimeout(requestBadgeRecount, 100);
+    }
+  }, true); // Use capture phase to detect before Messenger handles it
+
+  // Also monitor sidebar for unread status changes (messages marked as read)
+  const setupReadDetectionObserver = () => {
+    const sidebar = findSidebarElement();
+    if (!sidebar) {
+      setTimeout(setupReadDetectionObserver, 1000);
+      return;
+    }
+
+    // Observe the sidebar for changes to unread indicators
+    const readObserver = new MutationObserver((mutations) => {
+      // Check if any mutations might indicate messages were marked as read
+      let mightHaveCleared = false;
+      
+      for (const mutation of mutations) {
+        // Check for attribute changes (aria-label updates)
+        if (mutation.type === 'attributes' && mutation.attributeName?.includes('aria')) {
+          mightHaveCleared = true;
+          break;
+        }
+        // Check for text content changes in conversation rows
+        if (mutation.type === 'characterData') {
+          const text = mutation.target.textContent || '';
+          // If "Unread message:" text is being removed, it means the chat was marked as read
+          if (!text.includes('Unread message:')) {
+            mightHaveCleared = true;
+            break;
+          }
+        }
+      }
+
+      if (mightHaveCleared) {
+        requestBadgeRecount();
+      }
+    });
+
+    readObserver.observe(sidebar, {
+      characterData: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['aria-label', 'class'],
+    });
+
+    log('Read detection observer active');
+  };
+
+  // Start read detection after a delay to ensure sidebar is available
+  setTimeout(setupReadDetectionObserver, 3000);
+
+  // ============================================================================
   // INITIALIZATION
   // ============================================================================
 
