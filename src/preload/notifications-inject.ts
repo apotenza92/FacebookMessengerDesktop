@@ -56,7 +56,7 @@
         },
         '*',
       );
-    } catch (_) {}
+    } catch { /* intentionally empty */ }
   };
 
   // ============================================================================
@@ -357,7 +357,7 @@
   // Find sidebar or chat grid element
   const findSidebarElement = (): Element | null => {
     // Try primary selector
-    let sidebar = document.querySelector(selectors.sidebar);
+    const sidebar = document.querySelector(selectors.sidebar);
     if (sidebar) return sidebar;
 
     // Try finding grid and getting its navigation parent
@@ -929,7 +929,7 @@
       enumerable: true,
     });
     log('Notification API overridden successfully');
-  } catch (e) {
+  } catch (_e) {
     log('Using fallback Notification override method');
   }
 

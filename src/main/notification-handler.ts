@@ -37,11 +37,11 @@ export class NotificationHandler {
     if (data.icon) {
       try {
         notificationOptions.icon = nativeImage.createFromDataURL(data.icon);
-      } catch (e) {
+      } catch (_e) {
         // If data URL is invalid, try as file path
         try {
           notificationOptions.icon = nativeImage.createFromPath(data.icon);
-        } catch (e2) {
+        } catch (_e2) {
           // Ignore icon errors
         }
       }

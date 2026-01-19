@@ -147,7 +147,7 @@ let mainWindow: BrowserWindow | null = null;
 let contentView: BrowserView | null = null;
 let notificationHandler: NotificationHandler;
 let badgeManager: BadgeManager;
-let backgroundService: BackgroundService;
+let _backgroundService: BackgroundService;
 let isQuitting = false;
 let resetApplied = false;
 let manualUpdateCheckInProgress = false;
@@ -168,7 +168,7 @@ const MENU_BAR_HOVER_ZONE = 30; // Pixels from top of window to trigger menu bar
 // Once user starts login, we don't redirect back to custom login page until they explicitly log out
 // or the app is restarted without valid session cookies
 let loginFlowActive = false; // True once user clicks "Login with Facebook"
-let hasTriedMessengerOnce = false; // True after first messenger.com load attempt
+let _hasTriedMessengerOnce = false; // True after first messenger.com load attempt
 
 type WindowState = {
   x?: number;
@@ -295,7 +295,7 @@ let currentUpdateFrequency: UpdateFrequency = "daily";
 let updateCheckInterval: NodeJS.Timeout | null = null;
 
 // XWayland preference for Linux Wayland users (for screen sharing compatibility)
-let useXWayland = false;
+const _useXWayland = false;
 
 // Clean up legacy beta opt-in file from older versions (pre-1.2.1)
 // The old system used an in-app toggle; now beta is determined by version string
@@ -308,7 +308,7 @@ try {
     fs.unlinkSync(legacyBetaOptInFile);
     console.log("[Beta] Cleaned up legacy beta-opt-in.json file");
   }
-} catch (e) {
+} catch {
   // Ignore errors - file might be locked or already deleted
 }
 
@@ -319,7 +319,7 @@ function isBetaOptedIn(): boolean {
   return isBetaVersion;
 }
 
-function loadXWaylandPreference(): boolean {
+function _loadXWaylandPreference(): boolean {
   try {
     if (fs.existsSync(xwaylandPreferenceFile)) {
       const data = JSON.parse(fs.readFileSync(xwaylandPreferenceFile, "utf8"));
@@ -481,7 +481,7 @@ const LOGIN_BANNER_JS = `
 // Legacy custom login form CSS - DEPRECATED (was breaking Facebook's login flow)
 // The old custom form hid Facebook's native form and replaced it with our own,
 // which bypassed CSRF tokens and broke login. Now we just show a banner.
-const LOGIN_PAGE_CSS_DEPRECATED = `
+const _LOGIN_PAGE_CSS_DEPRECATED = `
   /* This CSS is no longer used - it hid Facebook's form which broke login */
   #md-login-form input[type="text"],
   #md-login-form input[type="password"] {
@@ -580,7 +580,7 @@ const LOGIN_PAGE_CSS_DEPRECATED = `
 
 // JavaScript to inject the header with branding (icon embedded as base64)
 // Also moves the form directly after the header
-const LOGIN_PAGE_HEADER_JS = `
+const _LOGIN_PAGE_HEADER_JS = `
   (function() {
     // Only inject once
     if (document.getElementById('md-wrapper')) return;
@@ -836,7 +836,7 @@ function isVerificationPage(url: string): boolean {
 
 // Check if messenger session cookies are established
 // Returns true if c_user or xs cookies exist for messenger.com domain
-async function hasMessengerSession(
+async function _hasMessengerSession(
   session: Electron.Session,
 ): Promise<boolean> {
   try {
@@ -2432,7 +2432,7 @@ function createWindow(source: string = "unknown"): void {
 
           // Show a picker dialog for the user to choose
           // Build choices array with source names
-          const choices = sources.map((source, index) => {
+          const choices = sources.map((source, _index) => {
             const icon = source.id.startsWith("screen:") ? "🖥️" : "🪟";
             return `${icon} ${source.name}`;
           });
@@ -2467,7 +2467,7 @@ function createWindow(source: string = "unknown"): void {
     // This handles downloads initiated via webContents.downloadURL()
     contentView.webContents.session.on(
       "will-download",
-      (event, item, webContents) => {
+      (event, item, _webContents) => {
         const url = item.getURL();
         const suggestedFilename = item.getFilename();
         console.log("[Download] Download started:", {
@@ -2564,7 +2564,7 @@ function createWindow(source: string = "unknown"): void {
           );
           contentView?.webContents.loadURL(getCustomLoginPageURL());
         }
-        hasTriedMessengerOnce = true;
+        _hasTriedMessengerOnce = true;
       })
       .catch((err) => {
         console.warn(
@@ -2572,7 +2572,7 @@ function createWindow(source: string = "unknown"): void {
           err,
         );
         contentView?.webContents.loadURL("https://www.messenger.com/");
-        hasTriedMessengerOnce = true;
+        _hasTriedMessengerOnce = true;
       });
 
     // Handle new window requests (target="_blank" links, window.open, etc.)
@@ -3243,7 +3243,7 @@ function createWindow(source: string = "unknown"): void {
     // Set up native download handler for Facebook CDN media files (fallback path)
     mainWindow.webContents.session.on(
       "will-download",
-      (event, item, webContents) => {
+      (event, item, _webContents) => {
         const url = item.getURL();
         const suggestedFilename = item.getFilename();
         console.log("[Download] Download started:", {
@@ -3342,7 +3342,7 @@ function createWindow(source: string = "unknown"): void {
           );
           mainWindow?.loadURL(getCustomLoginPageURL());
         }
-        hasTriedMessengerOnce = true;
+        _hasTriedMessengerOnce = true;
       })
       .catch((err) => {
         console.warn(
@@ -3350,7 +3350,7 @@ function createWindow(source: string = "unknown"): void {
           err,
         );
         mainWindow?.loadURL(getCustomLoginPageURL());
-        hasTriedMessengerOnce = true;
+        _hasTriedMessengerOnce = true;
       });
 
     // Handle new window requests (target="_blank" links, window.open, etc.)
@@ -5354,7 +5354,7 @@ async function handleResetAndLogout(): Promise<void> {
 
       // Reset login flow state
       loginFlowActive = false;
-      hasTriedMessengerOnce = false;
+      _hasTriedMessengerOnce = false;
 
       // Get the session from the active webContents
       const isMac = process.platform === "darwin";
@@ -6242,7 +6242,7 @@ function hasPromptedMoveToApplications(): boolean {
       const data = JSON.parse(fs.readFileSync(movePromptFile, "utf8"));
       return data.prompted === true;
     }
-  } catch (e) {
+  } catch {
     // Ignore errors, will prompt again
   }
   return false;
@@ -6309,7 +6309,7 @@ async function promptMoveToApplications(): Promise<void> {
     // Remove existing app
     try {
       fs.rmSync(destinationPath, { recursive: true, force: true });
-    } catch (e) {
+    } catch {
       await dialog.showMessageBox({
         type: "error",
         buttons: ["OK"],
@@ -6343,8 +6343,8 @@ async function promptMoveToApplications(): Promise<void> {
     );
     spawn(newExePath, [], { detached: true, stdio: "ignore" }).unref();
     app.quit();
-  } catch (e) {
-    console.error("[Move to Applications] Failed:", e);
+  } catch (_e) {
+    console.error("[Move to Applications] Failed:", _e);
     await dialog.showMessageBox({
       type: "error",
       buttons: ["OK"],
@@ -6379,7 +6379,7 @@ function readNotificationPermissionState(): NotificationPermissionState | null {
     if (fs.existsSync(notificationPermissionFile)) {
       return JSON.parse(fs.readFileSync(notificationPermissionFile, "utf8"));
     }
-  } catch (e) {
+  } catch {
     // Ignore errors, will request again
   }
   return null;
@@ -6715,7 +6715,7 @@ function showSnapDesktopIntegrationHelp(): void {
       snapHelpShownFile,
       JSON.stringify({ shown: true, date: new Date().toISOString() }),
     );
-  } catch (e) {
+  } catch {
     // Continue anyway if file operations fail
   }
 
@@ -7044,7 +7044,7 @@ async function getChangelogForUpdate(
 
     // Remove leading dashes from list items, keep indentation info
     content = content.replace(/^- /gm, "• ");
-    content = content.replace(/^  - /gm, "  ◦ ");
+    content = content.replace(/^ {2}- /gm, "  ◦ ");
 
     // Remove issue references like "(issue #21)" for cleaner display
     content = content.replace(/\s*\(issue #\d+\)/g, "");
@@ -7478,7 +7478,7 @@ async function runWindowsShortcutFix(): Promise<ShortcutFixResult> {
               );
             }
           }
-        } catch (e) {
+        } catch {
           // JSON parsing failed, not critical
           console.log("[Shortcut Fix] Could not parse result JSON");
         }
@@ -8606,7 +8606,7 @@ app.whenReady().then(async () => {
   });
 
   // Auto-updater setup (skip in dev mode, Snap, and Flatpak - they use their own update mechanisms)
-  if (false && isDev) { // TEMPORARILY ENABLED FOR TESTING
+  if (isDev) {
     console.log("[AutoUpdater] Skipped in development mode");
   } else if (detectSnapInstall()) {
     console.log(
@@ -8643,7 +8643,7 @@ app.whenReady().then(async () => {
   notificationHandler = new NotificationHandler(() => mainWindow, APP_DISPLAY_NAME);
   badgeManager = new BadgeManager();
   badgeManager.setWindowGetter(() => mainWindow);
-  backgroundService = new BackgroundService();
+  _backgroundService = new BackgroundService();
 
   // Request notification permission on first launch (triggers macOS permission prompt)
   await requestNotificationPermission();

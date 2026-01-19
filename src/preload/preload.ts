@@ -64,7 +64,7 @@ ipcRenderer.on("power-state", (_event, data: { state: string; timestamp: number 
 (function setupNotificationBridge() {
   // Inject a script into the page context to listen for custom events
   // and forward them to the preload context via a message
-  const bridgeScript = `
+  const _bridgeScript = `
     (function() {
       window.addEventListener('electron-notification', function(event) {
         // Forward to preload via a message we can catch
@@ -90,7 +90,7 @@ ipcRenderer.on("power-state", (_event, data: { state: string; timestamp: number 
             tag: data?.tag,
             id: data?.id,
           });
-        } catch (_) {}
+        } catch { /* intentionally empty */ }
         
         // Convert icon if it's a data URL
         if (data.icon) {
@@ -117,7 +117,7 @@ ipcRenderer.on("power-state", (_event, data: { state: string; timestamp: number 
               });
               try {
                 console.log('[Preload Bridge] Sent notification with icon to main', { id: data.id, title: data.title, href: data.href });
-              } catch (_) {}
+              } catch { /* intentionally empty */ }
             }
           });
           
@@ -133,7 +133,7 @@ ipcRenderer.on("power-state", (_event, data: { state: string; timestamp: number 
             });
             try {
               console.warn('[Preload Bridge] Icon load failed, sent without icon', { id: data.id, title: data.title, href: data.href });
-            } catch (_) {}
+            } catch { /* intentionally empty */ }
           });
           
           image.src = data.icon;
@@ -149,12 +149,12 @@ ipcRenderer.on("power-state", (_event, data: { state: string; timestamp: number 
           });
           try {
             console.log('[Preload Bridge] Sent notification without icon to main', { id: data.id, title: data.title, href: data.href });
-          } catch (_) {}
+          } catch { /* intentionally empty */ }
         }
       } else if (event.data.type === 'electron-fallback-log') {
         try {
           ipcRenderer.send('log-fallback', event.data.data);
-        } catch (_) {}
+        } catch { /* intentionally empty */ }
       } else if (event.data.type === 'electron-badge-update') {
         // Handle badge count updates from page context
         const count = event.data.count;
@@ -248,7 +248,7 @@ if (process.platform !== 'darwin') {
   'use strict';
 
   // Store original Notification constructor if it exists
-  const OriginalNotification = window.Notification;
+  const _OriginalNotification = window.Notification;
 
   // Create a robust Notification override
   function createNotificationOverride() {
@@ -350,7 +350,7 @@ if (process.platform !== 'darwin') {
   }
 
   // Continuously monitor and re-override if messenger.com tries to change it
-  let overrideCheckInterval: number | null = null;
+  let _overrideCheckInterval: number | null = null;
   
   function ensureOverride() {
     // Check if Notification was changed by comparing constructor name or instance
@@ -398,7 +398,7 @@ if (process.platform !== 'darwin') {
   }
 
   // Check periodically to ensure override stays in place (every 2 seconds)
-  overrideCheckInterval = window.setInterval(ensureOverride, 2000);
+  _overrideCheckInterval = window.setInterval(ensureOverride, 2000);
 
   // Also override when DOM is ready
   if (document.readyState === 'loading') {
@@ -540,12 +540,12 @@ if (process.platform !== 'darwin') {
           'ul[role="list"] > li[role="listitem"]',  // Another alternative
         ];
 
-        let allConversations: Element[] = [];
+        const allConversations: Element[] = [];
         conversationSelectors.forEach((selector) => {
           try {
             const elements = document.querySelectorAll(selector);
             allConversations.push(...Array.from(elements));
-          } catch (e) {
+          } catch (_e) {
             // Ignore selector errors
           }
         });
@@ -671,7 +671,7 @@ if (process.platform !== 'darwin') {
         });
 
         return unreadCount;
-      } catch (e) {
+      } catch (_e) {
         // If DOM counting fails, return -1 to indicate we should rely on title
         return -1;
       }
