@@ -1,6 +1,6 @@
 {
   "name": "facebook-messenger-desktop",
-  "version": "1.2.5-beta.3",
+  "version": "1.2.5-beta.4",
   "description": "An unofficial, self-contained desktop app for Facebook Messenger",
   "main": "dist/main/main.js",
   "scripts": {
@@ -23,6 +23,7 @@
     "dist:linux:x64": "npm run build && electron-builder --config electron-builder.config.js --linux --x64 --publish=never",
     "dist:all": "npm run build && electron-builder --config electron-builder.config.js --mac --win --linux --publish=never",
     "test:notification": "node -r ./scripts/register-ts.js scripts/test-notification-click.ts",
+    "test:release": "node -r ./scripts/register-ts.js scripts/test-release-version.ts",
     "ralphy": "~/code/ralphy/ralphy.sh --codex --prd PRD.md",
     "ralphy:dry": "~/code/ralphy/ralphy.sh --codex --prd PRD.md --dry-run"
   },

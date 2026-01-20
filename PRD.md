@@ -47,28 +47,32 @@ This approach tests the actual navigation logic without requiring manual clicks 
 
 ## Task 2: Release as beta once Task 1 is complete
 
-### Prerequisites
-- Task 1 fix is implemented and committed
-- Automated test passes on macOS
+**Status**: Task 1 is committed. Ready for release.
 
 ### Steps
-1. **Update CHANGELOG.md** - Add entry for `1.2.5-beta.4`:
-   ```
-   ## [1.2.5-beta.4] - YYYY-MM-DD
+1. **Update CHANGELOG.md** - Add entry for `1.2.5-beta.4` with today's date at the top of the changelog (after the header), following the existing format:
+   ```markdown
+   ## [1.2.5-beta.4] - 2026-01-20
    ### Fixed
    - Fixed macOS notification click not navigating to the correct chat conversation
    ```
 
-2. **Update package.json** - Bump version to `1.2.5-beta.4`
+2. **Update package.json** - Change `"version": "1.2.5-beta.3"` to `"version": "1.2.5-beta.4"`
 
-3. **Commit and push** to `main`:
+3. **Commit and push**:
    ```bash
    git add -A
-   git commit -m "fix: macOS notification click navigation"
+   git commit -m "chore: prepare 1.2.5-beta.4 release"
    git push origin main
    ```
 
-4. **Run release script** (user has granted permission since tests pass):
+4. **Run release script** (user has granted permission):
    ```bash
    ./scripts/release.sh 1.2.5-beta.4
    ```
+
+### Acceptance Criteria
+- [x] CHANGELOG.md updated with 1.2.5-beta.4 entry
+- [x] package.json version is 1.2.5-beta.4
+- [ ] Changes pushed to main
+- [ ] Release script executed successfully

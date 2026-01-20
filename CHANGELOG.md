@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.2.5-beta.4] - 2026-01-20
+
+### Fixed
+- Fixed macOS notification click not navigating to the correct chat conversation
+
 ## [1.2.5-beta.3] - 2026-01-18
 
 ### Fixed
