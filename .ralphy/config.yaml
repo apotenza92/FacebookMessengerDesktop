@@ -21,7 +21,7 @@ rules:
   - "Follow existing code patterns in src/main/ and src/preload/"
   - "Use async/await for promises"
   - "Console logging format: [Component] message"
-  - "Never create or push version tags without explicit user confirmation"
+  - "Beta releases are allowed without confirmation; stable releases require user confirmation"
   - "Platform detection: process.platform === 'darwin' | 'win32' | else"
   - "macOS: close hides to dock; Windows/Linux: close minimizes to tray"
   - "Use isQuitting flag to control actual quit behavior"
@@ -36,4 +36,3 @@ boundaries:
     - "assets/icons/**"
     - "assets/tray/**"
     - ".github/workflows/**"
-    - "scripts/**"

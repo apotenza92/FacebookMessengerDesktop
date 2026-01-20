@@ -24,8 +24,8 @@
     "dist:all": "npm run build && electron-builder --config electron-builder.config.js --mac --win --linux --publish=never",
     "test:notification": "node -r ./scripts/register-ts.js scripts/test-notification-click.ts",
     "test:release": "node -r ./scripts/register-ts.js scripts/test-release-version.ts",
-    "ralphy": "~/code/ralphy/ralphy.sh --codex --prd PRD.md",
-    "ralphy:dry": "~/code/ralphy/ralphy.sh --codex --prd PRD.md --dry-run"
+    "ralphy": "PATH=\"$PWD/scripts:$PATH\" ~/code/ralphy/ralphy.sh --codex --prd PRD.md",
+    "ralphy:dry": "PATH=\"$PWD/scripts:$PATH\" ~/code/ralphy/ralphy.sh --codex --prd PRD.md --dry-run"
   },
   "keywords": [
     "messenger",

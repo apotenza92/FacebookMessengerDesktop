@@ -21,26 +21,38 @@ function readPackageVersion(): string {
   return parsed.version;
 }
 
-function readChangelogTopVersion(): string {
+function readChangelogTopEntry(): { version: string; entry: string } {
   const changelogPath = getRootPath('CHANGELOG.md');
   const raw = fs.readFileSync(changelogPath, 'utf8');
-  const match = raw.match(/^## \[([^\]]+)\] - \d{4}-\d{2}-\d{2}/m);
+  const headerRegex = /^## \[([^\]]+)\] - \d{4}-\d{2}-\d{2}/gm;
+  const match = headerRegex.exec(raw);
 
   if (!match) {
     throw new Error('Top changelog entry not found');
   }
 
-  return match[1];
+  const startIndex = match.index + match[0].length;
+  const nextMatch = headerRegex.exec(raw);
+  const endIndex = nextMatch ? nextMatch.index : raw.length;
+
+  return {
+    version: match[1],
+    entry: raw.slice(startIndex, endIndex),
+  };
 }
 
 function run(): void {
   const packageVersion = readPackageVersion();
-  const changelogVersion = readChangelogTopVersion();
+  const { version: changelogVersion, entry: changelogEntry } = readChangelogTopEntry();
 
   if (packageVersion !== changelogVersion) {
     throw new Error(
       `Version mismatch: package.json=${packageVersion}, CHANGELOG.md=${changelogVersion}`
     );
+  }
+
+  if (!/^\s*-\s+\S/m.test(changelogEntry)) {
+    throw new Error('Top changelog entry has no bullet items');
   }
 
   console.log(`✓ Version matches: ${packageVersion}`);
