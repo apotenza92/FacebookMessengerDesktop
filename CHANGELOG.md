@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.2.5-beta.5] - 2026-01-22
+
+### Fixed
+- **Audio calls**: Microphone now consistently released after calls end ([#33](https://github.com/apotenza92/facebook-messenger-desktop/issues/33))
+  - Root cause: `call-window-preload.js` was injected after page load, missing early `getUserMedia()` calls
+  - Fix: Use `call-window-preload.js` as actual preload script for call windows to ensure override runs before any page JavaScript
+  - Microphone no longer lingers in macOS menu bar (orange icon) after call ends
+
 ## [1.2.5-beta.4] - 2026-01-20
 
 ### Fixed
