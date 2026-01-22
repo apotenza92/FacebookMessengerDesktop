@@ -8712,6 +8712,7 @@ function setupTitleOverlay(
               font-size: 13px;
               color: ${textColor};
               -webkit-app-region: drag;
+              pointer-events: auto;
             }
           </style>
         </head>
