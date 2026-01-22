@@ -2605,7 +2605,10 @@ function createWindow(source: string = "unknown"): void {
               title: `${APP_DISPLAY_NAME} Call`,
               icon: isDev ? undefined : getIconPath(),
               webPreferences: {
-                preload: path.join(__dirname, "../preload/preload.js"),
+                preload: path.join(
+                  __dirname,
+                  "../preload/call-window-preload.js",
+                ),
                 contextIsolation: true,
                 nodeIntegration: false,
                 sandbox: false,
@@ -2828,39 +2831,10 @@ function createWindow(source: string = "unknown"): void {
         },
       );
 
-      // Inject call window cleanup script and log when child window loads
-      childWindow.webContents.on("did-finish-load", async () => {
+      // Log when child window loads (preload script handles MediaStream cleanup)
+      childWindow.webContents.on("did-finish-load", () => {
         const url = childWindow.webContents.getURL();
         console.log("[Window] Child window finished loading:", url);
-
-        // Inject MediaStream cleanup script for call windows
-        try {
-          const callWindowPreloadPath = path.join(
-            __dirname,
-            "../preload/call-window-preload.js",
-          );
-
-          if (fs.existsSync(callWindowPreloadPath)) {
-            const callWindowScript = fs.readFileSync(
-              callWindowPreloadPath,
-              "utf8",
-            );
-            await childWindow.webContents.executeJavaScript(callWindowScript);
-            console.log(
-              "[Window] Call window cleanup script injected successfully",
-            );
-          } else {
-            console.warn(
-              "[Window] Call window preload script not found at:",
-              callWindowPreloadPath,
-            );
-          }
-        } catch (error) {
-          console.error(
-            "[Window] Failed to inject call window cleanup script:",
-            error,
-          );
-        }
       });
 
       // Log console messages from child window
@@ -3383,7 +3357,10 @@ function createWindow(source: string = "unknown"): void {
               title: `${APP_DISPLAY_NAME} Call`,
               icon: isDev ? undefined : getIconPath(),
               webPreferences: {
-                preload: path.join(__dirname, "../preload/preload.js"),
+                preload: path.join(
+                  __dirname,
+                  "../preload/call-window-preload.js",
+                ),
                 contextIsolation: true,
                 nodeIntegration: false,
                 sandbox: false,
@@ -3606,39 +3583,10 @@ function createWindow(source: string = "unknown"): void {
         },
       );
 
-      // Inject call window cleanup script and log when child window loads
-      childWindow.webContents.on("did-finish-load", async () => {
+      // Log when child window loads (preload script handles MediaStream cleanup)
+      childWindow.webContents.on("did-finish-load", () => {
         const url = childWindow.webContents.getURL();
         console.log("[Window] Child window finished loading:", url);
-
-        // Inject MediaStream cleanup script for call windows
-        try {
-          const callWindowPreloadPath = path.join(
-            __dirname,
-            "../preload/call-window-preload.js",
-          );
-
-          if (fs.existsSync(callWindowPreloadPath)) {
-            const callWindowScript = fs.readFileSync(
-              callWindowPreloadPath,
-              "utf8",
-            );
-            await childWindow.webContents.executeJavaScript(callWindowScript);
-            console.log(
-              "[Window] Call window cleanup script injected successfully",
-            );
-          } else {
-            console.warn(
-              "[Window] Call window preload script not found at:",
-              callWindowPreloadPath,
-            );
-          }
-        } catch (error) {
-          console.error(
-            "[Window] Failed to inject call window cleanup script:",
-            error,
-          );
-        }
       });
 
       // Log console messages from child window
