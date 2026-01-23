@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.2.5-beta.10] - 2026-01-23
+
+### Fixed
+- **Audio/Video calls**: Microphone now releases when call ends, not when window closes ([#33](https://github.com/apotenza92/facebook-messenger-desktop/issues/33))
+  - Added track `ended` event listeners to detect when Facebook stops media tracks
+  - Added DOM observer to detect "call ended" UI patterns (e.g., "Call ended", "No answer", "Unavailable")
+  - Microphone/camera released immediately upon call termination
+
 ## [1.2.5-beta.9] - 2026-01-22
 
 ### Improved
