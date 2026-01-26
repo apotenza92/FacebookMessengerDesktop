@@ -9,7 +9,8 @@
   "include": [
     "./preload.ts",
     "./notifications-inject.ts",
-    "./call-window-preload.ts"
+    "./call-window-preload.ts",
+    "./call-window-inject.ts"
   ],
   "exclude": []
 }

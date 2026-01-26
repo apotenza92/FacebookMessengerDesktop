@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.2.5-beta.11] - 2026-01-26
+
+### Fixed
+- **Audio/Video calls**: Improved microphone release reliability ([#33](https://github.com/apotenza92/facebook-messenger-desktop/issues/33))
+  - Previous fix ran in isolated preload context, missing streams created by Messenger
+  - New approach injects script into page context to intercept RTCPeerConnection
+  - Tracks streams via addTrack calls and DOM media element scanning
+  - Added "nuclear option": requests fresh mic access and immediately releases it
+  - Guarantees microphone release even when Messenger has already stopped tracks
+
+### Changed
+- **Keyboard Shortcuts**: Command palette renamed to "Quick switcher"
+  - New shortcut: Cmd/Ctrl+O (was Cmd/Ctrl+Shift+P)
+  - Updated all UI text and log messages
+
 ## [1.2.5-beta.10] - 2026-01-23
 
 ### Fixed

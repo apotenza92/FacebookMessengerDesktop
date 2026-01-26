@@ -1071,7 +1071,7 @@
   setupCallPopupObserver();
 
   // ============================================================================
-  // KEYBOARD SHORTCUTS & COMMAND PALETTE
+  // KEYBOARD SHORTCUTS & QUICK SWITCHER
   // ============================================================================
 
   // Get all conversation rows from sidebar (raw, may include empty rows)
@@ -1276,8 +1276,8 @@
           <div style="border-bottom: 1px solid ${theme.border}; padding-bottom: 12px;">
             <div style="color: ${theme.textMuted}; font-size: 12px; text-transform: uppercase; margin-bottom: 8px;">Quick Actions</div>
             <div style="display: flex; justify-content: space-between; margin-bottom: 6px; gap: 24px;">
-              <span>Command palette</span>
-              <kbd style="background: ${theme.kbd}; padding: 2px 8px; border-radius: 4px; font-size: 12px; white-space: nowrap;">${modKey} + Shift + P</kbd>
+              <span>Quick switcher</span>
+              <kbd style="background: ${theme.kbd}; padding: 2px 8px; border-radius: 4px; font-size: 12px; white-space: nowrap;">${modKey} + O</kbd>
             </div>
             <div style="display: flex; justify-content: space-between; gap: 24px;">
               <span>Show this help</span>
@@ -1421,7 +1421,7 @@
   }, 500);
 
   // ============================================================================
-  // COMMAND PALETTE
+  // QUICK SWITCHER
   // ============================================================================
 
   let commandPaletteEl: HTMLElement | null = null;
@@ -1581,7 +1581,7 @@
       }
     });
     
-    log('Command palette shown');
+    log('Quick switcher shown');
   };
 
   const hideCommandPalette = (): void => {
@@ -1591,7 +1591,7 @@
       paletteInputEl = null;
       paletteResultsEl = null;
       paletteContacts = [];
-      log('Command palette hidden');
+      log('Quick switcher hidden');
     }
   };
 
@@ -1744,8 +1744,8 @@
       return; // Let palette handle its own keyboard events
     }
     
-    // Cmd/Ctrl + Shift + P → Command palette (works everywhere)
-    if (isMod && e.shiftKey && e.key.toLowerCase() === 'p') {
+    // Cmd/Ctrl + O → Quick switcher (works everywhere)
+    if (isMod && !e.shiftKey && e.key.toLowerCase() === 'o') {
       e.preventDefault();
       e.stopPropagation();
       showCommandPalette();

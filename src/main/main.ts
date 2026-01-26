@@ -2831,10 +2831,32 @@ function createWindow(source: string = "unknown"): void {
         },
       );
 
-      // Log when child window loads (preload script handles MediaStream cleanup)
-      childWindow.webContents.on("did-finish-load", () => {
+      // Inject MediaStream tracking as early as possible (dom-ready fires before did-finish-load)
+      childWindow.webContents.on("dom-ready", async () => {
         const url = childWindow.webContents.getURL();
-        console.log("[Window] Child window finished loading:", url);
+        console.log("[Window] Child window DOM ready:", url);
+
+        // Inject call window script into page context for MediaStream tracking
+        if (url.includes("messenger.com")) {
+          const callInjectPath = path.join(
+            __dirname,
+            "../preload/call-window-inject.js",
+          );
+          if (fs.existsSync(callInjectPath)) {
+            const callInjectScript = fs.readFileSync(callInjectPath, "utf-8");
+            try {
+              await childWindow.webContents.executeJavaScript(callInjectScript);
+              console.log(
+                "[Window] Call window MediaStream tracking injected",
+              );
+            } catch (err) {
+              console.error(
+                "[Window] Failed to inject call window script:",
+                err,
+              );
+            }
+          }
+        }
       });
 
       // Log console messages from child window
@@ -3585,10 +3607,32 @@ function createWindow(source: string = "unknown"): void {
         },
       );
 
-      // Log when child window loads (preload script handles MediaStream cleanup)
-      childWindow.webContents.on("did-finish-load", () => {
+      // Inject MediaStream tracking as early as possible (dom-ready fires before did-finish-load)
+      childWindow.webContents.on("dom-ready", async () => {
         const url = childWindow.webContents.getURL();
-        console.log("[Window] Child window finished loading:", url);
+        console.log("[Window] Child window DOM ready:", url);
+
+        // Inject call window script into page context for MediaStream tracking
+        if (url.includes("messenger.com")) {
+          const callInjectPath = path.join(
+            __dirname,
+            "../preload/call-window-inject.js",
+          );
+          if (fs.existsSync(callInjectPath)) {
+            const callInjectScript = fs.readFileSync(callInjectPath, "utf-8");
+            try {
+              await childWindow.webContents.executeJavaScript(callInjectScript);
+              console.log(
+                "[Window] Call window MediaStream tracking injected",
+              );
+            } catch (err) {
+              console.error(
+                "[Window] Failed to inject call window script:",
+                err,
+              );
+            }
+          }
+        }
       });
 
       // Log console messages from child window
