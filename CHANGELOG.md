@@ -1,8 +1,27 @@
 # Changelog
 
+## [1.2.5] - 2026-01-29
+
+### Added
+
+- **Quick switcher & keyboard shortcuts**: Command palette with real-name learning, shortcuts overlay, and sidebar navigation keys
+
+### Fixed
+
+- **Audio/Video calls**: Microphone release reliability when calls end
+- **Notifications**: Click-to-navigate and stale notification suppression after sleep/wake
+- **Badge**: Immediate clearing when reading messages in the active chat
+- **Keyboard shortcuts**: Startup focus, navigation accuracy, and modifier key handling
+- **Command palette**: Enter key now works when searching by real name
+
+### Changed
+
+- **Quick switcher**: Renamed from command palette and moved to Cmd/Ctrl+O
+
 ## [1.2.5-beta.11] - 2026-01-26
 
 ### Fixed
+
 - **Audio/Video calls**: Improved microphone release reliability ([#33](https://github.com/apotenza92/facebook-messenger-desktop/issues/33))
   - Previous fix ran in isolated preload context, missing streams created by Messenger
   - New approach injects script into page context to intercept RTCPeerConnection
@@ -11,6 +30,7 @@
   - Guarantees microphone release even when Messenger has already stopped tracks
 
 ### Changed
+
 - **Keyboard Shortcuts**: Command palette renamed to "Quick switcher"
   - New shortcut: Cmd/Ctrl+O (was Cmd/Ctrl+Shift+P)
   - Updated all UI text and log messages
@@ -18,6 +38,7 @@
 ## [1.2.5-beta.10] - 2026-01-23
 
 ### Fixed
+
 - **Audio/Video calls**: Microphone now releases when call ends, not when window closes ([#33](https://github.com/apotenza92/facebook-messenger-desktop/issues/33))
   - Added track `ended` event listeners to detect when Facebook stops media tracks
   - Added DOM observer to detect "call ended" UI patterns (e.g., "Call ended", "No answer", "Unavailable")
@@ -26,6 +47,7 @@
 ## [1.2.5-beta.9] - 2026-01-22
 
 ### Improved
+
 - **Keyboard Shortcuts Overlay**: UI improvements
   - Wider dialog to prevent text crowding
   - Shows platform-specific shortcuts (⌘ on macOS, Ctrl on Windows/Linux)
@@ -33,6 +55,7 @@
 ## [1.2.5-beta.8] - 2026-01-22
 
 ### Fixed
+
 - **Command Palette**: Fixed Enter key not working when searching by real name
   - Search results matched real names but selection only checked nicknames
   - Now uses same matching logic for both display and selection
@@ -44,6 +67,7 @@
 ## [1.2.5-beta.7] - 2026-01-22
 
 ### Added
+
 - **Real Name Learning**: Command palette now learns and searches by real names
   - Automatically extracts real names from conversation avatar alt text
   - Caches names in localStorage (persists across restarts)
@@ -53,6 +77,7 @@
   - Avatar initial uses first real name when available
 
 ### Fixed
+
 - **Keyboard Shortcuts**: Fixed Cmd+Shift+[ and Cmd+Shift+] not working
   - Was checking for `[` and `]` keys, but with Shift pressed they become `{` and `}`
   - Now uses `e.code` for reliable physical key detection
@@ -70,6 +95,7 @@
 ## [1.2.5-beta.6] - 2026-01-22
 
 ### Added
+
 - **Keyboard Shortcuts** for faster navigation and operations:
   - **Cmd/Ctrl + 1-9**: Jump directly to numbered chat in sidebar
   - **Cmd/Ctrl + Shift + [**: Navigate to previous chat
@@ -91,6 +117,7 @@
 ## [1.2.5-beta.5] - 2026-01-22
 
 ### Fixed
+
 - **Audio calls**: Microphone now consistently released after calls end ([#33](https://github.com/apotenza92/facebook-messenger-desktop/issues/33))
   - Root cause: `call-window-preload.js` was injected after page load, missing early `getUserMedia()` calls
   - Fix: Use `call-window-preload.js` as actual preload script for call windows to ensure override runs before any page JavaScript
@@ -99,11 +126,13 @@
 ## [1.2.5-beta.4] - 2026-01-20
 
 ### Fixed
+
 - Fixed macOS notification click not navigating to the correct chat conversation
 
 ## [1.2.5-beta.3] - 2026-01-18
 
 ### Fixed
+
 - **Notifications**: Fix click-to-navigate not opening the correct chat when clicking notifications
   - Fixed regex bug in path normalization that prevented link matching
   - Now searches for Messenger's `role="link"` elements, not just `<a>` tags
@@ -113,6 +142,7 @@
 ## [1.2.5-beta.2] - 2026-01-18
 
 ### Fixed
+
 - **Badge**: Badge now clears immediately when reading messages in the active chat ([#38](https://github.com/apotenza92/facebook-messenger-desktop/issues/38))
   - Detects when Enter key is pressed (message sent) and triggers badge recount
   - Monitors sidebar for unread status changes in real-time
@@ -121,6 +151,7 @@
 ## [1.2.5-beta.1] - 2026-01-17
 
 ### Fixed
+
 - **Notifications**: Suppress backlog notifications after sleep/wake by re-entering settling mode and recording unread state
 - **Notifications**: Native notifications now require a matching unread sidebar row before sending
 - **Notifications**: Resume/unlock settling only allows fresh messages, avoiding stale or self-sent alerts
@@ -128,6 +159,7 @@
 ## [1.2.4] - 2026-01-16
 
 ### Added
+
 - **Update frequency setting**: Control how often the app checks for updates ([#37](https://github.com/apotenza92/facebook-messenger-desktop/issues/37))
   - Options: Never, On Startup, Every Hour, Every 6 Hours, Every 12 Hours, Daily, Weekly
   - Default is "Daily" to reduce update popup frequency
@@ -135,6 +167,7 @@
   - Available in app menu under "Update Frequency"
 
 ### Fixed
+
 - **Windows**: Beta and stable now install to separate directories
   - Stable: `%LOCALAPPDATA%\Programs\facebook-messenger-desktop\`
   - Beta: `%LOCALAPPDATA%\Programs\facebook-messenger-desktop-beta\`
@@ -143,22 +176,26 @@
 ## [1.2.3-beta.2] - 2026-01-15
 
 ### Fixed
+
 - **Auto-update**: Improved beta detection logic to ensure correct artifact selection
 - **Testing**: Added comprehensive automated tests for beta/stable coexistence scenarios
 
 ### Changed
+
 - Rolled back 1.2.4-beta.1 release due to incomplete beta updater fixes
 
 ## [1.2.3-beta.1] - 2026-01-14
 
 ### Fixed
+
 - **Auto-update**: Beta app now correctly downloads beta-branded artifacts when updating
-  - Uses separate update channel (beta-*.yml) to ensure correct artifact selection
+  - Uses separate update channel (beta-\*.yml) to ensure correct artifact selection
   - Fixes issue where beta app would install stable app and cause dock/taskbar confusion
 
 ## [1.2.3] - 2026-01-14
 
 ### Fixed
+
 - **All platforms**: Beta users no longer get stable app installed separately when a stable release comes out
   - Beta channel now receives stable releases through beta-branded installers
   - Preserves taskbar shortcuts, app ID, and user data when updating from beta to stable
@@ -176,10 +213,12 @@
 ## [1.2.2] - 2026-01-14
 
 ### Added
+
 - **Side-by-side installation**: Beta and stable versions can now be installed simultaneously on all platforms
 - **Menu bar**: Default mode changed to "always visible" for new users
 
 ### Fixed
+
 - **Windows**: Taskbar shortcut breaking after auto-update ("shortcut has been moved" error)
 - **Windows**: Beta installer no longer tries to close stable "Messenger.exe" (and vice versa)
 - **Windows/Linux**: Menu bar hover detection and F10 toggle behavior
@@ -188,18 +227,21 @@
 - **Update dialog**: Traffic light close button sizing and markdown rendering
 
 ### Improved
+
 - **Update notifications/dialogs**: "Messenger Beta" branding for beta users
 - **Snap promotion**: Runs every 6 hours via dedicated workflow
 - **Build config**: Platform-specific files only included for relevant builds
 - **Download page**: Various UI improvements including animated connectors
 
 ### Changed
+
 - Renamed "Reset & Logout" menu item to "Logout and Reset App"
 - Consolidated release documentation into AGENTS.md
 
 ## [1.2.2-beta.6] - 2026-01-14
 
 ### Improved
+
 - **Update notifications**: Download progress notification now specifies "Messenger Beta" for beta users
   - Notification body and tray tooltip both reflect the app variant being updated
 - **Download page**: Beta Version disclaimer spacing reduced for closer proximity to download and command sections
@@ -212,16 +254,19 @@
 ## [1.2.2-beta.5] - 2026-01-14
 
 ### Fixed
+
 - **Update dialog**: Traffic light close button was oversized (inheriting generic button padding)
 - **Update dialog**: Markdown `**bold**` syntax now renders correctly in release notes
 
 ## [1.2.2-beta.4] - 2026-01-14
 
 ### Fixed
+
 - **macOS**: Code signing failing due to Linux icon files being included in macOS builds
   - `asarUnpack` now only applies to Linux builds
 
 ### Improved
+
 - **Snap promotion**: Now runs every 6 hours via dedicated workflow instead of during release
   - More reliable promotion even if Launchpad builds take longer than expected
   - Handles both beta and stable channel promotion automatically
@@ -231,12 +276,14 @@
 - **Download page**: Auto-detects OS on page refresh instead of persisting previous selection
 
 ### Changed
+
 - Consolidated release documentation into AGENTS.md (removed RELEASE_PROCESS.md)
 - New `./scripts/release.sh` for streamlined releases
 
 ## [1.2.2-beta.3] - 2026-01-14
 
 ### Fixed
+
 - **Windows**: Taskbar shortcut breaking after auto-update ("shortcut has been moved" error)
   - Shortcut fix now runs AFTER app restarts from new location (not before)
   - Tracks version in `last-version.json` to detect when update was applied
@@ -246,6 +293,7 @@
   - Only updates shortcuts matching the correct app variant
 
 ### Improved
+
 - **Download page**: GitHub icon now properly centered below description
 - **Download page**: Beta notice moved below Stable/Beta toggle
 - **Download page**: Version number displayed below channel toggle (blue for stable, orange for beta)
@@ -255,6 +303,7 @@
   - "Messenger Beta is running the latest version" message
 
 ### Changed
+
 - Dev menu simplified to Windows update testing only
   - "Test Windows Update & Shortcut Fix": Full workflow simulation with version tracking
   - "Run Shortcut Fix Now": Immediate shortcut fix execution
@@ -262,6 +311,7 @@
 ## [1.2.2-beta.2] - 2026-01-14
 
 ### Added
+
 - **Side-by-side installation**: Beta and stable versions can now be installed simultaneously on all platforms
   - Different app identifiers: `com.facebook.messenger.desktop` (stable) vs `com.facebook.messenger.desktop.beta` (beta)
   - Separate user data directories: `Messenger` vs `Messenger-Beta`
@@ -272,28 +322,33 @@
 ## [1.2.2-beta.1] - 2026-01-14
 
 ### Fixed
+
 - **Windows/Linux**: Menu bar hover detection not working properly
 - **Windows/Linux**: F10 now permanently toggles menu bar visibility (previously would hide again when clicking in the app)
 - **Windows/Linux**: "Hide Menu Bar" / "Show Menu Bar" label now correctly says "Toggle Menu Bar"
 - **Linux Snap**: Version stuck on 1.1.8 - now uses package.json version instead of `git describe`
 
 ### Improved
+
 - **Download page**: Beta channel now always shows latest version (beta or stable, whichever is newer)
 - **Download page**: Stable/Beta toggle always visible, removed version number display
 - **Download page**: Orange theme applied to all buttons when Beta is selected
 - **CI**: Snap promotion now waits for Launchpad builds to complete before promoting
 
 ### Changed
+
 - Renamed "Reset & Logout" menu item to "Logout and Reset App" for clarity
 
 ## [1.2.1] - 2026-01-14
 
 ### Fixed
+
 - Beta users not receiving beta updates (issue #34)
   - Worked around electron-updater GitHub provider bug where `allowPrerelease` doesn't work
   - Auto-updater now queries GitHub API directly to find the correct release
 
 ### Improved
+
 - Redesigned update notification dialog
   - Custom HTML-based dialog with proper styling and fixed dimensions
   - Scrollable changelog section that doesn't overflow the window
@@ -302,6 +357,7 @@
   - Keyboard shortcuts: Enter to download, Escape to dismiss
 
 ### Changed
+
 - **Redesigned beta program** - stable and beta are now completely separate app tracks
   - **Stable users**: Install from the download page, receive stable updates only
   - **Beta users**: Install the beta version specifically, receive beta updates only
@@ -311,6 +367,7 @@
   - Legacy beta opt-in preference files are automatically cleaned up on update
 
 ### Added
+
 - **Beta installation options** on download page (toggle Stable/Beta at top):
   - macOS: `brew install --cask apotenza92/tap/facebook-messenger-desktop@beta`
   - Linux Snap: `sudo snap install facebook-messenger-desktop --beta`
@@ -320,6 +377,7 @@
 ## [1.2.0] - 2026-01-14
 
 ### Fixed
+
 - Beta channel users not receiving updates (issue #34)
   - Rewrote auto-update system to use electron-updater's native prerelease support
   - Removed custom YML fetching logic that was causing "internet connection" errors
@@ -331,6 +389,7 @@
   - Other errors show the actual error message
 
 ### Changed
+
 - Simplified update channel architecture
   - Removed generate-channel-yml.js build step
   - Updates now use GitHub Releases prerelease flag instead of separate YML files
@@ -338,6 +397,7 @@
 ## [1.1.9] - 2026-01-13
 
 ### Added
+
 - Auto-hide menu bar with hover, Alt, and F10 toggle (issue #31)
   - Menu bar is hidden by default on Windows/Linux
   - Hovering near top of window (3px zone) temporarily shows menu bar
@@ -354,6 +414,7 @@
   - Playwright test suite for update checker scenarios
 
 ### Fixed
+
 - Microphone not released after audio calls end (issue #33)
   - Microphone now properly stops when call windows close
   - Works for both user-initiated and remote-initiated hang-ups
@@ -381,6 +442,7 @@
 ## [1.1.8-beta.2] - 2026-01-13
 
 ### Fixed
+
 - Beta/stable channel auto-update system improvements
   - Automatic YML file generation for both latest and beta channels across all platforms
   - Fixed promise error handling with proper rejection and 30-second timeout
@@ -394,6 +456,7 @@
   - Test feature available in Develop menu for Windows users
 
 ### Added
+
 - Channel YML generator script (scripts/generate-channel-yml.js)
   - Automatically copies latest*.yml to beta*.yml for all platforms
   - Integrated into GitHub Actions workflow after builds
@@ -412,6 +475,7 @@
 ## [1.1.8-beta.1] - 2026-01-13
 
 ### Added
+
 - Auto-hide menu bar with hover, Alt, and F10 toggle (issue #31)
   - Menu bar is hidden by default on Windows/Linux
   - Hovering near top of window (3px zone) temporarily shows menu bar
@@ -420,11 +484,13 @@
   - Menu bar state persists correctly between temporary and permanent visibility
 
 ### Fixed
+
 - TypeScript compilation error in menu creation code
 
 ## [1.1.7] - 2026-01-13
 
 ### Fixed
+
 - False "No Internet Connection" message during login
   - Error codes -2 (ERR_FAILED) and -3 (ERR_ABORTED) were too broad and caused false positives
   - Now only genuine network errors trigger the offline page
@@ -433,6 +499,7 @@
   - Now properly redirects from facebook.com to messenger.com after session validation
 
 ### Added
+
 - Reset & Logout menu item for users to clear all session data
   - Accessible from Messenger menu (macOS) or Help menu (Windows/Linux)
   - Clears all cookies, cache, and local storage
@@ -442,6 +509,7 @@
 ## [1.1.6] - 2026-01-12
 
 ### Fixed
+
 - Login flow: Robust new user login that prevents redirect loops and flash of login page (issue #29)
   - App checks for existing session cookies before showing login page
   - State-based tracking prevents premature redirects during Facebook authentication
@@ -452,6 +520,7 @@
   - Both webpage-based and native spellcheck now functional
 
 ### Added
+
 - Automated login flow test script (scripts/test-login.js)
   - Uses Playwright to automate the full login flow for testing
   - Integrates with 1Password CLI for credentials and TOTP
@@ -460,6 +529,7 @@
 ## [1.1.5] - 2026-01-12
 
 ### Changed
+
 - Login flow now uses facebook.com instead of messenger.com
   - Messenger.com's login has issues with "approve from another device" verification
   - Facebook.com provides a more robust and complete authentication flow
@@ -470,6 +540,7 @@
 ## [1.1.4] - 2026-01-12
 
 ### Fixed
+
 - Beta channel: Users now correctly see stable updates when they are newer (issue #28)
   - Previously, beta users on v1.1.2 would not see v1.1.3 stable update
   - Root cause: electron-updater ignores channel setting when allowPrerelease is enabled
@@ -478,6 +549,7 @@
 ## [1.1.3] - 2026-01-12
 
 ### Fixed
+
 - View menu: Reload and Force Reload now work correctly (issue #26)
   - On macOS, reload was targeting the wrong webContents (empty title bar window instead of Messenger content)
   - Cmd+R / Ctrl+R and Cmd+Shift+R / Ctrl+Shift+R now properly reload the Messenger page
@@ -486,6 +558,7 @@
   - The local DOM doesn't update automatically, but periodic rechecks sync the badge count
 
 ### Added
+
 - Offline detection with auto-retry (issue #25)
   - When app starts without internet (e.g., at login before network is ready), shows a friendly offline page
   - Includes manual Retry button and automatic retry countdown (10 seconds)
@@ -494,15 +567,18 @@
 ## [1.1.2] - 2026-01-10
 
 ### Fixed
+
 - Windows 11: Pinned taskbar shortcuts no longer break after updates
 - Beta program: Users now receive stable updates in addition to beta releases
 
 ### Added
+
 - Develop menu: "Test Taskbar Fix (Simulate Update)" for testing on Windows
 
 ## [1.1.2-beta.2] - 2026-01-10
 
 ### Fixed
+
 - Beta users now receive stable updates (issue #24)
   - Previously, beta users would only see newer beta versions, missing stable releases
   - Now beta users receive whichever version is newest, whether beta or stable
@@ -510,12 +586,14 @@
 ## [1.1.2-beta.1] - 2026-01-10
 
 ### Fixed
+
 - Windows 11: Pinned taskbar shortcuts no longer break after updates
   - Root cause: WScript.Shell cannot set System.AppUserModel.ID property required by Windows 11
   - Fix: Now uses Windows Shell API via .NET interop to properly set AppUserModelId on shortcuts
   - This ensures Windows 11 maintains the association between the pinned icon and the app
 
 ### Added
+
 - Develop menu: "Test Taskbar Fix (Simulate Update)" for beta testers on Windows
   - Runs the same shortcut fix logic that executes during actual updates
   - Shows detailed results of which shortcuts were found and updated
@@ -524,6 +602,7 @@
 ## [1.1.1] - 2026-01-10
 
 ### Fixed
+
 - Facebook Marketplace links now open in system browser (issue #24)
   - Clicking "view more items", "view seller profile", or other Marketplace links in chats now opens them externally
   - The app is signed into Messenger but not Facebook, so Marketplace pages don't work in-app
@@ -532,11 +611,13 @@
 ## [1.1.0] - 2026-01-09
 
 ### Summary
+
 - Stability milestone release
 
 ## [1.0.10] - 2026-01-09
 
 ### Added
+
 - Linux: Flatpak builds now included in releases
   - Available for both x64 and ARM64 architectures
   - Self-hosted Flatpak repository updated automatically on release
@@ -544,11 +625,13 @@
 ## [1.0.9] - 2026-01-09
 
 ### Changed
+
 - CI: Attempted native ARM64 runners (reverted in 1.0.10 due to electron-builder issues)
 
 ## [1.0.8] - 2026-01-09
 
 ### Fixed
+
 - macOS: Icon theme switching now works again (issue #23)
   - Dark icons were accidentally excluded from builds in v1.0.7
   - "Match System", "Light Icon", and "Dark Icon" options now properly switch the dock icon
@@ -560,6 +643,7 @@
 ## [1.0.7] - 2026-01-09
 
 ### Added
+
 - Update dialogs now show changelog of what's new in the update
   - Fetches changelog from GitHub when update is available
   - Beta users see both stable and beta entries
@@ -569,11 +653,13 @@
   - Includes testing tools: Update workflow, Notification, Taskbar shortcut fix (Windows)
 
 ### Changed
+
 - Joining beta program now automatically checks for beta updates
   - Previously showed a message telling users to manually check
   - Now immediately checks and notifies if a beta update is available
 
 ### Fixed
+
 - Duplicate notifications for old messages no longer appear (issue #13)
   - Only messages within 1 minute trigger notifications
   - Old unread messages that appear when scrolling or after app restart are now ignored
@@ -596,6 +682,7 @@
 ## [1.0.7-beta.7] - 2026-01-09
 
 ### Fixed
+
 - Notifications not appearing for new messages (regression from beta.1)
   - Messages within 1 minute ("1m" timestamp) now correctly trigger notifications
   - Previous fix was too aggressive and blocked all messages with any timestamp
@@ -603,6 +690,7 @@
 ## [1.0.7-beta.6] - 2026-01-09
 
 ### Fixed
+
 - Notification badge now clears when actively viewing a conversation (issue #22)
   - Previously, badge wouldn't update until switching to another chat
   - Now excludes the currently-viewed conversation from unread count when window is focused
@@ -611,12 +699,14 @@
 ## [1.0.7-beta.5] - 2026-01-08
 
 ### Added
+
 - Update dialogs now show changelog of what's new in the update
   - Fetches changelog from GitHub when update is available
   - Beta users see both stable and beta entries
   - Stable users see only stable release entries
 
 ### Fixed
+
 - Update check no longer shows "Update check failed" when already on the latest version
   - Beta users especially affected when no newer releases available
   - Now correctly shows "You're up to date!" in these cases
@@ -624,6 +714,7 @@
 ## [1.0.7-beta.4] - 2026-01-08
 
 ### Added
+
 - Develop menu now available to beta testers
   - Access via menu bar on all platforms
   - Includes testing tools: Update workflow, Notification, Taskbar shortcut fix (Windows)
@@ -631,6 +722,7 @@
 ## [1.0.7-beta.3] - 2026-01-08
 
 ### Fixed
+
 - macOS: Media viewer controls no longer obscured by title bar (issue #21)
   - Close, download, and forward buttons now fully visible when viewing photos/videos
   - Injects CSS to push controls below the custom title bar overlay
@@ -638,6 +730,7 @@
 ## [1.0.7-beta.2] - 2026-01-08
 
 ### Changed
+
 - Joining beta program now automatically checks for beta updates
   - Previously showed a message telling users to manually check
   - Now immediately checks and notifies if a beta update is available
@@ -645,6 +738,7 @@
 ## [1.0.7-beta.1] - 2026-01-08
 
 ### Fixed
+
 - Duplicate notifications for old messages no longer appear (issue #13)
   - Only messages that JUST arrived (no visible timestamp) will trigger notifications
   - Old unread messages that appear when scrolling or after app restart are now ignored
@@ -653,6 +747,7 @@
 ## [1.0.6] - 2026-01-08
 
 ### Added
+
 - Beta program for early access to new features and bug fixes
   - Join via Messenger menu (macOS) or Help menu (Windows/Linux)
   - "Check for Updates" becomes "Check for Beta Updates" when enrolled
@@ -662,11 +757,13 @@
 ## [1.0.5] - 2026-01-08
 
 ### Changed
+
 - Login page now uses messenger.com/login/ (simpler, cleaner form structure)
 - Custom branded login page with Messenger Desktop header, icon, and disclaimer
 - Login page icon now uses high-resolution SVG for crisp rendering at any size
 
 ### Added
+
 - Native media download handling (issue #20)
   - Images and videos from chat now download directly to Downloads folder
   - No longer opens external browser for Facebook CDN media URLs
@@ -681,6 +778,7 @@
 ## [1.0.4] - 2026-01-07
 
 ### Changed
+
 - Linux uninstall now uses Electron's native dialog instead of zenity/kdialog
 - All Linux package types now use pkexec for authentication during uninstall
   - deb: apt remove with pkexec
@@ -692,6 +790,7 @@
 - Snap promotion workflow now shows detailed status and error reporting
 
 ### Added
+
 - AppImage uninstall support
   - Detects AppImage installations via APPIMAGE environment variable
   - Deletes the .AppImage file and cleans up desktop entries/icons
@@ -708,6 +807,7 @@
   - XWayland provides reliable screen sharing at cost of some Wayland features
 
 ### Fixed
+
 - Deb/RPM: App not appearing in GNOME Applications menu
   - electron-builder was generating incomplete Categories field
   - Post-install script now fixes Categories to include InstantMessaging and Chat
@@ -717,22 +817,26 @@
 ## [1.0.3] - 2026-01-07
 
 ### Changed
+
 - Snap auto-promotion now polls for build completion instead of fixed wait time
   - Checks every 2 minutes for new builds to appear in edge channel
   - Promotes immediately when builds complete (no more guessing)
   - 60 minute timeout as fallback
 
 ### Fixed
+
 - Snap desktop file not being exported correctly (icon not showing in app menu)
   - Added desktop: directive to snapcraft.yaml for proper snapd integration
 
 ## [1.0.2] - 2026-01-06
 
 ### Added
+
 - Automatic Snap promotion to stable channel after GitHub releases
   - New releases now automatically get promoted from edge to stable on Snap Store
 
 ### Fixed
+
 - Linux deb/rpm: Icon not appearing in application menu (was showing generic gear icon)
   - Fixed icon name mismatch between desktop entry and installed icons
   - Added asarUnpack config to extract icons from asar archive for post-install script
@@ -741,6 +845,7 @@
 ## [1.0.1] - 2026-01-06
 
 ### Fixed
+
 - Snapcraft builds failing due to YAML indentation issues in heredocs
 - Desktop file not being generated correctly for Snap packages
 - First successful ARM64 Snap build
@@ -749,6 +854,7 @@
 ## [1.0.0] - 2026-01-06
 
 ### Fixed
+
 - Flatpak repository not accessible from self-hosted repo
   - GitHub Pages was serving from main branch /docs folder, but Flatpak repo was deployed to gh-pages branch
   - Now correctly deploys Flatpak repo to docs/flatpak/repo on main branch
@@ -757,6 +863,7 @@
 ## [0.9.9] - 2026-01-06
 
 ### Added
+
 - Bring window to foreground on incoming calls (issue #17)
   - When you receive a call, the app automatically opens if hidden and comes to foreground
   - Works when the app is minimized, in the background, or hidden to the tray
@@ -781,6 +888,7 @@
   - Only shown once per update, not on every launch
 
 ### Fixed
+
 - Snapcraft builds failing due to undefined CRAFT_ARCH variable
   - Now uses CRAFT_ARCH_BUILD_FOR with fallback to SNAPCRAFT_TARGET_ARCH
 - macOS dock icon appearing larger than other app icons (issue #15)
@@ -791,6 +899,7 @@
 ## [0.9.8] - 2026-01-06
 
 ### Fixed
+
 - Muted conversations no longer trigger notifications or count toward badge (issue #14)
   - Native notifications now check muted status before sending
   - Badge count excludes muted conversations
@@ -802,6 +911,7 @@
 ## [0.9.7] - 2026-01-06
 
 ### Changed
+
 - Refined app icon design for better visual balance and macOS compatibility (issue #15)
   - Restored original Messenger chat bubble shape for proper dock sizing on macOS
   - Simplified network diagram with larger center node and uniform outer nodes
@@ -815,6 +925,7 @@
 ## [0.9.6] - 2026-01-06
 
 ### Changed
+
 - All Snap builds now handled by Snapcraft's "Build from GitHub" service
   - Removed electron-builder snap target from GitHub Actions
   - Removed update-snapstore job from release workflow
@@ -822,6 +933,7 @@
   - Added .launchpad.yaml for auto-release to stable channel
 
 ### Fixed
+
 - Fixed Flatpak repository deployment to GitHub Pages
   - Previous workflow incorrectly added all source files to gh-pages branch
   - Now properly clones gh-pages separately and only copies flatpak repo files
@@ -829,6 +941,7 @@
 ## [0.9.5] - 2026-01-06
 
 ### Changed
+
 - New distinctive app icon featuring an isometric cube/graph design in a speech bubble
   - Visually unique to avoid confusion and potential trademark issues with official Messenger
   - Updated across all platforms: macOS (app, dock, DMG), Windows (taskbar, tray), Linux (all sizes)
@@ -838,6 +951,7 @@
   - ARM64 Snap built automatically by Snapcraft when repo is linked at snapcraft.io
 
 ### Fixed
+
 - Fixed repeated notifications for old unread messages (issue #13)
   - Messages left unread indefinitely no longer trigger duplicate notifications
   - Removed time-based expiry; records now cleared only when conversations are read or app restarts
@@ -846,6 +960,7 @@
 ## [0.9.4] - 2026-01-06
 
 ### Changed
+
 - Simplified and cleaned up release workflow
   - Separate build jobs per platform for clearer naming
   - Removed unreliable ARM64 Snap remote build (x64 Snap only for now)
@@ -856,18 +971,21 @@
 ## [0.9.3] - 2026-01-06
 
 ### Fixed
+
 - Fixed Linux build failure: Removed ARM64 from electron-builder snap target (ARM64 snap builds via remote build only)
 - Fixed snapcraft authentication: Updated to use environment variable directly instead of deprecated --with flag
 
 ## [0.9.2] - 2026-01-06
 
 ### Added
+
 - Linux ARM64 support for Snap and Flatpak packages
   - Snap ARM64 builds via Snapcraft remote-build service
   - Flatpak ARM64 builds on GitHub Actions ARM64 runners
   - Updated download page to show ARM64 Snap and Flatpak options
 
 ### Changed
+
 - Cleaned up flatpak folder structure
   - Moved flatpak-repo.gpg to project root (common convention for public keys)
   - Removed flatpak README.md
@@ -876,6 +994,7 @@
 ## [0.9.1] - 2026-01-05
 
 ### Fixed
+
 - macOS: Fixed badge count not displaying in dock icon
   - Changed from app.setBadgeCount() to app.dock.setBadge() for better reliability
   - Badge now properly shows unread message count on macOS
@@ -888,6 +1007,7 @@
   - Fixed badge flash when opening conversations by adding delay for DOM verification
 
 ### Improved
+
 - Badge count detection now works from page context using postMessage bridge
   - No longer depends on electronAPI availability timing
   - More reliable badge updates across all scenarios
@@ -895,6 +1015,7 @@
 ## [0.9.0] - 2026-01-05
 
 ### Added
+
 - Self-hosted Flatpak repository for Linux users
   - Users can now install via: flatpak remote-add + flatpak install
   - GPG-signed repository hosted on GitHub Pages
@@ -902,6 +1023,7 @@
   - Updates via flatpak update or software center
 
 ### Changed
+
 - Download page: Complete redesign with platform-specific pages
   - Each platform (macOS, Windows, Linux) now has its own dedicated download view
   - Clicking "Other platforms" links switches to that platform's download page instead of direct downloads
@@ -919,6 +1041,7 @@
 ## [0.8.10] - 2026-01-05
 
 ### Fixed
+
 - Fixed audio and video call buttons not working (broken since v0.4.1)
   - Messenger opens calls in a pop-up window which was being blocked
   - Messenger uses about:blank URLs for call windows, which are now allowed
@@ -931,6 +1054,7 @@
 - Linux Flatpak: Added device permissions for webcam and audio access
 
 ### Changed
+
 - Added "unofficial" disclaimers throughout the app and documentation
   - README, download page, About dialog, and LICENSE now include trademark notices
   - Clarifies this is a third-party, non-affiliated project
@@ -939,6 +1063,7 @@
 ## [0.8.9] - 2026-01-04
 
 ### Fixed
+
 - Linux deb/rpm: Fixed auto-updates returning 404 errors (especially on Fedora)
   - Download URLs were using Node.js arch names (x64/arm64) instead of Linux package names
   - RPM now correctly uses x86_64/aarch64 naming
@@ -953,12 +1078,14 @@
 ## [0.8.8] - 2026-01-04
 
 ### Added
+
 - Linux: Comprehensive diagnostic logging for window creation to debug double window issue
   - Logs timestamps, event sources (second-instance, activate, tray-click), and full state at each step
   - Shows exactly when events fire and what guards block/allow window creation
   - Check logs at ~/.config/Messenger/logs/ or run from terminal to see output
 
 ### Fixed
+
 - Windows: Fixed pinned taskbar shortcut showing "Can't open this item" after installing auto-update
   - NSIS installer now deletes and recreates the taskbar shortcut to clear stale state
   - Writes PowerShell script to temp file for reliable execution (avoids escaping issues)
@@ -978,6 +1105,7 @@
 ## [0.8.7] - 2026-01-04
 
 ### Fixed
+
 - Fixed slow uninstall dialog on Snap (and other platforms)
   - Confirmation dialog now appears immediately when clicking Uninstall
   - Package manager detection moved to after user confirms, not before
@@ -997,6 +1125,7 @@
 ## [0.8.6] - 2026-01-04
 
 ### Fixed
+
 - Windows: Fixed taskbar icon becoming blank after auto-update
   - Icon is now re-applied after window ready-to-show and on window show events
   - NSIS installer clears Windows icon cache during updates to force refresh
@@ -1006,7 +1135,7 @@
   - App now quits first, then runs snap remove in a detached process
 - Linux Flatpak: Fixed potential crash when using in-app uninstaller
   - Same deferred uninstall approach as Snap for sandbox compatibility
-- Linux: Fixed ghost icons remaining in Pop!_OS COSMIC app launcher after uninstall
+- Linux: Fixed ghost icons remaining in Pop!\_OS COSMIC app launcher after uninstall
   - All uninstallers now clear pop-launcher cache
   - All uninstallers now clear COSMIC app cache
   - Desktop database and icon caches are refreshed after uninstall
@@ -1014,6 +1143,7 @@
 ## [0.8.5] - 2026-01-04
 
 ### Fixed
+
 - Linux: App now appears in application menu after installing deb/rpm via terminal
   - Added post-install script that updates desktop database and icon cache
   - Notifies GNOME Shell to refresh its app list
@@ -1021,6 +1151,7 @@
 ## [0.8.4] - 2026-01-04
 
 ### Fixed
+
 - Linux: Fixed double window appearing when clicking dash icon after previously closing window
   - Added isDestroyed() check to prevent showing/focusing destroyed windows
   - Added race condition guard to prevent simultaneous window creation from second-instance and activate events
@@ -1032,6 +1163,7 @@
 ## [0.8.3] - 2026-01-04
 
 ### Fixed
+
 - Linux Snap: Fixed Snap Store upload failing due to duplicate plugs in snap configuration
   - Removed redundant desktop/x11/wayland/unity7 plugs that were already included in "default"
 - Linux: Fixed in-app uninstall not actually removing the app on Fedora/RPM systems
@@ -1047,6 +1179,7 @@
 ## [0.8.2] - 2026-01-04
 
 ### Fixed
+
 - Linux: Fixed duplicate window appearing briefly when clicking dock/dash icon after closing window
   - Activate event handler was incorrectly registered inside createWindow, causing listeners to accumulate
   - Now uses same showMainWindow() function as tray icon for consistent behavior
@@ -1057,6 +1190,7 @@
 ## [0.8.1] - 2026-01-04
 
 ### Fixed
+
 - Windows: Fixed taskbar icon showing as missing after app updates
   - NSIS installer now updates existing pinned shortcuts to point to the new executable
   - Preserves pinned status while refreshing the shortcut target path
@@ -1068,38 +1202,45 @@
 ## [0.8.0] - 2026-01-04
 
 ### Added
+
 - Linux Snap: First-run help message for desktop integration (XDG_DATA_DIRS setup)
 - Linux: New rounded tray icon for better visibility in system tray
 
 ### Fixed
+
 - Linux AppImage: App now detaches from terminal immediately so the command returns
 - Linux Snap: Added desktop integration plugs for better system integration (wayland, x11, unity7)
 - Linux: Auto-update no longer shows crash message (windows closed cleanly before quitAndInstall)
 - Windows: Improved update dialog with clear SmartScreen bypass and file unblock instructions
 
 ### Changed
+
 - Linux Snap: Updated to core22 base for better compatibility
 
 ## [0.7.9] - 2026-01-04
 
 ### Fixed
+
 - Linux: Fixed app showing with wrong icon (gear) in taskbar/dock due to WMClass mismatch
 - Fixed race condition where clicking app icon could spawn multiple instances before single instance lock was checked
 
 ## [0.7.8] - 2026-01-04
 
 ### Fixed
+
 - Linux: In-app uninstall now properly removes .deb and .rpm packages
   - Automatically detects if installed via apt/dpkg or dnf/rpm
   - Uses pkexec for graphical password prompt to run package manager uninstall
   - No longer shows "remove the package separately" message for .deb/.rpm installs
 
 ### Changed
+
 - Download page: Extension now shown next to download button instead of in button text
 
 ## [0.7.7] - 2026-01-04
 
 ### Fixed
+
 - Linux: Desktop icon now appears in application menu after installing .deb/.rpm packages
   - Icons are now installed to hicolor icon theme in all required sizes (16x16 through 512x512)
   - Added StartupWMClass to .desktop file for proper window grouping in taskbar
@@ -1107,6 +1248,7 @@
 ## [0.7.6] - 2026-01-03
 
 ### Added
+
 - Linux: Now builds Snap packages for Snap Store users (x64 only)
 - Linux: Now builds Flatpak packages for Flathub users (x64 only)
 - Download page: Added Snap and Flatpak options to Linux format picker
@@ -1114,6 +1256,7 @@
 - Download page: Copy button for each install command
 
 ### Changed
+
 - Linux packages now use consistent naming: facebook-messenger-desktop-{arch}.{ext}
 - Download page: Detected platform is now hidden from Other platforms section
 - Download page: Linux section shows clean format list with install instructions
@@ -1121,6 +1264,7 @@
 ## [0.7.5] - 2026-01-03
 
 ### Added
+
 - Linux: Now builds .deb packages for Debian/Ubuntu users
 - Linux: Now builds .rpm packages for Fedora/RHEL users
 - Linux: Added ARM64 support for all package formats (Raspberry Pi, Pine64, etc.)
@@ -1128,12 +1272,14 @@
 - Download page: Added toggle to switch between x64 and ARM64 builds
 
 ### Improved
+
 - Download page: All Linux downloads now listed in "Other platforms" section
 - Consistent file naming across all Linux formats (x64/arm64 instead of mixed amd64/x86_64/aarch64)
 
 ## [0.7.4] - 2026-01-03
 
 ### Fixed
+
 - Notifications for old unread messages no longer appear when opening the app
   - Native notifications are now suppressed during initial 8-second startup period
   - Prevents Messenger from flooding notifications for messages that were already there
@@ -1141,12 +1287,14 @@
 ## [0.7.3] - 2026-01-04
 
 ### Fixed
+
 - Windows: In-app uninstall now properly removes the app from Apps and Features
 - Windows: Uninstaller now kills running Messenger process and removes taskbar pins
 - macOS: Fixed Homebrew detection by using full path to brew executable
 - Windows: Fixed dialog buttons showing ampersand instead of and
 
 ### Improved
+
 - Simplified uninstall flow to single confirmation dialog on all platforms
 - Added administrator permission notice to Windows uninstall dialog
 - Install source detection now re-runs when app version changes (handles reinstall via different method)
@@ -1155,11 +1303,13 @@
 ## [0.7.2] - 2026-01-03
 
 ### Fixed
+
 - Uninstall dialog no longer hangs - install source is now detected at startup and cached
 - Uninstalling via Apps and Features now fully removes all app data (login, cache, etc.)
 - macOS: Fixed Saved Application State cleanup using wrong bundle ID
 
 ### Improved
+
 - Install source (winget/Homebrew/direct) is detected once on first run and cached permanently
   - No more slow winget/brew commands at uninstall time
   - Detection only happens once - install method never changes
@@ -1172,6 +1322,7 @@
 ## [0.7.1] - 2026-01-03
 
 ### Improved
+
 - Windows: Updates now download automatically instead of redirecting to download page
   - Installer downloads directly to Downloads folder with progress tracking
   - After download, app offers to run installer automatically
@@ -1180,11 +1331,13 @@
 ## [0.7.0] - 2026-01-03
 
 ### Fixed
+
 - Develop menu no longer appears in production builds (was showing on Windows/Linux)
 
 ## [0.6.8] - 2026-01-03
 
 ### Added
+
 - Native download progress UI for updates:
   - Taskbar/dock progress bar shows download percentage
   - Title bar shows detailed progress (e.g., "Downloading update: 45% (34.2 MB / 67.5 MB) @ 2.3 MB/s")
@@ -1197,19 +1350,23 @@
 - Dev mode now automatically kills existing production Messenger instances to avoid conflicts
 
 ### Fixed
+
 - macOS: Download progress now shows in the custom title bar overlay (was only updating dock)
 
 ### Improved
+
 - Uninstall dialog now appears immediately instead of waiting for package manager detection
 - macOS: Uninstall now automatically moves app bundle to Trash after quit
 - Windows: Uninstall now automatically runs the NSIS uninstaller after quit
 
 ### Changed
+
 - Windows: Tray icon now uses rounded style to match the app icon
 
 ## [0.6.6] - 2026-01-02
 
 ### Fixed
+
 - Uninstall now properly removes all app data, including cache directory (was causing login to persist after reinstall)
   - Windows: Now cleans both %APPDATA%\Messenger and %LOCALAPPDATA%\Messenger
   - macOS: Now cleans both ~/Library/Application Support/Messenger and ~/Library/Caches/Messenger
@@ -1217,28 +1374,34 @@
 - Fixed Windows uninstall cleanup command using incorrect PowerShell syntax for multiple paths
 
 ### Improved
+
 - macOS: Uninstall now also removes Saved Application State (window position memory)
 - Increased cleanup delay from 1 to 2 seconds for more reliable file deletion
 
 ## [0.6.5] - 2026-01-02
 
 ### Changed
+
 - Windows: Auto-updates now redirect to download page instead of failing silently (temporary workaround until code signing is set up)
 
 ### Improved
+
 - Download page now shows version number and release date (fetched from GitHub releases)
 
 ## [0.6.4] - 2026-01-02
 
 ### Fixed
+
 - Windows: "Restart Now" for updates now properly quits the app to install the update
 
 ### Improved
+
 - Uninstall now detects Homebrew (macOS) and winget (Windows) installations and runs the appropriate package manager uninstall command
 
 ## [0.6.3] - 2026-01-02
 
 ### Changed
+
 - **Windows/Linux menus**: Reorganized menus to follow platform conventions
   - Help menu now contains: View on GitHub, Check for Updates, Uninstall, About
   - File menu simplified to just Quit
@@ -1247,71 +1410,85 @@
 ## [0.6.0] - 2026-01-02
 
 ### Added
+
 - **GitHub link in About dialog** - All platforms now show a link to the project's GitHub page
 - **Custom About dialog for Windows/Linux** - Beautiful, modern dialog matching macOS aesthetics with app icon, version, and GitHub link
 
 ### Fixed
+
 - **"Messenger can't be closed" error during auto-update** - Fixed race condition in quit handler that prevented the NSIS installer from starting properly on Windows
 - **Duplicate version display** - Windows no longer shows version in brackets (e.g., was showing "0.5.8 (0.5.8.0)")
 
 ### Changed
+
 - About dialog now respects system dark/light mode on Windows/Linux
 - macOS About panel now includes credits with GitHub URL
 
 ## [0.5.8] - 2026-01-02
 
 ### Changed
+
 - **Update dialogs**: Replaced custom update window with native OS dialogs for a cleaner, more consistent experience
 
 ## [0.5.7] - 2026-01-02
 
 ### Fixed
+
 - **Windows about dialog**: Version now displays correctly (e.g. "0.5.7" instead of "0.5.7.0")
 
 ### Improved
+
 - **Uninstaller**: Now removes app from macOS dock and Windows taskbar when uninstalling
 - **Uninstaller dialog**: Better formatting with spacing between lines on macOS
 
 ## [0.5.6] - 2026-01-02
 
 ### Fixed
+
 - **Windows about dialog**: Version now displays correctly as "0.5.6" instead of "0.5.6.0"
 
 ## [0.5.5] - 2026-01-02
 
 ### Fixed
+
 - **Update dialog fixes**: Restart button now shows correctly, window properly sized for all platforms, uses standard app icon
 - **Windows system tray**: Fixed tray icon not appearing (was malformed ICO file)
 - **Windows tray behavior**: Single-click now shows app (standard Windows convention)
 - **Update install on quit**: If user clicks "Later" then quits, update installs silently without auto-restarting (respects user's choice to quit)
 
 ### Added
+
 - Windows/Linux: "About Messenger" now in File menu
 
 ## [0.5.4] - 2026-01-02
 
 ### Fixed
+
 - macOS: "Check for Updates" no longer shows a brief flash notification - now consistently uses the custom update window
 
 ## [0.5.3] - 2026-01-02
 
 ### Added
+
 - **Visual update progress window** - New unified window shows download progress with speed indicator (works on all platforms)
 - User now chooses when to download updates instead of automatic background downloads
 - Single window transitions through all states: available → downloading → ready to install
 - Cancel button during download, clear error messages if something fails
 
 ### Changed
+
 - **macOS menu reorganization** - "Check for Updates" and "Uninstall" now under the Messenger app menu (more standard macOS behavior)
 - Added standard Window menu on macOS for window management
 - File menu now only contains standard items (Close Window)
 
 ### Fixed
+
 - Updates no longer appear to "download forever" - errors are now shown to the user instead of silently failing
 
 ## [0.5.2] - 2026-01-02
 
 ### Fixed
+
 - macOS dock icon now displays at correct size when app is running (removed custom dock icon override that caused oversized icon)
 - Windows: Clicking taskbar icon now properly restores window when app is running in system tray
 - Auto-update "Restart Now" now properly quits the app to install updates (previously just hid the window due to close-to-tray behavior)
@@ -1319,30 +1496,35 @@
 ## [0.5.1] - 2026-01-02
 
 ### Fixed
+
 - Windows taskbar icon now displays correctly at all sizes (uses ICO file with multiple resolutions)
 
 ## [0.5.0] - 2026-01-02
 
 ### Added
+
 - **Windows ARM support!** Native ARM64 builds for Windows on ARM devices
 - **System tray** for Windows/Linux - app stays running in background when window is closed
 - **Windows taskbar badges** show unread message count overlay
 - Tray context menu with Show/Hide, Check for Updates, and Quit options
-- External links (target="_blank") now open in system browser instead of new Electron windows
+- External links (target="\_blank") now open in system browser instead of new Electron windows
 - Platform and architecture logging on startup for debugging
 
 ### Changed
+
 - **Windows/Linux now use native window frames** instead of custom title bar overlay (cleaner look)
 - Improved Windows taskbar icon grouping with proper AppUserModelId
 - Build scripts are now cross-platform compatible (works on Windows, macOS, Linux)
 - Minimum window width adjusted to ensure sidebar always visible on Windows
 
 ### Fixed
+
 - Windows notifications now show "Messenger" instead of app ID in final builds
 - Muted conversations no longer trigger notifications
 - Icon handling improved across all platforms (rounded icons for Windows/Linux)
 
 ### Technical
+
 - Added `scripts/clean.js` for cross-platform build cleanup
 - Icon generation scripts auto-install dependencies if missing
 - Added `--force` flag to regenerate icons even if they exist
@@ -1351,16 +1533,19 @@
 ## [0.4.2] - 2026-01-02
 
 ### Changed
+
 - Version bump
 
 ## [0.4.1] - 2026-01-01
 
 ### Fixed
+
 - **No more notification spam on app launch!** Existing unread messages are now recorded before notifications are enabled
 - Fixed notifications appearing for every message when opening "Message Requests" or other sections
 - Added settling period after navigation to prevent false notifications when switching between views
 
 ### Technical
+
 - MutationObserver now scans and records all existing unread conversations before accepting new notifications
 - URL change detection triggers re-settling to handle SPA navigation
 - Multiple scan passes ensure late-loading conversations are also recorded
@@ -1368,69 +1553,82 @@
 ## [0.4.0] - 2026-01-01
 
 ### Added
+
 - **Audio & video calls now work!** Added camera and microphone permission support
 - macOS entitlements for camera and microphone access (required for notarized builds)
 - Permission handler for media access requests from messenger.com
 - Notification permission prompt on first launch (macOS)
 
 ### Technical
+
 - Added `entitlements.mac.plist` with camera, microphone, and JIT entitlements
 - Added `setPermissionRequestHandler` and `setPermissionCheckHandler` for media permissions
 
 ## [0.3.1] - 2026-01-01
 
 ### Fixed
+
 - Release workflow now requires CHANGELOG.md entry (no more broken changelog links)
 - Added missing changelog entries for versions 0.1.8 through 0.3.0
 
 ## [0.3.0] - 2026-01-01
 
 ### Changed
+
 - Version bump for stable release
 
 ## [0.2.3] - 2026-01-01
 
 ### Added
+
 - Initial Winget support for Windows users (pending approval)
 
 ## [0.2.2] - 2026-01-01
 
 ### Changed
+
 - Simplified artifact names by removing version numbers for cleaner direct download links
 
 ## [0.2.1] - 2026-01-01
 
 ### Added
+
 - Automatic Homebrew cask update in release workflow
 
 ## [0.2.0] - 2026-01-01
 
 ### Added
+
 - Homebrew installation support for macOS (`brew install apotenza92/tap/facebook-messenger-desktop`)
 - Rounded app icon for README
 
 ## [0.1.9] - 2026-01-01
 
 ### Fixed
+
 - Auto-updater now works on macOS (switched to zip format, added yml manifests to releases)
 - Async/await handling in app initialization
 
 ## [0.1.8] - 2026-01-01
 
 ### Fixed
+
 - Notifications now show correct thread when sidebar is scrolled
 
 ## [0.1.7] - 2026-01-01
 
 ### Added
+
 - Custom DMG installer with branded background and icon for macOS
 
 ### Improved
+
 - Notification fallback system now correctly identifies the sender by reading the newest thread from the chat list
 - Simplified development workflow: `npm run start` for local testing, `npm run dist:*` for releases
 - Auto-updater only runs in production builds (skipped in development mode)
 
 ### Fixed
+
 - Notifications now show the correct sender name and message preview instead of the currently open conversation
 - "Check for Updates" menu item disabled in development mode to avoid errors
 - Removed redundant `start-dev.js` script in favor of simpler `dev.js`
@@ -1438,16 +1636,19 @@
 ## [0.1.6] - 2025-12-31
 
 ### Added
+
 - Fallback notification system for when Messenger's service worker is unavailable
 - Title-based unread count detection triggers native notifications
 
 ## [0.1.5] - 2025-12-30
 
 ### Added
+
 - In-app uninstall command wipes Messenger data (user data, logs, temp) after quit with clearer prompts.
 - Uninstall scheduling runs cleanup after exit to avoid immediate re-creation.
 
 ### Fixed
+
 - Consistent `userData`/logs path pinned to `Messenger` to avoid spawning `facebook-messenger-desktop`.
 - Window state uses pinned path; reset flags still supported.
 - Mac build now produces separate arm64 and x64 DMGs with clearer names; Windows/Linux artifacts named more plainly.
@@ -1455,27 +1656,32 @@
 ## [0.1.4] - 2025-12-30
 
 ### Fixed
+
 - macOS release artifacts are now signed and notarized (CI wired with Apple Developer credentials).
 
 ## [0.1.3] - 2025-12-30
 
 ### Fixed
+
 - Window position/size now persists reliably; added one-time `--reset-window` flag for dev resets.
 - Dev launches pass CLI args through; start script forwards args.
 
 ## [0.1.2] - 2025-12-30
 
 ### Fixed
+
 - Release workflow stability and artifact scope (only dmg/exe/AppImage)
 - Electron-builder config validation (DMG config moved to root)
 
 ## [0.1.1] - 2025-12-30
 
 ### Fixed
+
 - Windows icon packaging (real multi-size ICO)
 - Release workflow: prevent auto-publish, ensure release notes file is generated, and allow contents write
 
 ## [0.1.0] - 2025-12-30
 
 ### Added
+
 - Initial beta release
